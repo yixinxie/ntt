@@ -48,6 +48,7 @@ unsafe public struct NTTManager
 {
     //NativeList<int> Ntt_indices;
     UnsafeList<int> Ntt_versions;
+    //NativeList<void*> ptr;
     UnsafeList<NttArchetypeInfo> archetypes_by_ntt; // each entity has one
     UnsafeList<int> removed_ids;
 
