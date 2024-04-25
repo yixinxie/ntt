@@ -15,7 +15,9 @@ public class SimpleECSMono:MonoBehaviour
         {
             //SimpleECS* pworld = &world;
             world.init();
-            Ntt e0 = world.create_ntt();
+            Ntt e0 = default;
+            //NTTManager.create_ntt_non(ref world, ref e0);
+            e0 = world.create_ntt();
             world.ACD<testcd>(e0);
             world.SCD(e0, new testcd() { value = 321 });
             var t = world.GCD<testcd>(e0);
@@ -44,27 +46,32 @@ public struct Ntt
     public int Index;
     public int Version;
 }
+[BurstCompile]
 unsafe public struct NTTManager
 {
     //NativeList<int> Ntt_indices;
-    UnsafeList<int> Ntt_versions;
+    NativeList<int> Ntt_versions;
     //NativeList<void*> ptr;
-    UnsafeList<NttArchetypeInfo> archetypes_by_ntt; // each entity has one
-    UnsafeList<int> removed_ids;
+    NativeList<NttArchetypeInfo> archetypes_by_ntt; // each entity has one
+    NativeList<int> removed_ids;
 
     
-    UnsafeHashMap<int, ArchetypeDef> archetype_hashes2defs; // archetype hash keys, archetype def
+    NativeHashMap<int, ArchetypeDef> archetype_hashes2defs; // archetype hash keys, archetype def
 
-    UnsafeHashMap<int, DataBlock> data_blocks; // key: archetype hash key, value: data block
-    UnsafeHashMap<ushort, int> cached_component_sizes; // key: component typeid, value: component sizeof
+    NativeHashMap<int, DataBlock> data_blocks; // key: archetype hash key, value: data block
+    NativeHashMap<ushort, int> cached_component_sizes; // key: component typeid, value: component sizeof
     // caching
-    UnsafeHashMap<ushort, UnsafeHashSet<int>> component_types2archetype_map; // key: component typeid, value: hash set of archetype hash keys.
+    NativeHashMap<ushort, NativeHashSet<int>> component_types2archetype_map; // key: component typeid, value: hash set of archetype hash keys.
     int cursor;
+    public static void test_proc(ref NTTManager em)
+    {
+
+    }
     public int get_archetype_count()
     {
         return archetype_hashes2defs.Count;
     }
-    ArchetypeDef create_archetype(ArchetypeDef previous, UnsafeList<ushort> typeids)
+    ArchetypeDef create_archetype(ArchetypeDef previous, NativeList<ushort> typeids)
     {
         //var hash = NttArchetypeDef.hash(previous.component_ids);
 
@@ -73,11 +80,11 @@ unsafe public struct NTTManager
         if (archetype_hashes2defs.TryGetValue(new_hash, out ArchetypeDef newdef) == false)
         {
             newdef = new ArchetypeDef();
-            newdef.component_ids = new UnsafeList<ushort>(4, Allocator.Persistent);
+            newdef.component_ids = new NativeList<ushort>(4, Allocator.Persistent);
 
             if(previous.component_ids.IsCreated)
-                newdef.component_ids.AddRange(previous.component_ids);
-            newdef.component_ids.AddRange(typeids);
+                newdef.component_ids.AddRange(previous.component_ids.AsArray());
+            newdef.component_ids.AddRange(typeids.AsArray());
             newdef.refresh(cached_component_sizes);
 
             archetype_hashes2defs.Add(new_hash, newdef);
@@ -86,14 +93,14 @@ unsafe public struct NTTManager
             for (int i = 0; i < newdef.component_ids.Length;++i)
             {
                 var cid = newdef.component_ids[i];
-                if(component_types2archetype_map.TryGetValue(cid, out UnsafeHashSet<int> archetype_hashes))
+                if(component_types2archetype_map.TryGetValue(cid, out NativeHashSet<int> archetype_hashes))
                 {
                     archetype_hashes.Add(new_hash);
                     component_types2archetype_map[cid] = archetype_hashes;
                 }
                 else
                 {
-                    archetype_hashes = new UnsafeHashSet<int>(4, Allocator.Persistent);
+                    archetype_hashes = new NativeHashSet<int>(4, Allocator.Persistent);
                     archetype_hashes.Add(new_hash);
                     component_types2archetype_map.Add(cid, archetype_hashes);
                 }
@@ -124,21 +131,21 @@ unsafe public struct NTTManager
             {
                 continue;
             }
-            void* from_ptr = datablock_from.raw_data.Ptr + index_in_source * datablock_from.stride + component_offset;
-            void* target_ptr = datablock_target.raw_data.Ptr + index_in_target * datablock_target.stride + component_offset_in_target;
+            void* from_ptr = datablock_from.raw_data.GetUnsafePtr() + index_in_source * datablock_from.stride + component_offset;
+            void* target_ptr = datablock_target.raw_data.GetUnsafePtr() + index_in_target * datablock_target.stride + component_offset_in_target;
             UnsafeUtility.MemCpy(target_ptr, from_ptr, type_sizeof);
             //UnsafeUtility.CopyPtrToStructure(ptr, out data_out);
         }
     }
     public void init()
     {
-        Ntt_versions = new UnsafeList<int>(1024, Allocator.Persistent);
-        removed_ids = new UnsafeList<int>(1024, Allocator.Persistent);
-        archetypes_by_ntt = new UnsafeList<NttArchetypeInfo>(1024, Allocator.Persistent);
-        data_blocks = new UnsafeHashMap<int, DataBlock>(64, Allocator.Persistent);
-        cached_component_sizes = new UnsafeHashMap<ushort, int>(64, Allocator.Persistent);
-        archetype_hashes2defs = new UnsafeHashMap<int, ArchetypeDef>(64, Allocator.Persistent);
-        component_types2archetype_map = new UnsafeHashMap<ushort, UnsafeHashSet<int>>(64, Allocator.Persistent);
+        Ntt_versions = new NativeList<int>(1024, Allocator.Persistent);
+        removed_ids = new NativeList<int>(1024, Allocator.Persistent);
+        archetypes_by_ntt = new NativeList<NttArchetypeInfo>(1024, Allocator.Persistent);
+        data_blocks = new NativeHashMap<int, DataBlock>(64, Allocator.Persistent);
+        cached_component_sizes = new NativeHashMap<ushort, int>(64, Allocator.Persistent);
+        archetype_hashes2defs = new NativeHashMap<int, ArchetypeDef>(64, Allocator.Persistent);
+        component_types2archetype_map = new NativeHashMap<ushort, NativeHashSet<int>>(64, Allocator.Persistent);
         // generated registrations
         cached_component_sizes.Add(new testcd().typeid(), sizeof(testcd));
         cached_component_sizes.Add(new testcd2().typeid(), sizeof(testcd2));
@@ -172,6 +179,12 @@ unsafe public struct NTTManager
         }
         component_types2archetype_map.Dispose();
     }
+    //[BurstCompile]
+    //public static void create_ntt_non(ref NTTManager em, ref Ntt n)
+    //{
+    //    n = em.create_ntt();
+    //}
+    [BurstCompile]
     public Ntt create_ntt()
     {
         Ntt ret;
@@ -200,13 +213,15 @@ unsafe public struct NTTManager
 
         return ret;
     }
+    [BurstCompile]
     public void ACD<T>(Ntt ntt) where T : unmanaged, INttCD
     {
-        UnsafeList<ushort> tmp = new UnsafeList<ushort>(1, Allocator.Temp);
+        NativeList<ushort> tmp = new NativeList<ushort>(1, Allocator.Temp);
         tmp.Add(new T().typeid());
         AddComponents(ntt, tmp);
     }
-    public void AddComponents(Ntt ntt, UnsafeList<ushort> typeids)
+    [BurstCompile]
+    public void AddComponents(Ntt ntt, NativeList<ushort> typeids)
     {
         // get existing archetype
         var per_ntt = archetypes_by_ntt[ntt.Index];
@@ -240,9 +255,10 @@ unsafe public struct NTTManager
         {
             internal_component_data_copy(existing_archetype, index_in_prev, new_type, index_in_new_block);
             previous_block.remove(index_in_prev);
-            data_blocks[new_type.cached_hash] = previous_block;
-        }
+            data_blocks[existing_archetype.cached_hash] = previous_block;
 
+        }
+        data_blocks[new_type.cached_hash] = target_block;
         per_ntt.index_in_data_block = index_in_new_block;
         //per_ntt.archetype = &new_type;
         //per_ntt.data_block = &target_block;
@@ -252,6 +268,7 @@ unsafe public struct NTTManager
         archetypes_by_ntt[ntt.Index] = per_ntt;
 
     }
+    [BurstCompile]
     public void DestroyNtt(Ntt ntt)
     {
         removed_ids.Add(ntt.Index);
@@ -261,10 +278,11 @@ unsafe public struct NTTManager
         if(data_blocks.TryGetValue(per_ntt.archetype_hash, out DataBlock dblock))
         {
             dblock.remove(per_ntt.index_in_data_block);
-            data_blocks[per_ntt.archetype_hash] = dblock;
+            data_blocks[per_ntt.archetype_hash] = dblock; // not needed?
         }
         archetypes_by_ntt[ntt.Index] = default;
     }
+
     public int GetComponentOffset(Ntt ntt, ushort typeid)
     {
         var archetype_info = archetypes_by_ntt[ntt.Index];
@@ -286,7 +304,7 @@ unsafe public struct NTTManager
         }
         return -1;
     }
-
+    [BurstCompile]
     public T GCD<T>(Ntt ntt) where T:unmanaged, INttCD
     {
         T data_out = default;
@@ -300,14 +318,14 @@ unsafe public struct NTTManager
                 if (data_blocks.TryGetValue(archetype.archetype_hash, out DataBlock data_block))
                 {
                     //var index_in_cgd = icg.indices_in_component_group;
-                    void* ptr = data_block.raw_data.Ptr + archetype.index_in_data_block * data_block.stride + component_offset;
+                    void* ptr = data_block.raw_data.GetUnsafePtr() + archetype.index_in_data_block * data_block.stride + component_offset;
                     UnsafeUtility.CopyPtrToStructure(ptr, out data_out);
                 }
             }
         }
         return data_out;
     }
-
+    [BurstCompile]
     public void SCD<T>(Ntt ntt, T data_in) where T : unmanaged, INttCD
     {
         ushort typeid = data_in.typeid();
@@ -317,9 +335,9 @@ unsafe public struct NTTManager
             int component_offset = GetComponentOffset(ntt, typeid);
             if (component_offset >= 0)
             {
-                void* ptr = data_block.raw_data.Ptr + archetype.index_in_data_block * data_block.stride + component_offset;
+                void* ptr = data_block.raw_data.GetUnsafePtr() + archetype.index_in_data_block * data_block.stride + component_offset;
                 UnsafeUtility.CopyStructureToPtr(ref data_in, ptr);
-                data_blocks[archetype.archetype_hash] = data_block;
+                //data_blocks[archetype.archetype_hash] = data_block;
             }
         }
     }
@@ -335,22 +353,22 @@ unsafe public struct NttArchetypeInfo // one per Ntt
 
 unsafe public struct ArchetypeDef // multiple entities can share one archetypedef.
 {
-    public UnsafeList<ushort> component_ids;
-    public UnsafeHashMap<ushort, int> component_offsets; // component typeid, offset
+    public NativeList<ushort> component_ids;
+    public NativeHashMap<ushort, int> component_offsets; // component typeid, offset
     public int cached_hash;
     public void dispose()
     {
         component_ids.Dispose();
         component_offsets.Dispose();
     }
-    public void refresh(UnsafeHashMap<ushort, int> typeids2sizes)
+    public void refresh(NativeHashMap<ushort, int> typeids2sizes)
     {
         component_ids.Sort();
         if(component_offsets.IsCreated)
         {
             component_offsets.Dispose();
         }
-        component_offsets = new UnsafeHashMap<ushort, int>(component_ids.Length, Allocator.Persistent);
+        component_offsets = new NativeHashMap<ushort, int>(component_ids.Length, Allocator.Persistent);
         int offset_incre = 0;
         for(int i = 0; i < component_ids.Length; ++i)
         {
@@ -363,7 +381,7 @@ unsafe public struct ArchetypeDef // multiple entities can share one archetypede
         }
         cached_hash = hash(component_ids);
     }
-    public static int hash(UnsafeList<ushort> component_ids)
+    public static int hash(NativeList<ushort> component_ids)
     {
         unchecked
         {
@@ -376,19 +394,19 @@ unsafe public struct ArchetypeDef // multiple entities can share one archetypede
             return hash;
         }
     }
-    public static int hash(ArchetypeDef def, UnsafeList<ushort> more)
+    public static int hash(ArchetypeDef def, NativeList<ushort> more)
     {
-        UnsafeList<ushort> tmp;
+        NativeList<ushort> tmp;
         if (def.component_ids.IsCreated == false)
         {
-            tmp = new UnsafeList<ushort>(1, Allocator.Temp);
+            tmp = new NativeList<ushort>(1, Allocator.Temp);
         }
         else
         {
-            tmp = new UnsafeList<ushort>(def.component_ids.Length + 1, Allocator.Temp);
-            tmp.AddRange(def.component_ids.Ptr, def.component_ids.Length);
+            tmp = new NativeList<ushort>(def.component_ids.Length + 1, Allocator.Temp);
+            tmp.AddRange(def.component_ids.GetUnsafePtr(), def.component_ids.Length);
         }
-        tmp.AddRange(more);
+        tmp.AddRange(more.AsArray());
         tmp.Sort();
         unchecked
         {
@@ -407,18 +425,20 @@ unsafe public struct DataBlock
 {
     public int stride;
     public int cursor;
-    public UnsafeList<byte> raw_data;
-    public UnsafeList<int> removed_ids;
+    public NativeList<byte> raw_data;
+    public NativeList<int> removed_ids;
     public void init(int _stride)
     {
         stride = _stride;
-        raw_data = new UnsafeList<byte>(1024, Allocator.Persistent);
-        removed_ids = new UnsafeList<int>(64, Allocator.Persistent);
+        raw_data = new NativeList<byte>(1024, Allocator.Persistent);
+        removed_ids = new NativeList<int>(64, Allocator.Persistent);
     }
     public void dispose()
     {
-        raw_data.Dispose();
-        removed_ids.Dispose();
+        if(raw_data.IsCreated)
+            raw_data.Dispose();
+        if(removed_ids.IsCreated)
+            removed_ids.Dispose();
     }
     public void remove(int idx)
     {
@@ -442,7 +462,7 @@ unsafe public struct DataBlock
             //{
             //}
         }
-        UnsafeUtility.MemSet(raw_data.Ptr + id2use * stride, 0, stride);
+        UnsafeUtility.MemSet(raw_data.GetUnsafePtr() + id2use * stride, 0, stride);
         
         return id2use;
     }
