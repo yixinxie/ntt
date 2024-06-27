@@ -29,42 +29,198 @@ public partial class BNH
     }
     
 }
-// codegen
+//// codegen
+//public partial struct cmpt : IAutoSerialized
+//{
+//    public const int type_hash = 123;
+//    // managed
+//    public void send(NetworkDriver nd, NetworkConnection target, NetworkPipeline np)
+//    {
+//        NativeList<byte> buffer = pack(Allocator.Temp);
+
+//        nd.BeginSend(np, target, out var writer);
+//        writer.WriteBytes(buffer.AsArray());
+//        nd.EndSend(writer);
+//    }
+//    public NativeList<byte> pack(Allocator alloc)
+//    {
+//        NativeList<byte> buffer = new NativeList<byte>(32, alloc);
+//        Bursted.us_struct(buffer, type_hash);
+//        Bursted.us_struct_partial(buffer, ref this, 8);
+//        Bursted.us_na(buffer, na);
+//        Bursted.us_na(buffer, nl_floats);
+
+//        return buffer;
+//    }
+
+//    public void unpack(NativeList<byte> buffer, ref int offset, Allocator alloc)
+//    {
+//        //Bursted.ud_struct_partial(buffer, ref this, 8, ref offset);
+//        //Bursted.ud_na(buffer, out na, ref offset, alloc);
+//        //Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
+
+//        Bursted.ud_struct_partial(buffer, ref this, 8, ref offset);
+
+//        Bursted.ud_na(buffer, out na, ref offset, alloc);
+//        Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
+
+
+//    }
+//}
+
+
 public partial struct cmpt : IAutoSerialized
+
 {
-    public const int type_hash = 123;
-    // managed
-    public void send(NetworkDriver nd, NetworkConnection target, NetworkPipeline np)
-    {
-        NativeList<byte> buffer = pack(Allocator.Temp);
 
-        nd.BeginSend(np, target, out var writer);
-        writer.WriteBytes(buffer.AsArray());
-        nd.EndSend(writer);
-    }
-    public NativeList<byte> pack(Allocator alloc)
-    {
-        NativeList<byte> buffer = new NativeList<byte>(32, alloc);
-        Bursted.us_struct(buffer, type_hash);
-        Bursted.us_struct_partial(buffer, ref this, 8);
-        Bursted.us_na(buffer, na);
-        Bursted.us_na(buffer, nl_floats);
-
-        return buffer;
-    }
+    public const int type_hash = 258093858;
 
     public void unpack(NativeList<byte> buffer, ref int offset, Allocator alloc)
+
     {
-        //Bursted.ud_struct_partial(buffer, ref this, 8, ref offset);
-        //Bursted.ud_na(buffer, out na, ref offset, alloc);
-        //Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
 
         Bursted.ud_struct_partial(buffer, ref this, 8, ref offset);
 
         Bursted.ud_na(buffer, out na, ref offset, alloc);
+
         Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
 
 
     }
+
+}
+
+
+
+
+public partial struct cmpt0 : IAutoSerialized
+
+{
+
+    public const int type_hash = 445649330;
+
+    public void unpack(NativeList<byte> buffer, ref int offset, Allocator alloc)
+
+    {
+
+        Bursted.ud_struct_partial(buffer, ref this, 0, ref offset);
+
+        Bursted.ud_na(buffer, out na, ref offset, alloc);
+
+        Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
+
+
+    }
+
+}
+
+
+
+
+public partial struct cmpt2 : IAutoSerialized
+
+{
+
+    public const int type_hash = 445649328;
+
+    public void unpack(NativeList<byte> buffer, ref int offset, Allocator alloc)
+
+    {
+
+        Bursted.ud_struct_partial(buffer, ref this, 5, ref offset);
+
+        Bursted.ud_na(buffer, out na, ref offset, alloc);
+
+
+    }
+
+}
+
+
+
+
+public partial struct cmpt : IAutoSerialized
+
+{
+
+    public NativeList<byte> pack(Allocator alloc)
+
+    {
+
+        NativeList<byte> buffer = new NativeList<byte>(32, alloc);
+
+        Bursted.us_struct(buffer, type_hash);
+
+        Bursted.us_struct_partial(buffer, ref this, 8);
+
+        Bursted.us_na(buffer, na);
+
+        Bursted.us_na(buffer, nl_floats);
+
+
+
+
+        return buffer;
+
+    }
+
+}
+
+
+
+
+public partial struct cmpt0 : IAutoSerialized
+
+{
+
+    public NativeList<byte> pack(Allocator alloc)
+
+    {
+
+        NativeList<byte> buffer = new NativeList<byte>(32, alloc);
+
+        Bursted.us_struct(buffer, type_hash);
+
+        Bursted.us_struct_partial(buffer, ref this, 0);
+
+        Bursted.us_na(buffer, na);
+
+        Bursted.us_na(buffer, nl_floats);
+
+
+
+
+        return buffer;
+
+    }
+
+}
+
+
+
+
+public partial struct cmpt2 : IAutoSerialized
+
+{
+
+    public NativeList<byte> pack(Allocator alloc)
+
+    {
+
+        NativeList<byte> buffer = new NativeList<byte>(32, alloc);
+
+        Bursted.us_struct(buffer, type_hash);
+
+        Bursted.us_struct_partial(buffer, ref this, 5);
+
+        Bursted.us_na(buffer, na);
+
+
+
+
+        return buffer;
+
+    }
+
 }
 

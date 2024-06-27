@@ -8,6 +8,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Mathematics;
 using Unity.Networking.Transport;
 using UnityEditor;
 using UnityEngine;
@@ -98,6 +99,19 @@ public struct TestICD : IComponentData
 {
     public int value;
 }
+
+[System.Serializable]
+public partial struct cmpt0 : IAutoSerialized
+{
+
+    public NativeArray<int> na;
+    public NativeList<float> nl_floats;
+    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    {
+
+    }
+
+}
 [System.Serializable]
 public partial struct cmpt : IAutoSerialized
 {
@@ -111,7 +125,18 @@ public partial struct cmpt : IAutoSerialized
     }
 
 }
+[System.Serializable]
+public partial struct cmpt2 : IAutoSerialized
+{
+    public float val;
+    public byte val2;
+    public NativeArray<int2> na;
+    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    {
 
+    }
+
+}
 
 // bursted network helpers
 [BurstCompile]
