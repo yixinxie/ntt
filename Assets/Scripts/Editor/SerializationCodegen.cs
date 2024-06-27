@@ -110,8 +110,9 @@ public class SerializationCodegen : MonoBehaviour
         generateCSCode2();
 
     }
-    static Dictionary<string, string> get_dict1(object o)
+    static Dictionary<string, string> type2three(object o)
     {
+        if (o == null) return new Dictionary<string, string>();
         Type type = (Type)o;
         const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Public |
             BindingFlags.Instance;
@@ -140,52 +141,27 @@ public class SerializationCodegen : MonoBehaviour
         ret.Add("%offset%", accumulated_size.ToString());
         return ret;
     }
-    static Dictionary<string, string> get_dict2(object o)
-    {
-        //Type type = (Type)o;
-        ////Debug.Log(type.Name);
-        //Dictionary<string, string> ret = new Dictionary<string, string>();
-        //const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Public |
-        //BindingFlags.Instance;
-
-        //FieldInfo[] fields = type.GetFields(flags);
-        //// reorder
-        //int accumulated_size = 0;
-        //int collection_start = 0;
-        //for (int i = 0; i < fields.Length; ++i)
-        //{
-        //    FieldInfo fieldInfo = fields[i];
-        //    int field_size = Marshal.SizeOf(fieldInfo.FieldType);
-
-        //    var ttypes = fieldInfo.FieldType.GetGenericArguments();
-        //    if (ttypes.Length > 0)
-        //    {
-        //        collection_start = i;
-        //        break;
-        //    }
-        //    accumulated_size += field_size;
-
-        //}
-
-        //ret.Add("%offset%", accumulated_size.ToString());
-        string type = (string)o;
-        //Debug.Log(type.Name);
-        Dictionary<string, string> ret = new Dictionary<string, string>();
-
-        ret.Add("%mbr%", type);
-        return ret;
-    }
-    static Dictionary<string, string> get_dict3(object o)
+    
+    static Dictionary<string, string> type2name(object o)
     {
         Type type = (Type)o;
-        Debug.Log(type.Name);
+        //Debug.Log(type.Name);
         Dictionary<string, string> ret = new Dictionary<string, string>();
 
         ret.Add("%mbr%", type.Name);
 
         return ret;
     }
-    static List<object> controllers0(object key)
+
+    static Dictionary<string, string> name2name(object o)
+    {
+        Dictionary<string, string> ret = new Dictionary<string, string>();
+
+        ret.Add("%mbr%", (string)o);
+
+        return ret;
+    }
+    static List<object> get_all_ias_types(object key)
     {
         Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
         var baseType = typeof(IAutoSerialized);
@@ -211,7 +187,7 @@ public class SerializationCodegen : MonoBehaviour
         types.Add(key);
         return types;
     }
-    static List<object> controllers2(object key)
+    static List<object> get_ias_collections(object key)
     {
         Type type = (Type)key;
         List<object> types = new List<object>();
@@ -261,28 +237,30 @@ public class SerializationCodegen : MonoBehaviour
     }
     static void generateCSCode2()
     {
-        var lines = t_super.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var s0 = for_each(lines.ToList(), 0, null,
+        string s0 = "";
+        string[] lines;
+        lines = t_super.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        s0 += for_each(lines.ToList(), 0, null,
             (int tmp, object key) =>
             {
-                if(tmp == 0)
-                    return controllers0(key);
+                if (tmp == 0)
+                    return get_all_ias_types(key);
                 else if (tmp == 1)
-                    return controllers1(key);
-                else if (tmp == 2)
-                    return controllers2(key);
+                    return get_ias_collections(key);
+                //else if (tmp == 2)
+                //    return controllers2(key);
                 return null;
             },
-        
+
             (object o, int idx) =>
             {
-                if(idx == 1)
-                    return get_dict1(o);
+                if (idx == 1)
+                    return type2three(o);
                 else if (idx == 2)
-                    return get_dict2(o);
-                else if (idx == 3)
-                    return get_dict3(o);
-                return new Dictionary<string, string>(0);
+                    return name2name(o);
+                //else if (idx == 3)
+                //    return get_dict3(o);
+                return new Dictionary<string, string>();
             }
         );
         lines = t_super2.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -290,22 +268,46 @@ public class SerializationCodegen : MonoBehaviour
             (int tmp, object key) =>
             {
                 if (tmp == 0)
-                    return controllers0(key);
+                    return get_all_ias_types(key);
                 else if (tmp == 1)
-                    return controllers1(key);
-                else if (tmp == 2)
-                    return controllers2(key);
+                    return get_ias_collections(key);
+                //else if (tmp == 2)
+                //    return controllers2(key);
                 return null;
             },
 
             (object o, int idx) =>
             {
                 if (idx == 1)
-                    return get_dict1(o);
+                    return type2three(o);
                 else if (idx == 2)
-                    return get_dict2(o);
-                else if (idx == 3)
-                    return get_dict3(o);
+                    return name2name(o);
+                return new Dictionary<string, string>(0);
+            }
+        );
+
+
+        lines = template_switch.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        s0 += for_each(lines.ToList(), 0, null,
+            (int tmp, object key) =>
+            {
+                if (tmp == 0)
+                    return get_all_ias_types(key);
+                else if (tmp == 1)
+                    return controllers1(key);
+                //else if (tmp == 2)
+                //    return controllers2(key);
+                return null;
+            },
+
+            (object o, int idx) =>
+            {
+                if (idx == 1)
+                    return type2three(o);
+                else if (idx == 2)
+                    return type2name(o);
+                //else if (idx == 3)
+                //    return get_dict3(o);
                 return new Dictionary<string, string>(0);
             }
         );
@@ -316,15 +318,11 @@ public class SerializationCodegen : MonoBehaviour
     {
         string ret = "";
         //if (ptr >= controllers.Length) return ret;
-        var listobj = controllers(ptr, key);
-        if (listobj == null)
-        {
-            return ret;
-        }
+        
         //Debug.Log(listobj.Count);
-        for (int k = 0; k < listobj.Count; ++k)
+        
         {
-            var dict = funcs(listobj[k], ptr);
+            var dict = funcs(key, ptr);
             for (int i = 0; i < strs.Count; ++i)
             {
                 var cur = strs[i];
@@ -340,7 +338,15 @@ public class SerializationCodegen : MonoBehaviour
                     {
                         next.Add(strs[j]);
                     }
-                    ret += for_each(next, ptr + 1, listobj[k], controllers, funcs);
+                    var listobj = controllers(ptr, key);
+                    if (listobj == null)
+                    {
+                        return ret;
+                    }
+                    for (int k = 0; k < listobj.Count; ++k)
+                    {
+                        ret += for_each(next, ptr + 1, listobj[k], controllers, funcs);
+                    }
                     i = end_idx;
                 }
                 else
@@ -356,9 +362,13 @@ public class SerializationCodegen : MonoBehaviour
         return ret;
     }
 
+
+
     static string t_super = @"
+using Unity.Collections;
+using Unity.Networking.Transport;
 %for%
-public partial struct %name% : IAutoSerialized
+public partial struct %name% : IAutoSerialized // auto-generated
 {
     public const int type_hash = %hash%;
     public void unpack(NativeList<byte> buffer, ref int offset, Allocator alloc)
@@ -373,7 +383,7 @@ public partial struct %name% : IAutoSerialized
 
     static string t_super2 = @"
 %for%
-public partial struct %name% : IAutoSerialized
+public partial struct %name% : IAutoSerialized // auto-generated
 {
     public NativeList<byte> pack(Allocator alloc)
     {
@@ -389,4 +399,24 @@ public partial struct %name% : IAutoSerialized
 }
 %end%";
 
+
+    static string template_switch = @"
+public partial class BNH // auto-generated
+{
+    public static void rpc_switch(int type_hash, ref int offset, NativeList<byte> buffer, NetworkConnection sender, NetworkDriver m_Driver, NetworkPipeline pl)
+    {
+        switch (type_hash)
+        {
+%for%
+            case %name%.type_hash:
+                {
+                    %name% _data = default;
+                    _data.unpack(buffer, ref offset, Allocator.Temp);
+                    _data.callback(m_Driver, sender, pl);
+                }
+                break;
+%end%
+        }
+    }
+}";
 }

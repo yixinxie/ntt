@@ -162,7 +162,7 @@ public partial class BNH
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -196,14 +196,8 @@ public partial class BNH
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
-                    //uint number = stream.ReadUInt();
-
-                    ////Debug.Log($"Got {number} from a client, adding 2 to it.");
-                    //number += 2;
-                    //m_Driver.BeginSend(pl, conn, out var writer);
-                    //writer.WriteUInt(number);
-                    //m_Driver.EndSend(writer);
+                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                   
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
