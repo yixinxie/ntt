@@ -1,17 +1,30 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
+using System.Security.Policy;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Networking.Transport;
+using UnityEditor;
 using UnityEngine;
+
 
 public class BurstTest : MonoBehaviour
 {
     // Start is called before the first frame update
     void Start()
     {
+        cmpt c = default;
+        NetworkDriver nd = default;
+        NetworkPipeline np = default;
+        NetworkConnection networkConnection= default;
+        //c.send(nd, networkConnection, np);
+        //BNH.send_bursted(ref nd, ref networkConnection, ref np, ref c);
+        //c.send(default, default, default);
         var em = World.DefaultGameObjectInjectionWorld.EntityManager;
         TestBursted.test_em(ref em);
         Debug.Log(TestBursted.test_nastna());
@@ -84,4 +97,97 @@ public class TestBursted
 public struct TestICD : IComponentData
 {
     public int value;
+}
+[System.Serializable]
+public partial struct cmpt : IAutoSerialized
+{
+    public int val;
+    public int val2;
+    public NativeArray<int> na;
+    public NativeList<float> nl_floats;
+    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    {
+
+    }
+
+}
+
+
+// bursted network helpers
+[BurstCompile]
+public partial class BNH
+{
+    public static void managed_rpc_update(NativeArray<NetworkConnection> m_Connections, NetworkDriver m_Driver, NetworkPipeline pl)
+    {
+        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
+        for (int i = 0; i < m_Connections.Length; i++)
+        {
+            DataStreamReader stream;
+            NetworkEvent.Type cmd;
+            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
+            {
+                var conn = m_Connections[i];
+                if (cmd == NetworkEvent.Type.Data)
+                {
+                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
+                    stream.ReadBytes(tmp);
+
+                    buffer.Clear();
+                    buffer.AddRange(tmp);
+                    int offset = 0;
+                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
+
+                    rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                }
+                else if (cmd == NetworkEvent.Type.Disconnect)
+                {
+                    //Debug.Log("Client disconnected from the server.");
+                    m_Connections[i] = default;
+                    break;
+                }
+            }
+        }
+    }
+
+    
+    [BurstCompile]
+    public static void bursted_rpc_update(ref NativeArray<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl)
+    {
+        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
+        for (int i = 0; i < m_Connections.Length; i++)
+        {
+            DataStreamReader stream;
+            NetworkEvent.Type cmd;
+            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
+            {
+                var conn = m_Connections[i];
+                if (cmd == NetworkEvent.Type.Data)
+                {
+                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
+                    stream.ReadBytes(tmp);
+
+                    buffer.Clear();
+                    buffer.AddRange(tmp);
+                    int offset = 0;
+                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
+
+                    rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                    //uint number = stream.ReadUInt();
+
+                    ////Debug.Log($"Got {number} from a client, adding 2 to it.");
+                    //number += 2;
+                    //m_Driver.BeginSend(pl, conn, out var writer);
+                    //writer.WriteUInt(number);
+                    //m_Driver.EndSend(writer);
+                }
+                else if (cmd == NetworkEvent.Type.Disconnect)
+                {
+                    //Debug.Log("Client disconnected from the server.");
+                    m_Connections[i] = default;
+                    break;
+                }
+            }
+        }
+    }
+
 }

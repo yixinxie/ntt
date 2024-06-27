@@ -9,10 +9,30 @@ using System.Security.Cryptography;
 public class SimpleECSMono:MonoBehaviour
 {
     public NTTManager world;
+    public cmpt tt;
     void Start()
     {
         //unsafe
         {
+            //var tt = new cmpt();
+            tt.val = 1;
+            tt.val2 = 2;
+            tt.na = new NativeArray<int>(2, Allocator.Temp);
+            tt.na[0] = 3;
+            tt.na[1] = 4;
+
+            tt.nl_floats = new NativeList<float>(2, Allocator.Temp);
+            tt.nl_floats.Add(1.23f);
+            Debug.Log(tt.val2 + ", " + tt.na[1] + ", " + tt.nl_floats[0]);
+
+            var buf = tt.pack(Allocator.Temp);
+            tt = default;
+            int offset = 4;
+            tt.unpack(buf, ref offset, Allocator.Temp);
+
+            Debug.Log(tt.na[0] + ", " + tt.na[1] + ", " + tt.nl_floats[0]);
+
+
             //SimpleECS* pworld = &world;
             world.init();
             Ntt e0 = default;
