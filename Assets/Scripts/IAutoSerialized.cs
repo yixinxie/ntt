@@ -27,7 +27,7 @@ public partial class BNH
                 break;
         }
     }
-
+    
 }
 // codegen
 public partial struct cmpt : IAutoSerialized
@@ -55,9 +55,16 @@ public partial struct cmpt : IAutoSerialized
 
     public void unpack(NativeList<byte> buffer, ref int offset, Allocator alloc)
     {
+        //Bursted.ud_struct_partial(buffer, ref this, 8, ref offset);
+        //Bursted.ud_na(buffer, out na, ref offset, alloc);
+        //Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
+
         Bursted.ud_struct_partial(buffer, ref this, 8, ref offset);
-        //Bursted.ud_struct_partial(buffer, val, 56);
+
         Bursted.ud_na(buffer, out na, ref offset, alloc);
         Bursted.ud_na(buffer, out nl_floats, ref offset, alloc);
+
+
     }
 }
+
