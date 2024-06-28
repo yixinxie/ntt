@@ -8,6 +8,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Mathematics;
 using Unity.Networking.Transport;
 using UnityEditor;
 using UnityEngine;
@@ -98,6 +99,19 @@ public struct TestICD : IComponentData
 {
     public int value;
 }
+
+[System.Serializable]
+public partial struct cmpt0 : IAutoSerialized
+{
+
+    public NativeArray<int> na;
+    public NativeList<float> nl_floats;
+    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    {
+
+    }
+
+}
 [System.Serializable]
 public partial struct cmpt : IAutoSerialized
 {
@@ -111,7 +125,18 @@ public partial struct cmpt : IAutoSerialized
     }
 
 }
+[System.Serializable]
+public partial struct cmpt2 : IAutoSerialized
+{
+    public float val;
+    public byte val2;
+    public NativeArray<int2> na;
+    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    {
 
+    }
+
+}
 
 // bursted network helpers
 [BurstCompile]
@@ -137,7 +162,7 @@ public partial class BNH
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -171,14 +196,8 @@ public partial class BNH
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
-                    //uint number = stream.ReadUInt();
-
-                    ////Debug.Log($"Got {number} from a client, adding 2 to it.");
-                    //number += 2;
-                    //m_Driver.BeginSend(pl, conn, out var writer);
-                    //writer.WriteUInt(number);
-                    //m_Driver.EndSend(writer);
+                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                   
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
