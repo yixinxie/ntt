@@ -17,97 +17,17 @@ using Unity.Entities.UniversalDelegates;
 using Unity.Networking.Transport;
 using UnityEditor;
 using UnityEngine;
+using static Unity.Burst.Intrinsics.X86.Avx;
 
 public class SerializationCodegen : MonoBehaviour
 {
-    //[MenuItem("Codegen/Serialization")]
-    //public static void codgen()
-    //{
-    //    _GenerateNetworkingCode("", typeof(IAutoSerialized), "");
-
-    //}
-    //public static void _GenerateNetworkingCode(string generatedScriptPath, Type baseType, string template)
-    //{
-    //    Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-    //    List<Type> types = new List<Type>();
-    //    for (int i = 0; i < assemblies.Length; ++i)
-    //    {
-    //        Type[] assemblyTypes = assemblies[i].GetTypes();
-    //        for (int j = 0; j < assemblyTypes.Length; ++j)
-    //        {
-    //            if (assemblyTypes[j].IsInterface) continue;
-    //            if (baseType.IsAssignableFrom(assemblyTypes[j]))
-    //            {
-    //                types.Add(assemblyTypes[j]);
-    //            }
-    //        }
-    //    }
-    //    types.Sort((x, y) => x.Name.CompareTo(y.Name));
-    //    StringBuilder stringBuilder = new StringBuilder();
-    //    Debug.Log(types.Count + " found");
-    //    for (int i = 0; i < types.Count; ++i)
-    //    {
-    //        // one class.
-    //        Type thisType = types[i];
-    //        string fullClassName = thisType.ToString(); // with namespace
-    //        string className = fullClassName;
-    //        Debug.Log(thisType.Name + " generated");
-    //        generateCSCode(types[i], stringBuilder);
-
-    //    }
-    //    Debug.Log(stringBuilder);
-
-    //    AssetDatabase.Refresh();
-    //}
-    //static void generateCSCode(Type type, StringBuilder stringBuilder)
-    //{
-    //    const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Public |
-    //        BindingFlags.Instance;
-
-    //    FieldInfo[] fields = type.GetFields(flags);
-    //    // reorder
-    //    int accumulated_size = 0;
-    //    int collection_start = 0;
-    //    for (int i = 0; i < fields.Length; ++i)
-    //    {
-    //        FieldInfo fieldInfo = fields[i];
-    //        int field_size = Marshal.SizeOf(fieldInfo.FieldType);
-            
-    //        var ttypes = fieldInfo.FieldType.GetGenericArguments();
-    //        if (ttypes.Length > 0)
-    //        {
-    //            collection_start = i;
-    //            break;
-    //        }
-    //        accumulated_size += field_size;
-
-    //    }
-    //    stringBuilder.AppendFormat("Bursted.us_struct_partial(buffer, val, {0});", accumulated_size);
-    //    stringBuilder.Append(Environment.NewLine);
-
-    //    for (int i = collection_start; i < fields.Length; ++i)
-    //    {
-    //        FieldInfo fieldInfo = fields[i];
-    //        int field_size = Marshal.SizeOf(fieldInfo.FieldType);
-    //        accumulated_size += field_size;
-    //        var ttypes = fieldInfo.FieldType.GetGenericArguments();
-    //        if (ttypes.Length > 0)
-    //        {
-    //            stringBuilder.AppendFormat("Bursted.us_na(raw, {0});", fieldInfo.Name);
-    //        }
-    //        else
-    //        {
-    //            stringBuilder.AppendFormat("Debug.LogWarning(\"not right!\"):" + fieldInfo.Name);
-    //            //break;
-    //        }
-    //        stringBuilder.Append(Environment.NewLine);
-    //    }
-    //}
-
-    [MenuItem("Codegen/test")]
-    public static void codgen2()
+    [MenuItem("Codegen/Serialization")]
+    public static void codegen()
     {
-        generateCSCode2();
+        var generated = generateCSCode2();
+        File.WriteAllText("Assets/Scripts/IAutoSerialized_codegen.cs", generated);
+        AssetDatabase.Refresh();
+        //Debug.Log(generateCSCode2());
 
     }
     static Dictionary<string, string> type2three(object o)
@@ -142,16 +62,16 @@ public class SerializationCodegen : MonoBehaviour
         return ret;
     }
     
-    static Dictionary<string, string> type2name(object o)
-    {
-        Type type = (Type)o;
-        //Debug.Log(type.Name);
-        Dictionary<string, string> ret = new Dictionary<string, string>();
+    //static Dictionary<string, string> type2name(object o)
+    //{
+    //    Type type = (Type)o;
+    //    //Debug.Log(type.Name);
+    //    Dictionary<string, string> ret = new Dictionary<string, string>();
 
-        ret.Add("%mbr%", type.Name);
+    //    ret.Add("%mbr%", type.Name);
 
-        return ret;
-    }
+    //    return ret;
+    //}
 
     static Dictionary<string, string> name2name(object o)
     {
@@ -181,12 +101,7 @@ public class SerializationCodegen : MonoBehaviour
         types.Sort((x, y) => ((Type)x).Name.CompareTo(((Type)y).Name));
         return types;
     }
-    static List<object> controllers1(object key)
-    {
-        List<object> types = new List<object>();
-        types.Add(key);
-        return types;
-    }
+
     static List<object> get_ias_collections(object key)
     {
         Type type = (Type)key;
@@ -235,17 +150,21 @@ public class SerializationCodegen : MonoBehaviour
         }
         return types;
     }
-    static void generateCSCode2()
+    static string generateCSCode2()
     {
-        string s0 = "";
+        int max_depth_0 = 0;
+        int max_depth_1 = 0;
+        char splitter = '\n';
+        StringBuilder sbuilder = new StringBuilder();
         string[] lines;
-        lines = t_super.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        s0 += for_each(lines.ToList(), 0, null,
-            (int tmp, object key) =>
+        lines = template_unpack.Split(splitter);
+        for_each(sbuilder, lines.ToList(), 0, null,
+            (int idx, object key) =>
             {
-                if (tmp == 0)
+                if (max_depth_0 < idx) max_depth_0 = idx;
+                if (idx == 0)
                     return get_all_ias_types(key);
-                else if (tmp == 1)
+                else if (idx == 1)
                     return get_ias_collections(key);
                 //else if (tmp == 2)
                 //    return controllers2(key);
@@ -254,6 +173,7 @@ public class SerializationCodegen : MonoBehaviour
 
             (object o, int idx) =>
             {
+                if (max_depth_1 < idx) max_depth_1 = idx;
                 if (idx == 1)
                     return type2three(o);
                 else if (idx == 2)
@@ -263,21 +183,27 @@ public class SerializationCodegen : MonoBehaviour
                 return new Dictionary<string, string>();
             }
         );
-        lines = t_super2.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        s0 += for_each(lines.ToList(), 0, null,
-            (int tmp, object key) =>
+
+        Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
+        max_depth_0 = max_depth_1 = 0;
+
+        lines = template_pack.Split(splitter);
+        for_each(sbuilder, lines.ToList(), 0, null,
+            (int idx, object key) =>
             {
-                if (tmp == 0)
+                if (max_depth_0 < idx) max_depth_0 = idx;
+
+                if (idx == 0)
                     return get_all_ias_types(key);
-                else if (tmp == 1)
+                else if (idx == 1)
                     return get_ias_collections(key);
                 //else if (tmp == 2)
                 //    return controllers2(key);
                 return null;
             },
-
-            (object o, int idx) =>
-            {
+        (object o, int idx) =>
+        {
+                if (max_depth_1 < idx) max_depth_1 = idx;
                 if (idx == 1)
                     return type2three(o);
                 else if (idx == 2)
@@ -286,85 +212,80 @@ public class SerializationCodegen : MonoBehaviour
             }
         );
 
+        Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
+        max_depth_0 = max_depth_1 = 0;
 
-        lines = template_switch.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        s0 += for_each(lines.ToList(), 0, null,
-            (int tmp, object key) =>
+
+        lines = template_switch.Split(splitter);
+        for_each(sbuilder, lines.ToList(), 0, null,
+            (int idx, object key) =>
             {
-                if (tmp == 0)
+                if (max_depth_0 < idx) max_depth_0 = idx;
+                if (idx == 0)
                     return get_all_ias_types(key);
-                else if (tmp == 1)
-                    return controllers1(key);
-                //else if (tmp == 2)
-                //    return controllers2(key);
+                //else if (idx == 1)
+                //    return controllers1(key);
                 return null;
             },
 
             (object o, int idx) =>
             {
+                if (max_depth_1 < idx) max_depth_1 = idx;
                 if (idx == 1)
                     return type2three(o);
-                else if (idx == 2)
-                    return type2name(o);
-                //else if (idx == 3)
-                //    return get_dict3(o);
+                //else if (idx == 2)
+                //    return type2name(o);
                 return new Dictionary<string, string>(0);
             }
         );
-        Debug.Log(s0);
+        Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
+        return sbuilder.ToString();
     }
 
-    static string for_each(List<string> strs, int ptr, object key, Func<int, object, List<object>> controllers, Func<object, int, Dictionary<string, string>> funcs)
+    static void for_each(StringBuilder sbuilder, List<string> strs, int ptr, object key, Func<int, object, List<object>> controllers, Func<object, int, Dictionary<string, string>> funcs)
     {
-        string ret = "";
-        //if (ptr >= controllers.Length) return ret;
-        
-        //Debug.Log(listobj.Count);
-        
+
+        var dict = funcs(key, ptr);
+        for (int i = 0; i < strs.Count; ++i)
         {
-            var dict = funcs(key, ptr);
-            for (int i = 0; i < strs.Count; ++i)
+            var cur = strs[i];
+            if (cur.TrimStart(new char[] { '\t', ' '}).StartsWith("%for"))
             {
-                var cur = strs[i];
-                if (cur.TrimStart(new char[] { '\t', ' '}).StartsWith("%for"))
+                List<string> next = new List<string>();
+                int end_idx = strs.Count - 1;
+                for (; end_idx >= i + 1; --end_idx)
                 {
-                    List<string> next = new List<string>();
-                    int end_idx = strs.Count - 1;
-                    for (; end_idx >= i + 1; --end_idx)
-                    {
-                        if (strs[end_idx].TrimStart('\t', ' ').StartsWith("%end")) break;
-                    }
-                    for (int j = i + 1; j < end_idx; ++j)
-                    {
-                        next.Add(strs[j]);
-                    }
-                    var listobj = controllers(ptr, key);
-                    if (listobj == null)
-                    {
-                        return ret;
-                    }
-                    for (int k = 0; k < listobj.Count; ++k)
-                    {
-                        ret += for_each(next, ptr + 1, listobj[k], controllers, funcs);
-                    }
-                    i = end_idx;
+                    if (strs[end_idx].TrimStart('\t', ' ').StartsWith("%end")) break;
                 }
-                else
+                for (int j = i + 1; j < end_idx; ++j)
                 {
-                    foreach (var kvp in dict)
-                    {
-                        cur = cur.Replace(kvp.Key, kvp.Value);
-                    }
-                    ret += cur + Environment.NewLine;
+                    next.Add(strs[j]);
                 }
+                var listobj = controllers(ptr, key);
+                if (listobj == null)
+                {
+                    return;
+                }
+                for (int k = 0; k < listobj.Count; ++k)
+                {
+                    for_each(sbuilder, next, ptr + 1, listobj[k], controllers, funcs);
+                }
+                i = end_idx;
+            }
+            else
+            {
+                foreach (var kvp in dict)
+                {
+                    cur = cur.Replace(kvp.Key, kvp.Value);
+                }
+                sbuilder.Append(cur);
+                //ret += cur + Environment.NewLine;
             }
         }
-        return ret;
+
     }
 
-
-
-    static string t_super = @"
+    static string template_unpack = @"
 using Unity.Collections;
 using Unity.Networking.Transport;
 %for%
@@ -381,7 +302,7 @@ public partial struct %name% : IAutoSerialized // auto-generated
 }
 %end%";
 
-    static string t_super2 = @"
+    static string template_pack = @"
 %for%
 public partial struct %name% : IAutoSerialized // auto-generated
 {

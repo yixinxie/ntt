@@ -25,10 +25,10 @@ public class SimpleECSMono:MonoBehaviour
             tt.nl_floats.Add(1.23f);
             Debug.Log(tt.val2 + ", " + tt.na[1] + ", " + tt.nl_floats[0]);
 
-            var buf = tt.pack(Allocator.Temp);
-            tt = default;
-            int offset = 4;
-            tt.unpack(buf, ref offset, Allocator.Temp);
+            //var buf = tt.pack(Allocator.Temp);
+            //tt = default;
+            //int offset = 4;
+            //tt.unpack(buf, ref offset, Allocator.Temp);
 
             Debug.Log(tt.na[0] + ", " + tt.na[1] + ", " + tt.nl_floats[0]);
 
