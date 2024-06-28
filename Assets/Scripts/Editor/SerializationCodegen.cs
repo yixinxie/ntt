@@ -62,16 +62,16 @@ public class SerializationCodegen : MonoBehaviour
         return ret;
     }
     
-    static Dictionary<string, string> type2name(object o)
-    {
-        Type type = (Type)o;
-        //Debug.Log(type.Name);
-        Dictionary<string, string> ret = new Dictionary<string, string>();
+    //static Dictionary<string, string> type2name(object o)
+    //{
+    //    Type type = (Type)o;
+    //    //Debug.Log(type.Name);
+    //    Dictionary<string, string> ret = new Dictionary<string, string>();
 
-        ret.Add("%mbr%", type.Name);
+    //    ret.Add("%mbr%", type.Name);
 
-        return ret;
-    }
+    //    return ret;
+    //}
 
     static Dictionary<string, string> name2name(object o)
     {
@@ -101,12 +101,7 @@ public class SerializationCodegen : MonoBehaviour
         types.Sort((x, y) => ((Type)x).Name.CompareTo(((Type)y).Name));
         return types;
     }
-    static List<object> controllers1(object key)
-    {
-        List<object> types = new List<object>();
-        types.Add(key);
-        return types;
-    }
+
     static List<object> get_ias_collections(object key)
     {
         Type type = (Type)key;
@@ -159,10 +154,10 @@ public class SerializationCodegen : MonoBehaviour
     {
         int max_depth_0 = 0;
         int max_depth_1 = 0;
-
+        char splitter = '\n';
         StringBuilder sbuilder = new StringBuilder();
         string[] lines;
-        lines = template_unpack.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        lines = template_unpack.Split(splitter);
         for_each(sbuilder, lines.ToList(), 0, null,
             (int idx, object key) =>
             {
@@ -192,7 +187,7 @@ public class SerializationCodegen : MonoBehaviour
         Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
         max_depth_0 = max_depth_1 = 0;
 
-        lines = template_pack.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        lines = template_pack.Split(splitter);
         for_each(sbuilder, lines.ToList(), 0, null,
             (int idx, object key) =>
             {
@@ -220,7 +215,8 @@ public class SerializationCodegen : MonoBehaviour
         Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
         max_depth_0 = max_depth_1 = 0;
 
-        lines = template_switch.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        lines = template_switch.Split(splitter);
         for_each(sbuilder, lines.ToList(), 0, null,
             (int idx, object key) =>
             {
@@ -288,8 +284,6 @@ public class SerializationCodegen : MonoBehaviour
         }
 
     }
-
-
 
     static string template_unpack = @"
 using Unity.Collections;
