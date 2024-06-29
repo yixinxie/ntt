@@ -176,7 +176,7 @@ public partial class BNH
 
     
     [BurstCompile]
-    public static void bursted_rpc_update(ref NativeArray<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl)
+    public static void bursted_rpc_update(ref NativeList<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl, ref SystemState state, ref ServerUpdateSystem sworld)
     {
         NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
         for (int i = 0; i < m_Connections.Length; i++)
@@ -196,7 +196,7 @@ public partial class BNH
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+                    rpc_switch(type_hash, ref offset, conn, buffer, ref sworld);
                    
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
