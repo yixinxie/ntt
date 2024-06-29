@@ -106,7 +106,7 @@ public partial struct cmpt0 : IAutoSerialized
 
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
-    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
     {
 
     }
@@ -119,7 +119,7 @@ public partial struct cmpt : IAutoSerialized
     public int val2;
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
-    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
     {
 
     }
@@ -131,7 +131,7 @@ public partial struct cmpt2 : IAutoSerialized
     public float val;
     public byte val2;
     public NativeArray<int2> na;
-    public void callback(NetworkDriver nd, NetworkConnection sender, NetworkPipeline np)
+    public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
     {
 
     }
@@ -176,7 +176,7 @@ public partial class BNH
 
     
     [BurstCompile]
-    public static void bursted_rpc_update(ref NativeList<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl, ref SystemState state, ref ServerUpdateSystem sworld)
+    public static void bursted_rpc_update(ref NativeList<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl, ref SystemState state, ref ServerMainSystem sworld)
     {
         NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
         for (int i = 0; i < m_Connections.Length; i++)

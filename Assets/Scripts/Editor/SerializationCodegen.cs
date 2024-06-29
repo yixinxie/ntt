@@ -324,7 +324,7 @@ public partial struct %name% : IAutoSerialized // auto-generated
     static string template_switch = @"
 public partial class BNH // auto-generated
 {
-    public static void rpc_switch(int type_hash, ref int offset, NativeList<byte> buffer, NetworkConnection sender, NetworkDriver m_Driver, NetworkPipeline pl)
+    public static void rpc_switch(int type_hash, ref int offset, NetworkConnection sender, NativeList<byte> buffer, ref ServerMainSystem s_world)
     {
         switch (type_hash)
         {
@@ -333,7 +333,7 @@ public partial class BNH // auto-generated
                 {
                     %name% _data = default;
                     _data.unpack(buffer, ref offset, Allocator.Temp);
-                    _data.callback(m_Driver, sender, pl);
+                    _data.callback(sender, ref s_world);
                 }
                 break;
 %end%

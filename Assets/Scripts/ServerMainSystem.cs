@@ -5,7 +5,7 @@ using Unity.Entities;
 using Unity.Burst;
 
 [BurstCompile]
-public partial struct ServerUpdateSystem : ISystem
+public partial struct ServerMainSystem : ISystem
 {
     public NetworkDriver m_Driver;
     public NativeList<NetworkConnection> m_Connections;
