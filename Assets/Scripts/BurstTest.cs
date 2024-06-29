@@ -14,33 +14,6 @@ using UnityEditor;
 using UnityEngine;
 
 
-public class BurstTest : MonoBehaviour
-{
-    // Start is called before the first frame update
-    void Start()
-    {
-        cmpt c = default;
-        NetworkDriver nd = default;
-        NetworkPipeline np = default;
-        NetworkConnection networkConnection= default;
-        //c.send(nd, networkConnection, np);
-        //BNH.send_bursted(ref nd, ref networkConnection, ref np, ref c);
-        //c.send(default, default, default);
-        var em = World.DefaultGameObjectInjectionWorld.EntityManager;
-        TestBursted.test_em(ref em);
-        Debug.Log(TestBursted.test_nastna());
-    }
-    public int dbg;
-    // Update is called once per frame
-    void Update()
-    {
-        UnsafeList<byte> list = new UnsafeList<byte>(8, Allocator.TempJob);
-        dbg = TestBursted.bursted(ref list);
-        list.Dispose();
-    }
-
-    
-}
 [BurstCompile]
 public class TestBursted
 {
@@ -101,19 +74,19 @@ public struct TestICD : IComponentData
 }
 
 [System.Serializable]
-public partial struct cmpt0 : IAutoSerialized
+public partial struct cmpt0 : IAutoSerialized, IS2C_RPC
 {
 
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
-    public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
+    public void callback(NetworkConnection sender, ref ClientMainSystem s_world)
     {
 
     }
 
 }
 [System.Serializable]
-public partial struct cmpt : IAutoSerialized
+public partial struct cmpt : IAutoSerialized, IC2S_RPC
 {
     public int val;
     public int val2;
@@ -126,7 +99,7 @@ public partial struct cmpt : IAutoSerialized
 
 }
 [System.Serializable]
-public partial struct cmpt2 : IAutoSerialized
+public partial struct cmpt2 : IAutoSerialized, IC2S_RPC
 {
     public float val;
     public byte val2;
@@ -142,6 +115,7 @@ public partial struct cmpt2 : IAutoSerialized
 [BurstCompile]
 public partial class BNH
 {
+    
     public static void managed_rpc_update(NativeArray<NetworkConnection> m_Connections, NetworkDriver m_Driver, NetworkPipeline pl)
     {
         NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);

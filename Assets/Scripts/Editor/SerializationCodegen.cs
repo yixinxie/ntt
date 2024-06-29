@@ -102,6 +102,48 @@ public class SerializationCodegen : MonoBehaviour
         return types;
     }
 
+    static List<object> get_all_c2s_types(object key)
+    {
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        var baseType = typeof(IC2S_RPC);
+        List<object> types = new List<object>();
+        for (int i = 0; i < assemblies.Length; ++i)
+        {
+            Type[] assemblyTypes = assemblies[i].GetTypes();
+            for (int j = 0; j < assemblyTypes.Length; ++j)
+            {
+                if (assemblyTypes[j].IsInterface) continue;
+                if (baseType.IsAssignableFrom(assemblyTypes[j]))
+                {
+                    types.Add(assemblyTypes[j]);
+                }
+            }
+        }
+        types.Sort((x, y) => ((Type)x).Name.CompareTo(((Type)y).Name));
+        return types;
+    }
+
+    static List<object> get_all_s2c_types(object key)
+    {
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        var baseType = typeof(IS2C_RPC);
+        List<object> types = new List<object>();
+        for (int i = 0; i < assemblies.Length; ++i)
+        {
+            Type[] assemblyTypes = assemblies[i].GetTypes();
+            for (int j = 0; j < assemblyTypes.Length; ++j)
+            {
+                if (assemblyTypes[j].IsInterface) continue;
+                if (baseType.IsAssignableFrom(assemblyTypes[j]))
+                {
+                    types.Add(assemblyTypes[j]);
+                }
+            }
+        }
+        types.Sort((x, y) => ((Type)x).Name.CompareTo(((Type)y).Name));
+        return types;
+    }
+
     static List<object> get_ias_collections(object key)
     {
         Type type = (Type)key;
@@ -216,13 +258,13 @@ public class SerializationCodegen : MonoBehaviour
         max_depth_0 = max_depth_1 = 0;
 
 
-        lines = template_switch.Split(splitter);
+        lines = template_c2s_switch.Split(splitter);
         for_each(sbuilder, lines.ToList(), 0, null,
             (int idx, object key) =>
             {
                 if (max_depth_0 < idx) max_depth_0 = idx;
                 if (idx == 0)
-                    return get_all_ias_types(key);
+                    return get_all_c2s_types(key);
                 //else if (idx == 1)
                 //    return controllers1(key);
                 return null;
@@ -239,6 +281,32 @@ public class SerializationCodegen : MonoBehaviour
             }
         );
         Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
+        max_depth_0 = max_depth_1 = 0;
+
+        lines = template_s2c_switch.Split(splitter);
+        for_each(sbuilder, lines.ToList(), 0, null,
+            (int idx, object key) =>
+            {
+                if (max_depth_0 < idx) max_depth_0 = idx;
+                if (idx == 0)
+                    return get_all_s2c_types(key);
+                //else if (idx == 1)
+                //    return controllers1(key);
+                return null;
+            },
+
+            (object o, int idx) =>
+            {
+                if (max_depth_1 < idx) max_depth_1 = idx;
+                if (idx == 1)
+                    return type2three(o);
+                //else if (idx == 2)
+                //    return type2name(o);
+                return new Dictionary<string, string>(0);
+            }
+        );
+        Debug.Log("max depths: " + max_depth_0 + ", " + max_depth_1);
+
         return sbuilder.ToString();
     }
 
@@ -317,14 +385,36 @@ public partial struct %name% : IAutoSerialized // auto-generated
 
         return buffer;
     }
+
+    unsafe public void send(NetworkConnection target, NetworkDriver driver)
+    {
+        NativeList<byte> bytes = pack(Allocator.Temp);
+        driver.BeginSend(target, out var writer);
+        writer.WriteBytes(bytes.AsArray());
+        driver.EndSend(writer);
+    }
 }
 %end%";
 
+    static string template_x2x_send = @"
+%for%
+public partial struct %name% : IRPC_C2S // auto-generated
+{
+    unsafe public void send(NetworkConnection target, NetworkDriver driver)
+    {
+        NativeList<byte> bytes = pack(Allocator.Temp);
+        driver.BeginSend(target, out var writer);
+        writer.WriteBytes(bytes.AsArray());
+        driver.EndSend(writer);
+    }
+}
+%end%";
+    
 
-    static string template_switch = @"
+    static string template_c2s_switch = @"
 public partial class BNH // auto-generated
 {
-    public static void rpc_switch(int type_hash, ref int offset, NetworkConnection sender, NativeList<byte> buffer, ref ServerMainSystem s_world)
+    public static void rpc_switch(int type_hash, ref int offset, NetworkConnection sender, NativeList<byte> buffer, ref ServerMainSystem ctx)
     {
         switch (type_hash)
         {
@@ -333,7 +423,27 @@ public partial class BNH // auto-generated
                 {
                     %name% _data = default;
                     _data.unpack(buffer, ref offset, Allocator.Temp);
-                    _data.callback(sender, ref s_world);
+                    _data.callback(sender, ref ctx);
+                }
+                break;
+%end%
+        }
+    }
+}";
+
+    static string template_s2c_switch = @"
+public partial class BNH // auto-generated
+{
+    public static void rpc_switch(int type_hash, ref int offset, NetworkConnection sender, NativeList<byte> buffer, ref ClientMainSystem ctx)
+    {
+        switch (type_hash)
+        {
+%for%
+            case %name%.type_hash:
+                {
+                    %name% _data = default;
+                    _data.unpack(buffer, ref offset, Allocator.Temp);
+                    _data.callback(sender, ref ctx);
                 }
                 break;
 %end%
