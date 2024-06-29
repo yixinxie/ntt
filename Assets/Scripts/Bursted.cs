@@ -182,6 +182,11 @@ public partial class Bursted
     {
         unsafe
         {
+            if (db.IsCreated == false)
+            {
+                us_struct(ref buffer, 0);
+                return;
+            }
             us_struct(ref buffer, db.Length);
             int offset = buffer.Length;
             int stride = sizeof(T);
@@ -198,6 +203,11 @@ public partial class Bursted
     {
         unsafe
         {
+            if (db.IsCreated == false)
+            {
+                us_struct(target_buffer, 0);
+                return;
+            }
             us_struct(target_buffer, db.Length);
             int offset = target_buffer.Length;
             int stride = sizeof(T);
@@ -214,6 +224,11 @@ public partial class Bursted
     {
         unsafe
         {
+            if(db.IsCreated == false)
+            {
+                us_struct(target_buffer, 0);
+                return;
+            }
             us_struct(target_buffer, db.Length);
             int offset = target_buffer.Length;
             int stride = sizeof(T);

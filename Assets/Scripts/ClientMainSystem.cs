@@ -59,6 +59,7 @@ public partial struct ClientMainSystem : ISystem
                 //writer.WriteUInt(value);
                 //m_Driver.EndSend(writer);
                 cmpt a = default;
+                a.val = 123;
                 a.send(m_Connection, m_Driver);
 
             }

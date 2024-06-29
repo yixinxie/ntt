@@ -76,12 +76,12 @@ public struct TestICD : IComponentData
 [System.Serializable]
 public partial struct cmpt0 : IAutoSerialized, IS2C_RPC
 {
-
+    public float f_val;
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
     public void callback(NetworkConnection sender, ref ClientMainSystem s_world)
     {
-
+        Debug.Log("client receives " + f_val + ", " + nl_floats.Length);
     }
 
 }
@@ -92,9 +92,12 @@ public partial struct cmpt : IAutoSerialized, IC2S_RPC
     public int val2;
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
-    public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
+    public void callback(NetworkConnection sender, ref ServerMainSystem ctx)
     {
-
+        Debug.Log("server receives" + val);
+        cmpt0 resp = default;
+        resp.f_val = 1.235f;
+        resp.send(sender, ctx.m_Driver);
     }
 
 }
@@ -106,7 +109,6 @@ public partial struct cmpt2 : IAutoSerialized, IC2S_RPC
     public NativeArray<int2> na;
     public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
     {
-
     }
 
 }
