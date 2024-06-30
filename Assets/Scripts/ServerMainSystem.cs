@@ -36,7 +36,7 @@ public partial struct ServerMainSystem : ISystem
             m_Connections.Dispose();
         }
     }
-    [BurstCompile]
+    //[BurstCompile]
     void OnUpdate(ref SystemState state)
     {
         m_Driver.ScheduleUpdate().Complete();
@@ -78,7 +78,7 @@ public partial struct ServerMainSystem : ISystem
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    BNH.rpc_switch(type_hash, ref offset, conn, buffer, ref this);
+                    ServerRPCs.switcher(type_hash, ref offset, ref conn, ref buffer, ref this, ref state);
 
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)

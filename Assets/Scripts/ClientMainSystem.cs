@@ -36,7 +36,7 @@ public partial struct ClientMainSystem : ISystem
             m_Driver.Dispose();
         }
     }
-    [BurstCompile]
+    //[BurstCompile]
     void OnUpdate(ref SystemState state)
     {
         m_Driver.ScheduleUpdate().Complete();
@@ -60,7 +60,7 @@ public partial struct ClientMainSystem : ISystem
                 //m_Driver.EndSend(writer);
                 cmpt a = default;
                 a.val = 123;
-                a.send(m_Connection, m_Driver);
+                a.send(m_Connection, pl, m_Driver);
 
             }
             else if (cmd == NetworkEvent.Type.Data)
@@ -73,7 +73,7 @@ public partial struct ClientMainSystem : ISystem
                 int offset = 0;
                 Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                BNH.rpc_switch(type_hash, ref offset, m_Connection, buffer, ref this);
+                ClientRPCs.switcher(type_hash, ref offset, ref m_Connection, ref buffer, ref this, ref state);
 
                 //uint value = stream.ReadUInt();
                 //Debug.Log($"Got the value {value} back from the server.");

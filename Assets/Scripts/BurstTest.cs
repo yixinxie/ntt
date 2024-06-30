@@ -73,116 +73,112 @@ public struct TestICD : IComponentData
     public int value;
 }
 
-[System.Serializable]
 public partial struct cmpt0 : IAutoSerialized, IS2C_RPC
 {
     public float f_val;
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
-    public void callback(NetworkConnection sender, ref ClientMainSystem s_world)
+    public void callback(NetworkConnection sender, ref ClientMainSystem s_world, ref SystemState sstate)
     {
-        Debug.Log("client receives " + f_val + ", " + nl_floats.Length);
+        //Debug.Log("client receives " + f_val + ", " + nl_floats.Length);
     }
-
 }
-[System.Serializable]
 public partial struct cmpt : IAutoSerialized, IC2S_RPC
 {
     public int val;
     public int val2;
     public NativeArray<int> na;
     public NativeList<float> nl_floats;
-    public void callback(NetworkConnection sender, ref ServerMainSystem ctx)
+    public void callback(NetworkConnection sender, ref ServerMainSystem ctx, ref SystemState sstate)
     {
-        Debug.Log("server receives" + val);
+        //Debug.Log("server receives" + val);
         cmpt0 resp = default;
         resp.f_val = 1.235f;
-        resp.send(sender, ctx.m_Driver);
+        resp.send(sender, ctx.pl, ctx.m_Driver);
     }
 
 }
-[System.Serializable]
 public partial struct cmpt2 : IAutoSerialized, IC2S_RPC
 {
     public float val;
     public byte val2;
     public NativeArray<int2> na;
-    public void callback(NetworkConnection sender, ref ServerMainSystem s_world)
+    public void callback(NetworkConnection sender, ref ServerMainSystem s_world, ref SystemState sstate)
     {
     }
 
 }
 
-// bursted network helpers
-[BurstCompile]
-public partial class BNH
-{
+//// bursted network helpers
+//[BurstCompile]
+//public partial class BNH
+//{
     
-    public static void managed_rpc_update(NativeArray<NetworkConnection> m_Connections, NetworkDriver m_Driver, NetworkPipeline pl)
-    {
-        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
-        for (int i = 0; i < m_Connections.Length; i++)
-        {
-            DataStreamReader stream;
-            NetworkEvent.Type cmd;
-            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
-            {
-                var conn = m_Connections[i];
-                if (cmd == NetworkEvent.Type.Data)
-                {
-                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
-                    stream.ReadBytes(tmp);
+//    public static void managed_rpc_update(NativeArray<NetworkConnection> m_Connections, NetworkDriver m_Driver, NetworkPipeline pl)
+//    {
+//        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
+//        for (int i = 0; i < m_Connections.Length; i++)
+//        {
+//            DataStreamReader stream;
+//            NetworkEvent.Type cmd;
+//            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
+//            {
+//                var conn = m_Connections[i];
+//                if (cmd == NetworkEvent.Type.Data)
+//                {
+//                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
+//                    stream.ReadBytes(tmp);
 
-                    buffer.Clear();
-                    buffer.AddRange(tmp);
-                    int offset = 0;
-                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
+//                    buffer.Clear();
+//                    buffer.AddRange(tmp);
+//                    int offset = 0;
+//                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
-                }
-                else if (cmd == NetworkEvent.Type.Disconnect)
-                {
-                    //Debug.Log("Client disconnected from the server.");
-                    m_Connections[i] = default;
-                    break;
-                }
-            }
-        }
-    }
+//                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
+//                }
+//                else if (cmd == NetworkEvent.Type.Disconnect)
+//                {
+//                    //Debug.Log("Client disconnected from the server.");
+//                    m_Connections[i] = default;
+//                    break;
+//                }
+//            }
+//        }
+//    }
 
     
-    [BurstCompile]
-    public static void bursted_rpc_update(ref NativeList<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl, ref SystemState state, ref ServerMainSystem sworld)
-    {
-        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
-        for (int i = 0; i < m_Connections.Length; i++)
-        {
-            DataStreamReader stream;
-            NetworkEvent.Type cmd;
-            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
-            {
-                var conn = m_Connections[i];
-                if (cmd == NetworkEvent.Type.Data)
-                {
-                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
-                    stream.ReadBytes(tmp);
+//    [BurstCompile]
+//    public static void bursted_rpc_update(ref NativeList<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl, ref SystemState state, ref ServerMainSystem sworld)
+//    {
+//        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
+//        for (int i = 0; i < m_Connections.Length; i++)
+//        {
+//            DataStreamReader stream;
+//            NetworkEvent.Type cmd;
+//            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
+//            {
+//                var conn = m_Connections[i];
+//                if (cmd == NetworkEvent.Type.Data)
+//                {
+//                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
+//                    stream.ReadBytes(tmp);
 
-                    buffer.Clear();
-                    buffer.AddRange(tmp);
-                    int offset = 0;
-                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
+//                    buffer.Clear();
+//                    buffer.AddRange(tmp);
+//                    int offset = 0;
+//                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    rpc_switch(type_hash, ref offset, conn, buffer, ref sworld);
+//                    rpc_switch(type_hash, ref offset, conn, buffer, ref sworld);
                    
-                }
-                else if (cmd == NetworkEvent.Type.Disconnect)
-                {
-                    //Debug.Log("Client disconnected from the server.");
-                    m_Connections[i] = default;
-                    break;
-                }
-            }
-        }
-    }
+//                }
+//                else if (cmd == NetworkEvent.Type.Disconnect)
+//                {
+//                    //Debug.Log("Client disconnected from the server.");
+//                    m_Connections[i] = default;
+//                    break;
+//                }
+//            }
+//        }
+//    }
 
-}
+//}

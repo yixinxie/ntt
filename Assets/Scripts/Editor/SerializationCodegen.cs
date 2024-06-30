@@ -356,6 +356,8 @@ public class SerializationCodegen : MonoBehaviour
     static string template_unpack = @"
 using Unity.Collections;
 using Unity.Networking.Transport;
+using Unity.Entities;
+using Unity.Burst;
 %for%
 public partial struct %name% : IAutoSerialized // auto-generated
 {
@@ -386,35 +388,22 @@ public partial struct %name% : IAutoSerialized // auto-generated
         return buffer;
     }
 
-    unsafe public void send(NetworkConnection target, NetworkDriver driver)
+    unsafe public void send(NetworkConnection target, NetworkPipeline pipe, NetworkDriver driver)
     {
         NativeList<byte> bytes = pack(Allocator.Temp);
-        driver.BeginSend(target, out var writer);
+        driver.BeginSend(pipe, target, out var writer);
         writer.WriteBytes(bytes.AsArray());
         driver.EndSend(writer);
     }
 }
 %end%";
-
-    static string template_x2x_send = @"
-%for%
-public partial struct %name% : IRPC_C2S // auto-generated
-{
-    unsafe public void send(NetworkConnection target, NetworkDriver driver)
-    {
-        NativeList<byte> bytes = pack(Allocator.Temp);
-        driver.BeginSend(target, out var writer);
-        writer.WriteBytes(bytes.AsArray());
-        driver.EndSend(writer);
-    }
-}
-%end%";
-    
 
     static string template_c2s_switch = @"
-public partial class BNH // auto-generated
+[BurstCompile]
+public partial class ServerRPCs // auto-generated
 {
-    public static void rpc_switch(int type_hash, ref int offset, NetworkConnection sender, NativeList<byte> buffer, ref ServerMainSystem ctx)
+    [BurstCompile]
+    public static void switcher(int type_hash, ref int offset, ref NetworkConnection sender, ref NativeList<byte> buffer, ref ServerMainSystem ctx, ref SystemState sstate)
     {
         switch (type_hash)
         {
@@ -423,7 +412,7 @@ public partial class BNH // auto-generated
                 {
                     %name% _data = default;
                     _data.unpack(buffer, ref offset, Allocator.Temp);
-                    _data.callback(sender, ref ctx);
+                    _data.callback(sender, ref ctx, ref sstate);
                 }
                 break;
 %end%
@@ -432,9 +421,11 @@ public partial class BNH // auto-generated
 }";
 
     static string template_s2c_switch = @"
-public partial class BNH // auto-generated
+[BurstCompile]
+public partial class ClientRPCs // auto-generated
 {
-    public static void rpc_switch(int type_hash, ref int offset, NetworkConnection sender, NativeList<byte> buffer, ref ClientMainSystem ctx)
+    [BurstCompile]
+    public static void switcher(int type_hash, ref int offset, ref NetworkConnection sender, ref NativeList<byte> buffer, ref ClientMainSystem ctx, ref SystemState sstate)
     {
         switch (type_hash)
         {
@@ -443,7 +434,7 @@ public partial class BNH // auto-generated
                 {
                     %name% _data = default;
                     _data.unpack(buffer, ref offset, Allocator.Temp);
-                    _data.callback(sender, ref ctx);
+                    _data.callback(sender, ref ctx, ref sstate);
                 }
                 break;
 %end%
