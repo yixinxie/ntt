@@ -159,11 +159,35 @@ public partial class Bursted
             //UnsafeUtility.CopyStructureToPtr(ref val, buffer.GetUnsafePtr() + offset);
         }
     }
-    public static void us_struct<T>(NativeList<byte> buffer, T val, int offset) where T : unmanaged
+
+    public static void us_generic<T>(NativeList<byte> buffer, T val) where T : unmanaged
     {
         unsafe
         {
+            int offset = buffer.Length;
+            buffer.AddReplicate(0, sizeof(T));
             UnsafeUtility.CopyStructureToPtr(ref val, buffer.GetUnsafePtr() + offset);
+        }
+    }
+    public static void us_generic<T>(NativeList<byte> target_buffer, NativeArray<T> db) where T : unmanaged
+    {
+        unsafe
+        {
+            if (db.IsCreated == false)
+            {
+                us_struct(target_buffer, 0);
+                return;
+            }
+            us_struct(target_buffer, db.Length);
+            int offset = target_buffer.Length;
+            int stride = sizeof(T);
+            target_buffer.AddReplicate(0, stride * db.Length);
+            for (int i = 0; i < db.Length; ++i)
+            {
+                var tmp = db[i];
+                UnsafeUtility.CopyStructureToPtr(ref tmp, target_buffer.GetUnsafePtr() + offset);
+                offset += stride;
+            }
         }
     }
     public static void us_struct_and_length<T>(NativeList<byte> buffer, T val) where T : unmanaged
@@ -178,27 +202,27 @@ public partial class Bursted
         }
     }
 
-    public static void us_na<T>(ref UnsafeList<byte> buffer, NativeArray<T> db) where T : unmanaged
-    {
-        unsafe
-        {
-            if (db.IsCreated == false)
-            {
-                us_struct(ref buffer, 0);
-                return;
-            }
-            us_struct(ref buffer, db.Length);
-            int offset = buffer.Length;
-            int stride = sizeof(T);
-            buffer.AddReplicate(0, stride * db.Length);
-            for (int i = 0; i < db.Length; ++i)
-            {
-                var tmp = db[i];
-                UnsafeUtility.CopyStructureToPtr(ref tmp, buffer.Ptr + offset);
-                offset += stride;
-            }
-        }
-    }
+    //public static void us_na<T>(ref UnsafeList<byte> buffer, NativeArray<T> db) where T : unmanaged
+    //{
+    //    unsafe
+    //    {
+    //        if (db.IsCreated == false)
+    //        {
+    //            us_struct(ref buffer, 0);
+    //            return;
+    //        }
+    //        us_struct(ref buffer, db.Length);
+    //        int offset = buffer.Length;
+    //        int stride = sizeof(T);
+    //        buffer.AddReplicate(0, stride * db.Length);
+    //        for (int i = 0; i < db.Length; ++i)
+    //        {
+    //            var tmp = db[i];
+    //            UnsafeUtility.CopyStructureToPtr(ref tmp, buffer.Ptr + offset);
+    //            offset += stride;
+    //        }
+    //    }
+    //}
     public static void us_na<T>(NativeList<byte> target_buffer, NativeArray<T> db) where T : unmanaged
     {
         unsafe

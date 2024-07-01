@@ -1,7 +1,10 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Security.Policy;
 using Unity.Burst;
@@ -15,7 +18,7 @@ using UnityEngine;
 
 
 [BurstCompile]
-public class TestBursted
+public class BurstTest
 {
     struct teststruct
     {
@@ -108,77 +111,57 @@ public partial struct cmpt2 : IAutoSerialized, IC2S_RPC
     }
 
 }
+[StructLayout(LayoutKind.Sequential)]
+public partial struct c_cmpt0
+{
+    byte a;
+    public double fval;
+    public int ival;
+    public NativeArray<float> fl_na;
+    unsafe public void serialize(NativeList<byte> buffer)
+    {
+        fixed (void* pp2 = &fl_na)
+        {
+            fixed (void* pp = &a)
+            {
+                //IntPtr ip = (IntPtr*)pp;
+                var aa = (int)pp2 - (int)pp;
+                Debug.Log("addr diff " + aa);
+            }
+        }
+        fixed (void* pp = &a)
+        {
 
-//// bursted network helpers
-//[BurstCompile]
-//public partial class BNH
-//{
-    
-//    public static void managed_rpc_update(NativeArray<NetworkConnection> m_Connections, NetworkDriver m_Driver, NetworkPipeline pl)
-//    {
-//        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
-//        for (int i = 0; i < m_Connections.Length; i++)
-//        {
-//            DataStreamReader stream;
-//            NetworkEvent.Type cmd;
-//            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
-//            {
-//                var conn = m_Connections[i];
-//                if (cmd == NetworkEvent.Type.Data)
-//                {
-//                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
-//                    stream.ReadBytes(tmp);
 
-//                    buffer.Clear();
-//                    buffer.AddRange(tmp);
-//                    int offset = 0;
-//                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
+            int offset = buffer.Length;
+            int len = 24;
+            buffer.AddReplicate(0, len);
+            //UnsafeUtility.copy(p, buffer.GetUnsafePtr() + offset);
+            UnsafeUtility.MemCpy(buffer.GetUnsafePtr() + offset, pp, len);
+        }
+        //var ptr = Marshal.unsafe(val, 0);
+    }
 
-//                    //rpc_switch(type_hash, ref offset, buffer, conn, m_Driver, pl);
-//                }
-//                else if (cmd == NetworkEvent.Type.Disconnect)
-//                {
-//                    //Debug.Log("Client disconnected from the server.");
-//                    m_Connections[i] = default;
-//                    break;
-//                }
-//            }
-//        }
-//    }
+    unsafe public void deserialize(NativeList<byte> buffer, ref int offset)
+    {
+        fixed (void* pp = &a)
+        {
+            int len = 24;
+            //UnsafeUtility.copy(p, buffer.GetUnsafePtr() + offset);
+            UnsafeUtility.MemCpy(pp, buffer.GetUnsafePtr() + offset,  len);
+            offset += len;
+        }
 
-    
-//    [BurstCompile]
-//    public static void bursted_rpc_update(ref NativeList<NetworkConnection> m_Connections, ref NetworkDriver m_Driver, ref NetworkPipeline pl, ref SystemState state, ref ServerMainSystem sworld)
-//    {
-//        NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
-//        for (int i = 0; i < m_Connections.Length; i++)
-//        {
-//            DataStreamReader stream;
-//            NetworkEvent.Type cmd;
-//            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
-//            {
-//                var conn = m_Connections[i];
-//                if (cmd == NetworkEvent.Type.Data)
-//                {
-//                    NativeArray<byte> tmp = new NativeArray<byte>(stream.Length, Allocator.Temp);
-//                    stream.ReadBytes(tmp);
+        //fixed (void* pp = &val.fval)
+        //{
 
-//                    buffer.Clear();
-//                    buffer.AddRange(tmp);
-//                    int offset = 0;
-//                    Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-//                    rpc_switch(type_hash, ref offset, conn, buffer, ref sworld);
-                   
-//                }
-//                else if (cmd == NetworkEvent.Type.Disconnect)
-//                {
-//                    //Debug.Log("Client disconnected from the server.");
-//                    m_Connections[i] = default;
-//                    break;
-//                }
-//            }
-//        }
-//    }
-
-//}
+        //    int offset = buffer.Length;
+        //    int len = 8;
+        //    buffer.AddReplicate(0, len);
+        //    //UnsafeUtility.copy(p, buffer.GetUnsafePtr() + offset);
+        //    UnsafeUtility.MemCpy(pp, buffer.GetUnsafePtr() + offset, len);
+        //}
+        //var ptr = Marshal.unsafe(val, 0);
+    }
+}
