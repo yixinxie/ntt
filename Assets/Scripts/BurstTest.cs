@@ -6,7 +6,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
-using System.Security.Policy;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -164,4 +163,23 @@ public partial struct c_cmpt0
         //}
         //var ptr = Marshal.unsafe(val, 0);
     }
+}
+
+public partial struct RouterInventory : IBufferElementData
+{
+    public ushort item_type;
+    public const int Stacking = 50;
+    
+    public ushort item_count {
+        get {
+            var tmp = ((item_blocks) * Stacking) + last_count;
+            return (ushort)tmp;
+        }
+        set {
+            item_blocks = (byte)(value / Stacking);
+            last_count = (byte)(value % Stacking);
+        }
+    }
+    public byte item_blocks;
+    public byte last_count;
 }

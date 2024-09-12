@@ -11,10 +11,13 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/client.unity
     guid: 79b24a824c29ccc43b1bbdbd74084b7f
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/bootloader.unity
     guid: 125aa117c95f4e04399f4280fd0d3cd9
   - enabled: 0
     path: Assets/Scenes/publish_scene.unity
     guid: 62ff5f3d8100cb0499dfe18abdd5739c
+  - enabled: 1
+    path: Assets/Scene/burst.unity
+    guid: 60fb70c7d80cfd84da13ef0bb69a2690
   m_configObjects: {}
