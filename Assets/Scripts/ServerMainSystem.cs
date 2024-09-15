@@ -13,7 +13,7 @@ public partial struct ServerMainSystem : ISystem
     void OnCreate(ref SystemState state)
     {
         //NetworkSettings ns = new NetworkSettings();
-            
+#if TRANSPORT_TEST
         m_Driver = NetworkDriver.Create();
         //NativeArray<NetworkPipelineStageId> stages = new NativeArray<NetworkPipelineStageId>(1, Allocator.Temp);
         //stages[0] = new NetworkPipelineStageId() { }
@@ -26,6 +26,9 @@ public partial struct ServerMainSystem : ISystem
             return;
         }
         m_Driver.Listen();
+#else
+        state.Enabled = false;
+#endif
     }
 
     void OnDestroy(ref SystemState state)

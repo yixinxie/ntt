@@ -13,7 +13,7 @@ public partial struct ClientMainSystem : ISystem
     void OnCreate(ref SystemState state)
     {
         //NetworkSettings ns = new NetworkSettings();
-            
+#if TRANSPORT_TEST
         m_Driver = NetworkDriver.Create();
 
         pl = m_Driver.CreatePipeline(typeof(ReliableSequencedPipelineStage));
@@ -26,6 +26,9 @@ public partial struct ClientMainSystem : ISystem
         //    return;
         //}
         //m_Driver.Listen();
+#else
+        state.Enabled = false;
+#endif
     }
 
     void OnDestroy(ref SystemState state)
