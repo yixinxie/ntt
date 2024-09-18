@@ -52,9 +52,12 @@ public class ShipControl : MonoBehaviour
         //if(false)
         {
             var mouse_rot_xy = mouse_pos - screen_center;
-            var pitch_rot = Quaternion.AngleAxis(mouse_rot_dps * dt * -mouse_rot_xy.y, transform.right);
-            var yaw_rot = Quaternion.AngleAxis(mouse_rot_dps * dt * mouse_rot_xy.x, transform.up);
-            current_rot = pitch_rot * yaw_rot * current_rot;
+            if (math.distance(mouse_rot_xy, 0f) > 50f)
+            {
+                var pitch_rot = Quaternion.AngleAxis(mouse_rot_dps * dt * -mouse_rot_xy.y, transform.right);
+                var yaw_rot = Quaternion.AngleAxis(mouse_rot_dps * dt * mouse_rot_xy.x, transform.up);
+                current_rot = pitch_rot * yaw_rot * current_rot;
+            }
         }
 
         transform.localRotation = current_rot;

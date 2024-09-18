@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -12,10 +13,14 @@ public class NoisesTest : MonoBehaviour
     public int step_count = 10;
     public float noise_strength = 1f;
     public bool refresh = true;
+    public bool auto_refresh = false;
     public MeshFilter mfilter;
     public MeshRenderer mr;
     public float unit_length = 1f;
     public int dim = 100;
+    public float starting_freq = 1f;
+    public float intensity = 1f;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -45,17 +50,19 @@ public class NoisesTest : MonoBehaviour
     {
         if(refresh)
         {
-            
-            refresh = false;
+            if(auto_refresh == false)
+                refresh = false;
             var mesh = mfilter.mesh;
             mesh.Clear();
             //mesh.SetVertices()
             var job0 = new mesh0();
             job0.verts = new NativeList<float3>(32768, Allocator.TempJob);
             job0.indices = new NativeList<int>(32768, Allocator.TempJob);
-            job0.min = transform.localPosition - new Vector3(50f, 0f ,50f);
-            job0.max = transform.localPosition + new Vector3(50f, 0f, 50f);
+            job0.min = transform.localPosition;/* - new Vector3(50f, 0f ,50f);*/
+            job0.max = transform.localPosition + new Vector3(100f, 0f, 100f);
             job0.resolution = dim;
+            job0.starting_freq = starting_freq;
+            job0.intensity = intensity;
             job0.Run();
             mesh.SetVertices(job0.verts.AsArray());
             mesh.SetIndices(job0.indices.AsArray(), MeshTopology.Triangles, 0);
@@ -68,6 +75,7 @@ public class NoisesTest : MonoBehaviour
 
         }
     }
+    [BurstCompile]
     struct mesh0 : IJob
     {
         public NativeList<float3> verts;
@@ -75,6 +83,23 @@ public class NoisesTest : MonoBehaviour
         public float3 min;
         public float3 max;
         public int resolution;
+        public float starting_freq;
+        public float intensity;
+        static float octaves(float3 key, int count)
+        {
+            float sum = 0f;
+            float strength = 1f;
+            float freq = 1f;
+            for(int i = 0; i < count; ++i)
+            {
+                //sum += NoiseStatics.cnoise(key * freq) * strength;
+                //sum += noise.cnoise(key * freq) * strength;
+                sum += noise.cnoise(key * freq) * strength;
+                strength *= 0.5f;
+                freq *= 2f;
+            }
+            return sum;
+        }
         public void Execute()
         {
             var diff3 = max - min;
@@ -84,12 +109,12 @@ public class NoisesTest : MonoBehaviour
                 for (int z = 0; z < resolution; ++z)
                 {
                     float perc_z = (float)z / resolution;
-                    var wpos = min + new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
+                    var wpos = min + new float3(diff3.x * perc_x, 1f, diff3.z * perc_z);
                     var key = wpos;
-                    key.y = -200000f;
-                    key = math.normalize(key);
-                    var vert_pos = NoiseStatics.cnoise(key);
-                    wpos.y = vert_pos;
+                    key.y = 200000f;
+                    //key = math.normalize(key);
+                    var height = octaves(key * starting_freq, 6) * intensity;
+                    wpos.y = height;
                     verts.Add(wpos);
                 }
             }
