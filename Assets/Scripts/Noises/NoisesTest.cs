@@ -202,6 +202,7 @@ public class NoisesTest : MonoBehaviour
                         // e0
                         if((edge_lod & 0b1) != 0)
                         {
+                            // seam patch with top edge
                             //perc = ((float)i + 0.5f) / (resolution - j);
                             //vert_local_position = pos_start + diff * perc;
                             //key = p0 + vert_local_position;
@@ -211,8 +212,14 @@ public class NoisesTest : MonoBehaviour
                             //verts.Add(vert_local_position);
                             add_vert(i + 0.5f, resolution - j, pos_start, diff);
                         }
-                        if(i == 0 && (edge_lod & 0b100) != 0)
+                        if (i == 0 && (edge_lod & 0b100) != 0)
                         {
+                            // seam patch with left edge
+                            add_vert(i + 0.5f, resolution - j, pos_start, diff);
+                        }
+                        if (i == resolution - j - 1 && (edge_lod & 0b10) != 0)
+                        {
+                            // seam patch with right edge
                             add_vert(i + 0.5f, resolution - j, pos_start, diff);
                         }
                     }
@@ -235,24 +242,6 @@ public class NoisesTest : MonoBehaviour
             var r1 = resolution;
             var r2 = resolution + 1;
 
-            //var r0 = resolution;
-            //var r1 = resolution - 1;
-            //var r2 = resolution;
-            for (int x = 0; x < r0; ++x)
-            {
-                float perc_x = (float)x / (resolution);
-                for (int z = 0; z < r0; ++z)
-                {
-                    float perc_z = (float)z / (resolution);
-                    var vert_local_position = new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
-                    var key = p0 + vert_local_position;
-                    key.y = 200000f;
-                    //key = math.normalize(key);
-                    var height = mesh0.octaves(key * starting_freq, 6) * intensity;
-                    vert_local_position.y = height;
-                    verts.Add(vert_local_position);
-                }
-            }
             int index_incre = 0;
             for (int x = 0; x < r1; ++x)
             {
