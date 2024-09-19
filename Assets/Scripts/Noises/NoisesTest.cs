@@ -28,21 +28,21 @@ public class NoisesTest : MonoBehaviour
     }
     private void OnDrawGizmos()
     {
-        float3 basepos = transform.localPosition;
-        float3 min_corner = new float3(-1f, -1f, -1f) * square_length / 2f;
-        float step_size = 1f / (float)step_count;
-        for (int y = 0; y < step_count; ++y)
-        {
-            for (int x = 0; x < step_count; ++x)
-            {
-                var point = min_corner + new float3(x, 0f, y) * step_size;
-                var key = math.normalize(point);
-                var noise_val = NoiseStatics.cnoise(key);
-                var p2 = key + key * noise_val * noise_strength;
-                Gizmos.color = (noise_val > 0f) ? Color.red : Color.green;
-                Gizmos.DrawLine(basepos + key, basepos + p2);
-            }
-        }
+        //float3 basepos = transform.localPosition;
+        //float3 min_corner = new float3(-1f, -1f, -1f) * square_length / 2f;
+        //float step_size = 1f / (float)step_count;
+        //for (int y = 0; y < step_count; ++y)
+        //{
+        //    for (int x = 0; x < step_count; ++x)
+        //    {
+        //        var point = min_corner + new float3(x, 0f, y) * step_size;
+        //        var key = math.normalize(point);
+        //        var noise_val = NoiseStatics.cnoise(key);
+        //        var p2 = key + key * noise_val * noise_strength;
+        //        Gizmos.color = (noise_val > 0f) ? Color.red : Color.green;
+        //        Gizmos.DrawLine(basepos + key, basepos + p2);
+        //    }
+        //}
     }
 
     // Update is called once per frame
@@ -85,7 +85,7 @@ public class NoisesTest : MonoBehaviour
         public int resolution;
         public float starting_freq;
         public float intensity;
-        static float octaves(float3 key, int count)
+        public static float octaves(float3 key, int count)
         {
             float sum = 0f;
             float strength = 1f;
@@ -100,36 +100,171 @@ public class NoisesTest : MonoBehaviour
             }
             return sum;
         }
+
         public void Execute()
         {
             var diff3 = max - min;
-            for (int x = 0; x < resolution; ++x)
+            // inclusive
+            var r0 = resolution + 1;
+            var r1 = resolution;
+            var r2 = resolution + 1;
+
+            //var r0 = resolution;
+            //var r1 = resolution - 1;
+            //var r2 = resolution;
+            for (int x = 0; x < r0; ++x)
             {
-                float perc_x = (float)x / resolution;
-                for (int z = 0; z < resolution; ++z)
+                float perc_x = (float)x / (resolution);
+                for (int z = 0; z < r0; ++z)
                 {
-                    float perc_z = (float)z / resolution;
-                    var wpos = min + new float3(diff3.x * perc_x, 1f, diff3.z * perc_z);
-                    var key = wpos;
+                    float perc_z = (float)z / (resolution);
+                    var vert_local_position = new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
+                    var key = min + vert_local_position;
                     key.y = 200000f;
                     //key = math.normalize(key);
                     var height = octaves(key * starting_freq, 6) * intensity;
-                    wpos.y = height;
-                    verts.Add(wpos);
+                    vert_local_position.y = height;
+                    verts.Add(vert_local_position);
                 }
             }
             int index_incre = 0;
-            for (int x = 0; x < resolution - 1; ++x)
+            for (int x = 0; x < r1; ++x)
             {
-                for (int z = 0; z < resolution - 1; ++z)
+                for (int z = 0; z < r1; ++z)
                 {
                     indices.Add(index_incre);
                     indices.Add(index_incre + 1);
-                    indices.Add(index_incre + resolution);
+                    indices.Add(index_incre + r2);
 
                     indices.Add(index_incre + 1);
-                    indices.Add(index_incre + resolution + 1);
-                    indices.Add(index_incre + resolution);
+                    indices.Add(index_incre + r2 + 1);
+                    indices.Add(index_incre + r2);
+                    index_incre += 1;
+                }
+                index_incre += 1;
+            }
+        }
+    }
+
+    [BurstCompile]
+    struct mesh_triangle : IJob
+    {
+        public NativeList<float3> verts;
+        public NativeList<int> indices;
+        public float3 p0;
+        public float3 p1;
+        public float3 p2;
+        public byte edge_lod;
+        public int resolution; // number of segments. vertice count per edge is resolution + 1.
+        public float starting_freq;
+        public float intensity;
+        void add_vert(float i, float bot, float3 pos_start, float3 dir)
+        {
+            float perc = i / bot;
+            var vert_local_position = pos_start + dir * perc;
+            var key = p0 + vert_local_position;
+            //key.y = 200000f;
+            var height = mesh0.octaves(key * starting_freq, 6) * intensity;
+            vert_local_position.y = height;
+            verts.Add(vert_local_position);
+        }
+        public void Execute()
+        {
+            var diff0_1 = p1 - p0;
+            var diff0_2 = p2 - p0;
+            var diff1_2 = p2 - p1;
+            NativeArray<float3> p0_2_starts = new NativeArray<float3>(resolution, Allocator.Temp);
+            NativeArray<float3> p1_2_ends = new NativeArray<float3>(resolution, Allocator.Temp);
+            for (int i = 0; i < resolution; ++i)
+            {
+                float t = (float)i / resolution;
+                p0_2_starts[i] = p0 + diff0_2 * t;
+                p1_2_ends[i] = p1 + diff1_2 * t;
+            }
+            for(int j = 0; j < resolution; ++j)
+            {
+                var pos_start = p0_2_starts[j];
+                var pos_end = p1_2_ends[j];
+                var diff = pos_end - pos_start;
+                for (int i = 0; i < resolution - j; ++i)
+                {
+                    //float perc = (float)i / (resolution - j);
+                    //var vert_local_position = pos_start + diff * perc;
+                    //var key = p0 + vert_local_position;
+                    ////key.y = 200000f;
+                    //var height = mesh0.octaves(key * starting_freq, 6) * intensity;
+                    //vert_local_position.y = height;
+                    //verts.Add(vert_local_position);
+                    add_vert(i, resolution - j, pos_start, diff);
+
+                    if (j == 0)
+                    {
+                        // e0
+                        if((edge_lod & 0b1) != 0)
+                        {
+                            //perc = ((float)i + 0.5f) / (resolution - j);
+                            //vert_local_position = pos_start + diff * perc;
+                            //key = p0 + vert_local_position;
+                            ////key.y = 200000f;
+                            //height = mesh0.octaves(key * starting_freq, 6) * intensity;
+                            //vert_local_position.y = height;
+                            //verts.Add(vert_local_position);
+                            add_vert(i + 0.5f, resolution - j, pos_start, diff);
+                        }
+                        if(i == 0 && (edge_lod & 0b100) != 0)
+                        {
+                            add_vert(i + 0.5f, resolution - j, pos_start, diff);
+                        }
+                    }
+
+                    if (i == resolution - j - 1) break;
+
+
+                }
+            }
+
+            float3 p0_2_start = p0;
+            for(int i = 0; i <= resolution; ++i) 
+            {
+                float t = (float)i / resolution;
+                var p = p0_2_start + diff0_1 * t;
+            }
+
+            // inclusive
+            var r0 = resolution + 1;
+            var r1 = resolution;
+            var r2 = resolution + 1;
+
+            //var r0 = resolution;
+            //var r1 = resolution - 1;
+            //var r2 = resolution;
+            for (int x = 0; x < r0; ++x)
+            {
+                float perc_x = (float)x / (resolution);
+                for (int z = 0; z < r0; ++z)
+                {
+                    float perc_z = (float)z / (resolution);
+                    var vert_local_position = new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
+                    var key = p0 + vert_local_position;
+                    key.y = 200000f;
+                    //key = math.normalize(key);
+                    var height = mesh0.octaves(key * starting_freq, 6) * intensity;
+                    vert_local_position.y = height;
+                    verts.Add(vert_local_position);
+                }
+            }
+            int index_incre = 0;
+            for (int x = 0; x < r1; ++x)
+            {
+                for (int z = 0; z < r1; ++z)
+                {
+                    indices.Add(index_incre);
+                    indices.Add(index_incre + 1);
+                    indices.Add(index_incre + r2);
+
+                    indices.Add(index_incre + 1);
+                    indices.Add(index_incre + r2 + 1);
+                    indices.Add(index_incre + r2);
                     index_incre += 1;
                 }
                 index_incre += 1;

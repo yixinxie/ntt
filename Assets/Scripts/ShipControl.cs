@@ -10,6 +10,7 @@ public class ShipControl : MonoBehaviour
     public float cursor_influence = 1f;
     public float roll_degreepersecond = 60f;
     public float mouse_rot_dps = 30f;
+    public bool in_control;
     // Start is called before the first frame update
     void Start()
     {
@@ -19,7 +20,11 @@ public class ShipControl : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        if(Input.GetKeyDown(KeyCode.Space))
+        {
+            in_control = !in_control;
+        }
+        if (in_control == false) return;
         var dt = Time.deltaTime;
         var pos = transform.localPosition;
         var forward_dir = transform.forward;
