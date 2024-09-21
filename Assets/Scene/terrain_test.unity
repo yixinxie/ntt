@@ -149,12 +149,12 @@ GameObject:
   - component: {fileID: 93301827}
   - component: {fileID: 93301826}
   m_Layer: 0
-  m_Name: bg cubes
+  m_Name: GameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &93301826
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -405,7 +405,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!23 &276741027
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -480,7 +480,6 @@ MonoBehaviour:
   dim: 100
   starting_freq: 0.03
   intensity: 5.88
-  edge_lod: 0
 --- !u!4 &276741030
 Transform:
   m_ObjectHideFlags: 0
@@ -679,7 +678,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!23 &744600739
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1137,14 +1136,13 @@ MonoBehaviour:
   step_count: 10
   noise_strength: 1
   refresh: 1
-  auto_refresh: 1
+  auto_refresh: 0
   mfilter: {fileID: 1547033594}
   mr: {fileID: 1547033593}
   unit_length: 1
-  dim: 4
+  dim: 100
   starting_freq: 0.03
   intensity: 5.88
-  edge_lod: 0
 --- !u!4 &1547033592
 Transform:
   m_ObjectHideFlags: 0
