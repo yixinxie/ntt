@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class NoisesTest : MonoBehaviour
 {
@@ -21,6 +22,7 @@ public class NoisesTest : MonoBehaviour
     public float starting_freq = 1f;
     public float intensity = 1f;
     public int edge_lod;
+    public Transform[] othertwo;
 
     // Start is called before the first frame update
     void Start()
@@ -86,8 +88,16 @@ public class NoisesTest : MonoBehaviour
                 job0.intensity = intensity;
                 job0.edge_lod= (byte)edge_lod;
                 job0.p0 = transform.localPosition;
-                job0.p1 = transform.localPosition + Vector3.forward * dim;
-                job0.p2 = transform.localPosition + Vector3.right * dim;
+                if (othertwo != null && othertwo.Length == 2)
+                {
+                    job0.p1 = othertwo[0].position;
+                    job0.p2 = othertwo[1].position;
+                }
+                else
+                {
+                    job0.p1 = transform.localPosition + Vector3.forward * dim;
+                    job0.p2 = transform.localPosition + Vector3.right * dim;
+                }
                 job0.Run();
                 mesh.SetVertices(job0.verts.AsArray());
                 mesh.SetIndices(job0.indices.AsArray(), MeshTopology.Triangles, 0);
@@ -190,7 +200,7 @@ public class NoisesTest : MonoBehaviour
             float perc = i / bot;
             var vert_local_position = pos_start + dir * perc;
             var key = p0 + vert_local_position;
-            var height = mesh0.octaves(key * starting_freq, 6) * intensity;
+            //var height = mesh0.octaves(key * starting_freq, 6) * intensity;
             //vert_local_position.y = height;
             verts.Add(vert_local_position);
             return vert_local_position;
@@ -279,10 +289,10 @@ public class NoisesTest : MonoBehaviour
                 }
             }
 
-            for (int i = 0; i < mapped_indices.Length; ++i)
-            {
-                if (mapped_indices[i] >= 0) Debug.DrawLine(mapped_verts[i], mapped_verts[i] + new float3(0f, 1f, 0f), Color.yellow);
-            }
+            //for (int i = 0; i < mapped_indices.Length; ++i)
+            //{
+            //    if (mapped_indices[i] >= 0) Debug.DrawLine(mapped_verts[i], mapped_verts[i] + new float3(0f, 1f, 0f), Color.yellow);
+            //}
 
             // vertex windings
             // first row except the last cell, from p0 to p1.
@@ -515,19 +525,14 @@ public class NoisesTest : MonoBehaviour
             {
                 if (mapped_indices[i] >= 0)
                 {
-                    verts[mapped_indices[i]] = mapped_verts[i];
+
+                    var key = mapped_verts[i];
+                    var height = mesh0.octaves(key * starting_freq, 6) * intensity;
+
+                    verts[mapped_indices[i]] = new float3(key.x, height, key.z);
                 }
             }
         }
-        void add_vert(float i, float bot, float3 pos_start, float3 dir)
-        {
-            float perc = i / bot;
-            var vert_local_position = pos_start + dir * perc;
-            var key = p0 + vert_local_position;
-            //key.y = 200000f;
-            var height = mesh0.octaves(key * starting_freq, 6) * intensity;
-            vert_local_position.y = height;
-            verts.Add(vert_local_position);
-        }
+
     }
 }
