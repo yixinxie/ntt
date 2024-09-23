@@ -113,7 +113,7 @@ public class NoisesTest : MonoBehaviour
         }
     }
     [BurstCompile]
-    struct mesh0 : IJob
+    public struct mesh0 : IJob
     {
         public NativeList<float3> verts;
         public NativeList<int> indices;
@@ -184,7 +184,7 @@ public class NoisesTest : MonoBehaviour
     }
 
     //[BurstCompile]
-    struct mesh_triangle : IJob
+    public struct mesh_triangle : IJob
     {
         public NativeList<float3> verts;
         public NativeList<int> indices;
