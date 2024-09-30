@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -24,24 +25,27 @@ public class PlanetaryTerrain : MonoBehaviour
                     return;
                 }
             }
+            Gizmos.DrawLine(three[0].position, three[1].position);
+            Gizmos.DrawLine(three[2].position, three[1].position);
+            Gizmos.DrawLine(three[0].position, three[2].position);
             // clockwise winding
-            triangle_divide(three[0].position, three[1].position, three[2].position, default, 2);
+            //triangle_divide(three[0].position, three[1].position, three[2].position, default, 2);
         }
     }
     static void triangle_divide(float3 p0, float3 p1, float3 p2, NativeList<float3> points, int level)
     {
-       // float height = 1f;
-       // var p0_nml = math.normalize(p0);
-       // //var height = NoisesTest.mesh0.octaves(p0_nml, 4);
-       // p0 = p0_nml * height;
+        // float height = 1f;
+        // var p0_nml = math.normalize(p0);
+        // //var height = NoisesTest.mesh0.octaves(p0_nml, 4);
+        // p0 = p0_nml * height;
 
-       // var p1_nml = math.normalize(p1);
-       //// height = NoisesTest.mesh0.octaves(p1_nml, 4);
-       // p1 = p1_nml * height;
+        // var p1_nml = math.normalize(p1);
+        //// height = NoisesTest.mesh0.octaves(p1_nml, 4);
+        // p1 = p1_nml * height;
 
-       // var p2_nml = math.normalize(p2);
-       // //height = NoisesTest.mesh0.octaves(p2_nml, 4);
-       // p2 = p2_nml * height;
+        // var p2_nml = math.normalize(p2);
+        // //height = NoisesTest.mesh0.octaves(p2_nml, 4);
+        // p2 = p2_nml * height;
 
 
         Gizmos.DrawLine(p0, p1);
@@ -67,10 +71,83 @@ public class PlanetaryTerrain : MonoBehaviour
         triangle_divide(q0, q1, q2, points, level - 1);
         triangle_divide(q2, q1, p2, points, level - 1);
     }
+    static bool triangle_size2cam(float3 p0, float3 p1, float3 p2, float3 campos)
+    {
+        var center = (p0 + p1 + p2) / 3f;
+        var to_center = math.distance(center, campos);
+        var dist = math.distance(p0, p1) + math.distance(p0, p2);
+        dist /= 2f;
+        return to_center > dist;
 
+    }
+    static void triangle_divide_mesh(float3 p0, float3 p1, float3 p2, float3 campos, List<Mesh> meshes, ref int mesh_added, int level)
+    {
+        if (level == 0 || triangle_size2cam(p0, p1, p2, campos))
+        {
+            var job = new NoisesTest.mesh_triangle();
+            job.p0 = p0;
+            job.p1 = p1;
+            job.p2 = p2;
+            job.resolution = 4;
+            job.starting_freq = 0.03f;
+            job.intensity = 5f;
+            job.verts = new NativeList<float3>(65535, Allocator.TempJob);
+            job.indices = new NativeList<int>(65535, Allocator.TempJob);
+            job.Run();
+            Mesh mesh2use = null;
+            if (mesh_added >= meshes.Count)
+            {
+                meshes.Add(new Mesh());
+            }
+            mesh2use = meshes[mesh_added];
+            mesh2use.SetVertices(job.verts.AsArray());
+            mesh2use.SetIndices(job.indices.AsArray(), MeshTopology.Triangles, 0);
+            mesh2use.RecalculateNormals();
+
+            job.verts.Dispose();
+            job.indices.Dispose();
+
+            mesh_added++;
+            return;
+        }
+        float3 q0 = (p0 + p1) / 2f;
+        float3 q1 = (p1 + p2) / 2f;
+        float3 q2 = (p0 + p2) / 2f;
+
+        triangle_divide_mesh(p0, q0, q2, campos, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q0, p1, q1, campos, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q0, q1, q2, campos, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q2, q1, p2, campos, meshes, ref mesh_added, level - 1);
+    }
+    public int max_lod = 4;
+    public int mesh_gen_count = 0;
+    public bool refresh;
+    public bool continuous_refresh;
+    public List<Mesh> meshes = new List<Mesh>(8);
+    public Material terrain_mat;
+    public Transform cam_transform;
     // Update is called once per frame
     void Update()
     {
-        
+        if (refresh)
+        {
+            if (continuous_refresh == false)
+                refresh = false;
+            for (int i = 0; i < meshes.Count; i++)
+            {
+                meshes[i].Clear();
+
+            }
+            //meshes.Clear();
+            //int mesh_gen_count = 0;
+            mesh_gen_count = 0;
+            triangle_divide_mesh(three[0].position, three[1].position, three[2].position, cam_transform.position,
+                meshes, ref mesh_gen_count, max_lod);
+        }
+        for (int i = 0; i < meshes.Count; i++)
+        {
+            if (meshes[i].vertexCount > 0)
+                Graphics.DrawMesh(meshes[i], transform.localToWorldMatrix, terrain_mat, 0);
+        }
     }
 }
