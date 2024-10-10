@@ -16,7 +16,7 @@ public class PlanetaryTerrain : MonoBehaviour
     public List<TerrainMeshStates> meshes = new List<TerrainMeshStates>(8);
     public Material terrain_mat;
     public Transform cam_transform; // pivot transform ref
-    public int3 cell_pos;
+    public int3 cell_pos; // cell index inside a planet's volume, if the range is just the planet.
     public float radius = 200000f;
     void Start()
     {
@@ -132,7 +132,11 @@ public class PlanetaryTerrain : MonoBehaviour
         triangle_divide_mesh(q0, q1, q2, tgparams, meshes, ref mesh_added, level - 1);
         triangle_divide_mesh(q2, q1, p2, tgparams, meshes, ref mesh_added, level - 1);
     }
-    
+    static Vector3 double3_vec3(double3 val)
+    {
+        return new Vector3((float)val.x, (float)val.y, (float)val.z);
+    }
+
     // Update is called once per frame
     void Update()
     {
@@ -190,9 +194,26 @@ public class PlanetaryTerrain : MonoBehaviour
             tgp.planet_radius = radius;
             tgp.pivot_cell_coord = cell_pos;
 
+            double3 cell_center = new double3(cell_pos) * cell_half_extents * 2.0;
+            var cell_center_dir_normalized = math.normalize(cell_center);
+            double3 right_dir = math.cross(cell_center_dir_normalized, new double3(0.0, 1.0, 0.0));
+            var right_mag = math.distance(right_dir, 0.0);
+            if(right_mag > 0.001f)
+            {
+                right_dir = math.normalize(right_dir);
+            }
+            else
+            {
+                right_dir = new double3(0.0, 0.0, 1.0);
+            }
 
-            triangle_divide_mesh(three[0].position, three[1].position, three[2].position, tgp,
-                meshes, ref mesh_gen_count, max_lod);
+            var up_dir = math.normalize(math.cross(right_dir, cell_center_dir_normalized));
+            var up_offset = up_dir * cell_half_extents * 4f;
+            var right_offset = right_dir * cell_half_extents * 4f;
+            Debug.DrawLine(double3_vec3(cell_center), double3_vec3(cell_center + up_offset), Color.red);
+            Debug.DrawLine(double3_vec3(cell_center), double3_vec3(cell_center + right_offset), Color.green);
+            //triangle_divide_mesh(three[0].position, three[1].position, three[2].position, tgp,
+            //    meshes, ref mesh_gen_count, max_lod);
         }
         for (int i = 0; i < meshes.Count; i++)
         {
