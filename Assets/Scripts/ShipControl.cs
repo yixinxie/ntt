@@ -5,13 +5,17 @@ using UnityEngine;
 
 public class ShipControl : MonoBehaviour
 {
+    public static ShipControl self;
     public float forward_velocity;
     public float acceleration = 3.0f;
     public float cursor_influence = 1f;
     public float roll_degreepersecond = 60f;
     public float mouse_rot_dps = 30f;
     public bool in_control;
-    // Start is called before the first frame update
+    private void Awake()
+    {
+        self = this;
+    }
     void Start()
     {
         
@@ -29,10 +33,10 @@ public class ShipControl : MonoBehaviour
         var pos = transform.localPosition;
         var forward_dir = transform.forward;
         forward_velocity += acceleration * Input.GetAxisRaw("Vertical") * dt;
-        if(forward_velocity < 0f)
-        {
-            forward_velocity = 0f;
-        }
+        //if(forward_velocity < 0f)
+        //{
+        //    forward_velocity = 0f;
+        //}
         pos += forward_dir * forward_velocity * dt;
         transform.localPosition = pos;
 

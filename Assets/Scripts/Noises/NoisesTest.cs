@@ -112,78 +112,64 @@ public class NoisesTest : MonoBehaviour
 
         }
     }
-    [BurstCompile]
-    public struct mesh0 : IJob
+
+    public struct mesh0
     {
-        public NativeList<float3> verts;
-        public NativeList<int> indices;
-        public float3 min;
-        public float3 max;
-        public int resolution;
-        public float starting_freq;
-        public float intensity;
-        public static float octaves(float3 key, int count)
-        {
-            float sum = 0f;
-            float strength = 1f;
-            float freq = 1f;
-            for(int i = 0; i < count; ++i)
-            {
-                //sum += NoiseStatics.cnoise(key * freq) * strength;
-                //sum += noise.cnoise(key * freq) * strength;
-                sum += noise.cnoise(key * freq) * strength;
-                strength *= 0.5f;
-                freq *= 2f;
-            }
-            return sum;
-        }
+        //public NativeList<float3> verts;
+        //public NativeList<int> indices;
+        //public float3 min;
+        //public float3 max;
+        //public int resolution;
+        //public float starting_freq;
+        //public float intensity;
+        
 
-        public void Execute()
-        {
-            var diff3 = max - min;
-            // inclusive
-            var r0 = resolution + 1;
-            var r1 = resolution;
-            var r2 = resolution + 1;
+        //public void Execute()
+        //{
+        //    var diff3 = max - min;
+        //    // inclusive
+        //    var r0 = resolution + 1;
+        //    var r1 = resolution;
+        //    var r2 = resolution + 1;
 
-            //var r0 = resolution;
-            //var r1 = resolution - 1;
-            //var r2 = resolution;
-            for (int x = 0; x < r0; ++x)
-            {
-                float perc_x = (float)x / (resolution);
-                for (int z = 0; z < r0; ++z)
-                {
-                    float perc_z = (float)z / (resolution);
-                    var vert_local_position = new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
-                    var key = min + vert_local_position;
-                    key.y = 200000f;
-                    //key = math.normalize(key);
-                    var height = octaves(key * starting_freq, 6) * intensity;
-                    vert_local_position.y = height;
-                    verts.Add(vert_local_position);
-                }
-            }
-            int index_incre = 0;
-            for (int x = 0; x < r1; ++x)
-            {
-                for (int z = 0; z < r1; ++z)
-                {
-                    indices.Add(index_incre);
-                    indices.Add(index_incre + 1);
-                    indices.Add(index_incre + r2);
+        //    //var r0 = resolution;
+        //    //var r1 = resolution - 1;
+        //    //var r2 = resolution;
+        //    for (int x = 0; x < r0; ++x)
+        //    {
+        //        float perc_x = (float)x / (resolution);
+        //        for (int z = 0; z < r0; ++z)
+        //        {
+        //            float perc_z = (float)z / (resolution);
+        //            var vert_local_position = new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
+        //            var key = min + vert_local_position;
+        //            key.y = 200000f;
+        //            //key = math.normalize(key);
+        //            var height = octaves(key * starting_freq, 6) * intensity;
+        //            vert_local_position.y = height;
+        //            verts.Add(vert_local_position);
+        //        }
+        //    }
+        //    int index_incre = 0;
+        //    for (int x = 0; x < r1; ++x)
+        //    {
+        //        for (int z = 0; z < r1; ++z)
+        //        {
+        //            indices.Add(index_incre);
+        //            indices.Add(index_incre + 1);
+        //            indices.Add(index_incre + r2);
 
-                    indices.Add(index_incre + 1);
-                    indices.Add(index_incre + r2 + 1);
-                    indices.Add(index_incre + r2);
-                    index_incre += 1;
-                }
-                index_incre += 1;
-            }
-        }
+        //            indices.Add(index_incre + 1);
+        //            indices.Add(index_incre + r2 + 1);
+        //            indices.Add(index_incre + r2);
+        //            index_incre += 1;
+        //        }
+        //        index_incre += 1;
+        //    }
+        //}
     }
 
-    //[BurstCompile]
+    [BurstCompile]
     public struct mesh_triangle : IJob
     {
         public NativeList<float3> verts;
@@ -195,6 +181,21 @@ public class NoisesTest : MonoBehaviour
         public int resolution; // number of segments. vertice count per edge is resolution + 1.
         public float starting_freq;
         public float intensity;
+        public static float octaves(float3 key, int count)
+        {
+            float sum = 0f;
+            float strength = 1f;
+            float freq = 1f;
+            for (int i = 0; i < count; ++i)
+            {
+                //sum += NoiseStatics.cnoise(key * freq) * strength;
+                //sum += noise.cnoise(key * freq) * strength;
+                sum += noise.cnoise(key * freq) * strength;
+                strength *= 0.5f;
+                freq *= 2f;
+            }
+            return sum;
+        }
         float3 add_vert0(float i, float bot, float3 pos_start, float3 dir)
         {
             float perc = i / bot;
@@ -527,7 +528,7 @@ public class NoisesTest : MonoBehaviour
                 {
 
                     var key = mapped_verts[i];
-                    var height = mesh0.octaves(key * starting_freq, 6) * intensity;
+                    var height = octaves(key * starting_freq, 6) * intensity;
 
                     verts[mapped_indices[i]] = new float3(key.x, height, key.z);
                 }

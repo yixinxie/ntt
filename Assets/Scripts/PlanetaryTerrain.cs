@@ -7,16 +7,23 @@ using UnityEngine;
 
 public class PlanetaryTerrain : MonoBehaviour
 {
-    // Start is called before the first frame update
-
     public Transform[] three;
+    public float cell_half_extents = 200f;
+    public int max_lod = 4;
+    public int mesh_gen_count = 0;
+    public bool refresh;
+    public bool continuous_refresh;
+    public List<TerrainMeshStates> meshes = new List<TerrainMeshStates>(8);
+    public Material terrain_mat;
+    public Transform cam_transform; // pivot transform ref
+    public int3 cam_gpos;
     void Start()
     {
         
     }
     private void OnDrawGizmos()
     {
-        if(three != null && three.Length == 3)
+        if (three != null && three.Length == 3)
         {
             for(int i = 0; i < three.Length; i++)
             {
@@ -80,7 +87,8 @@ public class PlanetaryTerrain : MonoBehaviour
         return to_center > dist;
 
     }
-    static void triangle_divide_mesh(float3 p0, float3 p1, float3 p2, float3 campos, List<Mesh> meshes, ref int mesh_added, int level)
+    
+    static void triangle_divide_mesh(float3 p0, float3 p1, float3 p2, float3 campos, List<TerrainMeshStates> meshes, ref int mesh_added, int level)
     {
         if (level == 0 || triangle_size2cam(p0, p1, p2, campos))
         {
@@ -97,12 +105,16 @@ public class PlanetaryTerrain : MonoBehaviour
             Mesh mesh2use = null;
             if (mesh_added >= meshes.Count)
             {
-                meshes.Add(new Mesh());
+                var tms = new TerrainMeshStates();
+                tms.mesh = new Mesh();
+                tms.wrotation = quaternion.identity;
+                meshes.Add(tms);
             }
-            mesh2use = meshes[mesh_added];
+            mesh2use = meshes[mesh_added].mesh;
             mesh2use.SetVertices(job.verts.AsArray());
             mesh2use.SetIndices(job.indices.AsArray(), MeshTopology.Triangles, 0);
             mesh2use.RecalculateNormals();
+            mesh2use.RecalculateBounds();
 
             job.verts.Dispose();
             job.indices.Dispose();
@@ -119,16 +131,47 @@ public class PlanetaryTerrain : MonoBehaviour
         triangle_divide_mesh(q0, q1, q2, campos, meshes, ref mesh_added, level - 1);
         triangle_divide_mesh(q2, q1, p2, campos, meshes, ref mesh_added, level - 1);
     }
-    public int max_lod = 4;
-    public int mesh_gen_count = 0;
-    public bool refresh;
-    public bool continuous_refresh;
-    public List<Mesh> meshes = new List<Mesh>(8);
-    public Material terrain_mat;
-    public Transform cam_transform;
+    
     // Update is called once per frame
     void Update()
     {
+        float3 pivot_pos = cam_transform.position;
+        if(math.abs(pivot_pos.x) > cell_half_extents
+            || math.abs(pivot_pos.y) > cell_half_extents
+            || math.abs(pivot_pos.z) > cell_half_extents)
+        {
+            if (pivot_pos.x > cell_half_extents)
+            {
+                pivot_pos.x -= cell_half_extents * 2f;
+                cam_gpos.x++;
+            }
+            if (pivot_pos.x < -cell_half_extents)
+            {
+                pivot_pos.x += cell_half_extents * 2f;
+                cam_gpos.x--;
+            }
+            if (pivot_pos.y > cell_half_extents)
+            {
+                pivot_pos.y -= cell_half_extents * 2f;
+                cam_gpos.y++;
+            }
+            if (pivot_pos.y < -cell_half_extents)
+            {
+                pivot_pos.y += cell_half_extents * 2f;
+                cam_gpos.y--;
+            }
+            if (pivot_pos.z > cell_half_extents)
+            {
+                pivot_pos.z -= cell_half_extents * 2f;
+                cam_gpos.z++;
+            }
+            if (pivot_pos.z < -cell_half_extents)
+            {
+                pivot_pos.z += cell_half_extents * 2f;
+                cam_gpos.z--;
+            }
+        }
+        cam_transform.position = pivot_pos;
         if (refresh)
         {
             if (continuous_refresh == false)
@@ -146,8 +189,25 @@ public class PlanetaryTerrain : MonoBehaviour
         }
         for (int i = 0; i < meshes.Count; i++)
         {
-            if (meshes[i].vertexCount > 0)
-                Graphics.DrawMesh(meshes[i], transform.localToWorldMatrix, terrain_mat, 0);
+            if (meshes[i].mesh.vertexCount > 0)
+                //Graphics.DrawMesh(meshes[i].mesh, meshes[i].wposition, meshes[i].wrotation, terrain_mat, 0);
+                Graphics.DrawMesh(meshes[i].mesh, transform.position, meshes[i].wrotation, terrain_mat, 0);
         }
+    }
+}
+/*
+ * when the camera root moves for a large portion of a 'grid', the LCS will have to re-center.
+ * the macro-triangulation should stay unchanged.
+ * 
+ */
+
+public struct TerrainMeshStates
+{
+    public Mesh mesh;
+    public float3 wposition;
+    public quaternion wrotation;
+    public void Clear()
+    {
+        mesh.Clear();
     }
 }

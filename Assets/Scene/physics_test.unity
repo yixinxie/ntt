@@ -357,7 +357,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b780d68007a1fe142804bc55dcf7cbde, type: 2}
+  - {fileID: 2100000, guid: ff4a05b0d91dff94297ebc3d4b45fc4e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -565,12 +565,13 @@ MonoBehaviour:
   - {fileID: 1136143130}
   - {fileID: 1058331624}
   - {fileID: 1662809800}
-  max_lod: 4
+  max_lod: 8
+  mesh_gen_count: 0
   refresh: 1
   continuous_refresh: 1
   meshes: []
   terrain_mat: {fileID: 2100000, guid: ff4a05b0d91dff94297ebc3d4b45fc4e, type: 2}
-  cam_transform: {fileID: 890454021}
+  cam_transform: {fileID: 2054101250}
 --- !u!4 &886053126
 Transform:
   m_ObjectHideFlags: 0
@@ -645,7 +646,7 @@ Transform:
   m_GameObject: {fileID: 1058331623}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 14.77, y: 0, z: -9.9}
+  m_LocalPosition: {x: 151.9, y: 0, z: -127.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -676,7 +677,7 @@ Transform:
   m_GameObject: {fileID: 1136143129}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.82, y: 0, z: 6.29}
+  m_LocalPosition: {x: 61.3, y: 0, z: 229.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1042,7 +1043,7 @@ Transform:
   m_GameObject: {fileID: 1662809799}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -9.91, y: 0, z: -6.75}
+  m_LocalPosition: {x: -205.3, y: 0, z: -81.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
