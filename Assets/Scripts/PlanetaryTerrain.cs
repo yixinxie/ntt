@@ -16,7 +16,8 @@ public class PlanetaryTerrain : MonoBehaviour
     public List<TerrainMeshStates> meshes = new List<TerrainMeshStates>(8);
     public Material terrain_mat;
     public Transform cam_transform; // pivot transform ref
-    public int3 cam_gpos;
+    public int3 cell_pos;
+    public float radius = 200000f;
     void Start()
     {
         
@@ -78,19 +79,19 @@ public class PlanetaryTerrain : MonoBehaviour
         triangle_divide(q0, q1, q2, points, level - 1);
         triangle_divide(q2, q1, p2, points, level - 1);
     }
-    static bool triangle_size2cam(float3 p0, float3 p1, float3 p2, float3 campos)
+    static bool triangle_size2cam(float3 p0, float3 p1, float3 p2, TerrainGenParams campos)
     {
         var center = (p0 + p1 + p2) / 3f;
-        var to_center = math.distance(center, campos);
+        var to_center = math.distance(center, campos.pivot_pos);
         var dist = math.distance(p0, p1) + math.distance(p0, p2);
         dist /= 2f;
         return to_center > dist;
 
     }
     
-    static void triangle_divide_mesh(float3 p0, float3 p1, float3 p2, float3 campos, List<TerrainMeshStates> meshes, ref int mesh_added, int level)
+    static void triangle_divide_mesh(float3 p0, float3 p1, float3 p2, TerrainGenParams tgparams, List<TerrainMeshStates> meshes, ref int mesh_added, int level)
     {
-        if (level == 0 || triangle_size2cam(p0, p1, p2, campos))
+        if (level == 0 || triangle_size2cam(p0, p1, p2, tgparams))
         {
             var job = new NoisesTest.mesh_triangle();
             job.p0 = p0;
@@ -126,10 +127,10 @@ public class PlanetaryTerrain : MonoBehaviour
         float3 q1 = (p1 + p2) / 2f;
         float3 q2 = (p0 + p2) / 2f;
 
-        triangle_divide_mesh(p0, q0, q2, campos, meshes, ref mesh_added, level - 1);
-        triangle_divide_mesh(q0, p1, q1, campos, meshes, ref mesh_added, level - 1);
-        triangle_divide_mesh(q0, q1, q2, campos, meshes, ref mesh_added, level - 1);
-        triangle_divide_mesh(q2, q1, p2, campos, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(p0, q0, q2, tgparams, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q0, p1, q1, tgparams, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q0, q1, q2, tgparams, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q2, q1, p2, tgparams, meshes, ref mesh_added, level - 1);
     }
     
     // Update is called once per frame
@@ -143,32 +144,32 @@ public class PlanetaryTerrain : MonoBehaviour
             if (pivot_pos.x > cell_half_extents)
             {
                 pivot_pos.x -= cell_half_extents * 2f;
-                cam_gpos.x++;
+                cell_pos.x++;
             }
             if (pivot_pos.x < -cell_half_extents)
             {
                 pivot_pos.x += cell_half_extents * 2f;
-                cam_gpos.x--;
+                cell_pos.x--;
             }
             if (pivot_pos.y > cell_half_extents)
             {
                 pivot_pos.y -= cell_half_extents * 2f;
-                cam_gpos.y++;
+                cell_pos.y++;
             }
             if (pivot_pos.y < -cell_half_extents)
             {
                 pivot_pos.y += cell_half_extents * 2f;
-                cam_gpos.y--;
+                cell_pos.y--;
             }
             if (pivot_pos.z > cell_half_extents)
             {
                 pivot_pos.z -= cell_half_extents * 2f;
-                cam_gpos.z++;
+                cell_pos.z++;
             }
             if (pivot_pos.z < -cell_half_extents)
             {
                 pivot_pos.z += cell_half_extents * 2f;
-                cam_gpos.z--;
+                cell_pos.z--;
             }
         }
         cam_transform.position = pivot_pos;
@@ -184,7 +185,13 @@ public class PlanetaryTerrain : MonoBehaviour
             //meshes.Clear();
             //int mesh_gen_count = 0;
             mesh_gen_count = 0;
-            triangle_divide_mesh(three[0].position, three[1].position, three[2].position, cam_transform.position,
+            var tgp = new TerrainGenParams();
+            tgp.pivot_pos = cam_transform.position;
+            tgp.planet_radius = radius;
+            tgp.pivot_cell_coord = cell_pos;
+
+
+            triangle_divide_mesh(three[0].position, three[1].position, three[2].position, tgp,
                 meshes, ref mesh_gen_count, max_lod);
         }
         for (int i = 0; i < meshes.Count; i++)
@@ -200,7 +207,12 @@ public class PlanetaryTerrain : MonoBehaviour
  * the macro-triangulation should stay unchanged.
  * 
  */
-
+public struct TerrainGenParams
+{
+    public float3 pivot_pos; // pivot's position in cell space, or CamControl.self.root.transform.position
+    public int3 pivot_cell_coord; // pivot's cell coord
+    public float planet_radius; // planet radius in meters
+}
 public struct TerrainMeshStates
 {
     public Mesh mesh;
