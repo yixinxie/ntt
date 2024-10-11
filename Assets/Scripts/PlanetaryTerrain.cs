@@ -142,10 +142,10 @@ public class PlanetaryTerrain : MonoBehaviour
         triangle_divide(q0, q1, q2, points, level - 1);
         triangle_divide(q2, q1, p2, points, level - 1);
     }
-    static bool triangle_size2cam(double3 p0, double3 p1, double3 p2, TerrainGenParams campos)
+    static bool triangle_size2cam(double3 p0, double3 p1, double3 p2, TerrainGenParams tgp)
     {
         var center = (p0 + p1 + p2) / 3f;
-        var to_center = math.distance(center, campos.pivot_pos);
+        var to_center = math.distance(center, tgp.pivot_pos);
         var dist = math.distance(p0, p1) + math.distance(p0, p2);
         dist /= 2f;
         return to_center > dist;
@@ -184,10 +184,10 @@ public class PlanetaryTerrain : MonoBehaviour
             //job.p1 = tgparams.relative2cell_center(p1);
             //job.p2 = tgparams.relative2cell_center(p2);
 
-            job.p0 = (float3)p0;
-            job.p1 = (float3)p1;
-            job.p2 = (float3)p2;
-
+            job.p0 = p0;
+            job.p1 = p1;
+            job.p2 = p2;
+            job.planet_radius = tgparams.planet_radius;
             //var mesh_base_pos = (job.p0 + job.p1 + job.p2) / 3f;
             job.resolution = 4;
             job.starting_freq = 0.03f;
@@ -205,7 +205,7 @@ public class PlanetaryTerrain : MonoBehaviour
             {
                 var tmp = meshes[mesh_added];
                 tmp.wrotation = quaternion.identity;
-                tmp.wposition = (job.p0 + job.p1 + job.p2) / 3f;
+                tmp.wposition = new float3((job.p0 + job.p1 + job.p2) / 3.0);
                 meshes[mesh_added] = tmp;
             }
             mesh2use = meshes[mesh_added].mesh;
@@ -223,17 +223,20 @@ public class PlanetaryTerrain : MonoBehaviour
         double3 q0 = (p0 + p1) / 2.0;
         double3 q1 = (p1 + p2) / 2.0;
         double3 q2 = (p0 + p2) / 2.0;
+        q0 = math.normalize(q0) * tgparams.planet_radius;
+        q1 = math.normalize(q1) * tgparams.planet_radius;
+        q2 = math.normalize(q2) * tgparams.planet_radius;
 
         triangle_divide_mesh(p0, q0, q2, tgparams, meshes, ref mesh_added, level - 1);
         triangle_divide_mesh(q0, p1, q1, tgparams, meshes, ref mesh_added, level - 1);
         triangle_divide_mesh(q0, q1, q2, tgparams, meshes, ref mesh_added, level - 1);
         triangle_divide_mesh(q2, q1, p2, tgparams, meshes, ref mesh_added, level - 1);
     }
-    static Vector3 double3_vec3(double3 val)
+    public static Vector3 double3_vec3(double3 val)
     {
         return new Vector3((float)val.x, (float)val.y, (float)val.z);
     }
-    static double3 vec3_double3(Vector3 val)
+    public static double3 vec3_double3(Vector3 val)
     {
         return new double3(val.x, val.y, val.z);
     }
@@ -330,10 +333,9 @@ public class PlanetaryTerrain : MonoBehaviour
                 //Debug.DrawLine(double3_vec3(p1 * radius), double3_vec3(p2 * radius), Color.green);
                 //Debug.DrawLine(double3_vec3(p0 * radius), double3_vec3(p2 * radius), Color.green);
 
-                triangle_divide_mesh(tgp.relative2cell_center(p0), tgp.relative2cell_center(p1), tgp.relative2cell_center(p2), tgp,
-                    meshes, ref mesh_gen_count, max_lod);
-                //triangle_divide_mesh(p0, p1, p2, tgp,
-                //    meshes, ref mesh_gen_count, max_lod);
+                //triangle_divide_mesh(tgp.relative2cell_center(p0), tgp.relative2cell_center(p1), tgp.relative2cell_center(p2),
+                triangle_divide_mesh(p0, p1, p2,
+                    tgp, meshes, ref mesh_gen_count, max_lod);
             }
 
                 //var up_dir = math.normalize(math.cross(right_dir, cell_center_dir_normalized));

@@ -314,7 +314,7 @@ GameObject:
   m_Component:
   - component: {fileID: 290873667}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: pivot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -641,7 +641,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 400, y: 400, z: 400}
+  m_LocalScale: {x: 18, y: 18, z: 18}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -679,18 +679,18 @@ MonoBehaviour:
   - {fileID: 1136143130}
   - {fileID: 1058331624}
   - {fileID: 1662809800}
-  cell_half_extents: 20
+  cell_half_extents: 2
   max_lod: 8
   mesh_gen_count: 0
   refresh: 1
-  continuous_refresh: 1
+  continuous_refresh: 0
   terrain_mat: {fileID: 2100000, guid: ff4a05b0d91dff94297ebc3d4b45fc4e, type: 2}
   cam_transform: {fileID: 290873667}
   cell_pos:
-    x: 10
+    x: 5
     y: 0
     z: 0
-  radius: 200
+  radius: 10
 --- !u!4 &886053126
 Transform:
   m_ObjectHideFlags: 0
@@ -700,7 +700,7 @@ Transform:
   m_GameObject: {fileID: 886053124}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1385,7 +1385,7 @@ Transform:
   m_GameObject: {fileID: 2054101248}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1405,35 +1405,13 @@ GameObject:
   - component: {fileID: 2125611532}
   - component: {fileID: 2125611531}
   - component: {fileID: 2125611530}
-  - component: {fileID: 2125611529}
   m_Layer: 0
-  m_Name: Cube
+  m_Name: test cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!65 &2125611529
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2125611528}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2125611530
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1493,7 +1471,7 @@ Transform:
   m_GameObject: {fileID: 2125611528}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 200.64, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

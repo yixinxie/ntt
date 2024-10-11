@@ -88,16 +88,16 @@ public class NoisesTest : MonoBehaviour
                 job0.starting_freq = starting_freq;
                 job0.intensity = intensity;
                 job0.edge_lod= (byte)edge_lod;
-                job0.p0 = transform.localPosition;
+                job0.p0 = PlanetaryTerrain.vec3_double3(transform.localPosition);
                 if (othertwo != null && othertwo.Length == 2)
                 {
-                    job0.p1 = othertwo[0].position;
-                    job0.p2 = othertwo[1].position;
+                    job0.p1 = PlanetaryTerrain.vec3_double3(othertwo[0].position);
+                    job0.p2 = PlanetaryTerrain.vec3_double3(othertwo[1].position);
                 }
                 else
                 {
-                    job0.p1 = transform.localPosition + Vector3.forward * dim;
-                    job0.p2 = transform.localPosition + Vector3.right * dim;
+                    job0.p1 = PlanetaryTerrain.vec3_double3(transform.localPosition + Vector3.forward * dim);
+                    job0.p2 = PlanetaryTerrain.vec3_double3(transform.localPosition + Vector3.right * dim);
                 }
                 job0.Run();
                 mesh.SetVertices(job0.verts.AsArray());
@@ -114,70 +114,17 @@ public class NoisesTest : MonoBehaviour
         }
     }
 
-    public struct mesh0
-    {
-        //public NativeList<float3> verts;
-        //public NativeList<int> indices;
-        //public float3 min;
-        //public float3 max;
-        //public int resolution;
-        //public float starting_freq;
-        //public float intensity;
-        
-
-        //public void Execute()
-        //{
-        //    var diff3 = max - min;
-        //    // inclusive
-        //    var r0 = resolution + 1;
-        //    var r1 = resolution;
-        //    var r2 = resolution + 1;
-
-        //    //var r0 = resolution;
-        //    //var r1 = resolution - 1;
-        //    //var r2 = resolution;
-        //    for (int x = 0; x < r0; ++x)
-        //    {
-        //        float perc_x = (float)x / (resolution);
-        //        for (int z = 0; z < r0; ++z)
-        //        {
-        //            float perc_z = (float)z / (resolution);
-        //            var vert_local_position = new float3(diff3.x * perc_x, 0f, diff3.z * perc_z);
-        //            var key = min + vert_local_position;
-        //            key.y = 200000f;
-        //            //key = math.normalize(key);
-        //            var height = octaves(key * starting_freq, 6) * intensity;
-        //            vert_local_position.y = height;
-        //            verts.Add(vert_local_position);
-        //        }
-        //    }
-        //    int index_incre = 0;
-        //    for (int x = 0; x < r1; ++x)
-        //    {
-        //        for (int z = 0; z < r1; ++z)
-        //        {
-        //            indices.Add(index_incre);
-        //            indices.Add(index_incre + 1);
-        //            indices.Add(index_incre + r2);
-
-        //            indices.Add(index_incre + 1);
-        //            indices.Add(index_incre + r2 + 1);
-        //            indices.Add(index_incre + r2);
-        //            index_incre += 1;
-        //        }
-        //        index_incre += 1;
-        //    }
-        //}
-    }
+    
 
     [BurstCompile]
     public struct mesh_triangle : IJob
     {
         public NativeList<float3> verts;
         public NativeList<int> indices;
-        public float3 p0;
-        public float3 p1;
-        public float3 p2;
+        public double3 p0;  // should be in planet space, the magnitude must be equal to planet radius.
+        public double3 p1;
+        public double3 p2;
+        public float planet_radius;
         public byte edge_lod;
         public int resolution; // number of segments. vertice count per edge is resolution + 1.
         public float starting_freq;
@@ -197,18 +144,18 @@ public class NoisesTest : MonoBehaviour
             }
             return sum;
         }
-        float3 add_vert0(float i, float bot, float3 pos_start, float3 dir)
+        double3 add_vert0(float i, float bot, double3 pos_start, double3 dir, NativeList<double3> _verts)
         {
             float perc = i / bot;
             var vert_local_position = pos_start + dir * perc;
-            var key = p0 + vert_local_position;
+            //var key = p0 + vert_local_position;
             //var height = mesh0.octaves(key * starting_freq, 6) * intensity;
             //vert_local_position.y = height;
-            verts.Add(vert_local_position);
+            _verts.Add(vert_local_position);
             return vert_local_position;
         }
         
-        void add_vert2map(float3 vert, int idx, NativeArray<float3> mapped_verts, ref int increment, NativeArray<int> mapped_indices)
+        void add_vert2map(double3 vert, int idx, NativeArray<double3> mapped_verts, ref int increment, NativeArray<int> mapped_indices)
         {
             if (mapped_indices[idx] < 0)
             {
@@ -223,19 +170,20 @@ public class NoisesTest : MonoBehaviour
             const byte EL_Right = 0b10;
             const byte EL_Left = 0b100;
 
-            var base_pos = (p0 + p1 + p2) / 3f;
+            
             var diff0_1 = p1 - p0;
             var diff0_2 = p2 - p0;
             var diff1_2 = p2 - p1;
             int mapped_vert_width = (resolution * 2 + 1);
-            NativeArray<float3> mapped_verts = new NativeArray<float3>(mapped_vert_width * mapped_vert_width, Allocator.Temp);
+            NativeList<double3> verts_d3 = new NativeList<double3>(10, Allocator.Temp);
+            NativeArray<double3> mapped_verts = new NativeArray<double3>(mapped_vert_width * mapped_vert_width, Allocator.Temp);
             NativeArray<int> mapped_indices = new NativeArray<int>(mapped_vert_width * mapped_vert_width, Allocator.Temp);
             for(int i = 0; i < mapped_indices.Length; ++i)
             {
                 mapped_indices[i] = -1;
             }
-            NativeArray<float3> p0_2_starts = new NativeArray<float3>(resolution + 1, Allocator.Temp);
-            NativeArray<float3> p1_2_ends = new NativeArray<float3>(resolution + 1, Allocator.Temp);
+            NativeArray<double3> p0_2_starts = new NativeArray<double3>(resolution + 1, Allocator.Temp);
+            NativeArray<double3> p1_2_ends = new NativeArray<double3>(resolution + 1, Allocator.Temp);
             for (int i = 0; i <= resolution; ++i)
             {
                 float t = (float)i / resolution;
@@ -250,14 +198,14 @@ public class NoisesTest : MonoBehaviour
                 var pos_end = p1_2_ends[j];
                 var diff = pos_end - pos_start;
 
-                var tp0 = add_vert0(0, 1, pos_start, diff);
+                var tp0 = add_vert0(0, 1, pos_start, diff, verts_d3);
                 add_vert2map(tp0, j * 2 * mapped_vert_width, mapped_verts, ref incre, mapped_indices);
 
                 for (int i = 0; i < resolution - j; ++i)
                 {
                     int index0 = i * 2 + j * 2 * mapped_vert_width;
 
-                    var tp1 = add_vert0(i + 1, resolution - j, pos_start, diff);
+                    var tp1 = add_vert0(i + 1, resolution - j, pos_start, diff, verts_d3);
                     add_vert2map(tp1, index0 + 2, mapped_verts, ref incre, mapped_indices);
                 }
             }
@@ -268,7 +216,7 @@ public class NoisesTest : MonoBehaviour
                     var tp0 = mapped_verts[i * 2];
                     var tp1 = mapped_verts[i * 2 + 2];
 
-                    add_vert2map((tp0 + tp1) / 2f, i * 2 + 1, mapped_verts, ref incre, mapped_indices);
+                    add_vert2map((tp0 + tp1) / 2.0, i * 2 + 1, mapped_verts, ref incre, mapped_indices);
                 }
             }
             if ((edge_lod & EL_Right) != 0) // right
@@ -279,7 +227,7 @@ public class NoisesTest : MonoBehaviour
                     var tp0 = mapped_verts[o_index];
                     var tp1 = mapped_verts[o_index - resolution * 4];
 
-                    add_vert2map((tp0 + tp1) / 2f, o_index - resolution * 2, mapped_verts, ref incre, mapped_indices);
+                    add_vert2map((tp0 + tp1) / 2.0, o_index - resolution * 2, mapped_verts, ref incre, mapped_indices);
                 }
             }
             if ((edge_lod & EL_Left) != 0) // left
@@ -289,7 +237,7 @@ public class NoisesTest : MonoBehaviour
                     var tp0 = mapped_verts[i * mapped_vert_width * 2];
                     var tp1 = mapped_verts[(i + 1) * mapped_vert_width * 2];
 
-                    add_vert2map((tp0 + tp1) / 2f, i * mapped_vert_width * 2 + mapped_vert_width, mapped_verts, ref incre, mapped_indices);
+                    add_vert2map((tp0 + tp1) / 2.0, i * mapped_vert_width * 2 + mapped_vert_width, mapped_verts, ref incre, mapped_indices);
                 }
             }
 
@@ -525,15 +473,18 @@ public class NoisesTest : MonoBehaviour
                     vert_count++;
             }
             verts.AddReplicate(0f, vert_count);
+            float3 base_pos = (float3)(p0 + p1 + p2) / 3f;
             for (int i = 0; i < mapped_indices.Length; ++i)
             {
                 if (mapped_indices[i] >= 0)
                 {
 
                     var key = mapped_verts[i];
-                    var height = octaves(key * starting_freq, 6) * intensity;
+                    var height = octaves((float3)key * starting_freq, 6) * intensity;
+                    var key_normalized = math.normalize(key);
+                    key = key_normalized * (planet_radius + height);
 
-                    verts[mapped_indices[i]] = new float3(key.x, height, key.z) - base_pos;
+                    verts[mapped_indices[i]] = new float3((float)key.x, (float)key.y, (float)key.z) - base_pos;
                 }
             }
         }
