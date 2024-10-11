@@ -99,6 +99,15 @@ public class PlanetaryTerrain : MonoBehaviour
             Gizmos.DrawLine(three[0].position, three[1].position);
             Gizmos.DrawLine(three[2].position, three[1].position);
             Gizmos.DrawLine(three[0].position, three[2].position);
+
+            NativeArray<double3> tmp = default;
+            NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
+                4, ref tmp, 1);
+            for(int i = 0; i < tmp.Length; ++i)
+            {
+                Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
+            }
+            tmp.Dispose();
             // clockwise winding
             //triangle_divide(three[0].position, three[1].position, three[2].position, default, 2);
         }

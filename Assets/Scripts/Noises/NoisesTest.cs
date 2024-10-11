@@ -164,6 +164,32 @@ public class NoisesTest : MonoBehaviour
                 increment++;
             }
         }
+        public static void half_fill(double3 _p0, double3 _p1, double3 _p2, int _resolution, ref NativeArray<double3> dim2map, float radius)
+        {
+            dim2map = new NativeArray<double3>((_resolution + 1) * (_resolution + 1), Allocator.TempJob);
+            dim2map[0] = _p0;
+            dim2map[_resolution] = _p1;
+            dim2map[_resolution * (_resolution + 1)] = _p2;
+
+            half_fills(dim2map, 0, _resolution, 2, radius); // p0 -> p1
+            half_fills(dim2map, 0, _resolution * (_resolution + 1), 2, radius); // p0 -> p2
+            half_fills(dim2map, _resolution, _resolution * (_resolution + 1), 2, radius); // p1 -> p2
+
+            half_fills(dim2map, _resolution / 2, _resolution * (_resolution + 1) / 2, 1, radius); // p0p1p2
+            half_fills(dim2map, _resolution / 2, ((_resolution + 1) * (_resolution + 1) - 1) / 2, 1, radius); // p1 -> p2
+            half_fills(dim2map, _resolution * (_resolution + 1) / 2, ((_resolution + 1) * (_resolution + 1) - 1) / 2, 1, radius); // p1 -> p2
+        }
+
+        static void half_fills(NativeArray<double3> straight, int st, int end, int level, float radius)
+        {
+            if (level == 0) return;
+            var mid_idx = (st + end) >> 1;
+            var mid_value = (straight[st] + straight[end]) / 2.0;
+            //mid_value = math.normalize(mid_value) * radius;
+            straight[mid_idx] = mid_value;
+            half_fills(straight, st, mid_idx, level - 1, radius);
+            half_fills(straight, mid_idx, end, level - 1, radius);
+        }
         public void Execute()
         {
             const byte EL_Top = 0b1;
