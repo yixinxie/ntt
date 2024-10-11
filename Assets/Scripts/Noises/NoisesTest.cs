@@ -6,6 +6,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.UIElements;
+using static UnityEngine.InputManagerEntry;
 
 public class NoisesTest : MonoBehaviour
 {
@@ -221,6 +222,8 @@ public class NoisesTest : MonoBehaviour
             const byte EL_Top = 0b1;
             const byte EL_Right = 0b10;
             const byte EL_Left = 0b100;
+
+            var base_pos = (p0 + p1 + p2) / 3f;
             var diff0_1 = p1 - p0;
             var diff0_2 = p2 - p0;
             var diff1_2 = p2 - p1;
@@ -530,7 +533,7 @@ public class NoisesTest : MonoBehaviour
                     var key = mapped_verts[i];
                     var height = octaves(key * starting_freq, 6) * intensity;
 
-                    verts[mapped_indices[i]] = new float3(key.x, height, key.z);
+                    verts[mapped_indices[i]] = new float3(key.x, height, key.z) - base_pos;
                 }
             }
         }
