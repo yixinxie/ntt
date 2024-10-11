@@ -88,6 +88,7 @@ public class NoisesTest : MonoBehaviour
                 job0.starting_freq = starting_freq;
                 job0.intensity = intensity;
                 job0.edge_lod= (byte)edge_lod;
+                job0.planet_radius = 1f;
                 job0.p0 = PlanetaryTerrain.vec3_double3(transform.localPosition);
                 if (othertwo != null && othertwo.Length == 2)
                 {
@@ -144,16 +145,13 @@ public class NoisesTest : MonoBehaviour
             }
             return sum;
         }
-        double3 add_vert0(float i, float bot, double3 pos_start, double3 dir, NativeList<double3> _verts)
-        {
-            float perc = i / bot;
-            var vert_local_position = pos_start + dir * perc;
-            //var key = p0 + vert_local_position;
-            //var height = mesh0.octaves(key * starting_freq, 6) * intensity;
-            //vert_local_position.y = height;
-            _verts.Add(vert_local_position);
-            return vert_local_position;
-        }
+        //double3 add_vert0(float i, float bot, double3 pos_start, double3 dir, NativeList<double3> _verts)
+        //{
+        //    float perc = i / bot;
+        //    var vert_local_position = pos_start + dir * perc;
+        //    _verts.Add(vert_local_position);
+        //    return vert_local_position;
+        //}
         
         void add_vert2map(double3 vert, int idx, NativeArray<double3> mapped_verts, ref int increment, NativeArray<int> mapped_indices)
         {
@@ -166,7 +164,7 @@ public class NoisesTest : MonoBehaviour
         }
         public static void half_fill(double3 _p0, double3 _p1, double3 _p2, int _resolution, ref NativeArray<double3> dim2map, float radius)
         {
-            dim2map = new NativeArray<double3>((_resolution + 1) * (_resolution + 1), Allocator.TempJob);
+            dim2map = new NativeArray<double3>((_resolution + 1) * (_resolution + 1), Allocator.Temp);
             dim2map[0] = _p0;
             dim2map[_resolution] = _p1;
             dim2map[_resolution * (_resolution + 1)] = _p2;
@@ -185,10 +183,14 @@ public class NoisesTest : MonoBehaviour
             if (level == 0) return;
             var mid_idx = (st + end) >> 1;
             var mid_value = (straight[st] + straight[end]) / 2.0;
-            //mid_value = math.normalize(mid_value) * radius;
+            mid_value = math.normalize(mid_value) * radius;
             straight[mid_idx] = mid_value;
             half_fills(straight, st, mid_idx, level - 1, radius);
             half_fills(straight, mid_idx, end, level - 1, radius);
+        }
+        static double3 rescale(double3 val, float radius)
+        {
+            return math.normalize(val) * radius;
         }
         public void Execute()
         {
@@ -201,13 +203,15 @@ public class NoisesTest : MonoBehaviour
             var diff0_2 = p2 - p0;
             var diff1_2 = p2 - p1;
             int mapped_vert_width = (resolution * 2 + 1);
-            NativeList<double3> verts_d3 = new NativeList<double3>(10, Allocator.Temp);
+            //NativeList<double3> verts_d3 = new NativeList<double3>(10, Allocator.Temp);
             NativeArray<double3> mapped_verts = new NativeArray<double3>(mapped_vert_width * mapped_vert_width, Allocator.Temp);
             NativeArray<int> mapped_indices = new NativeArray<int>(mapped_vert_width * mapped_vert_width, Allocator.Temp);
             for(int i = 0; i < mapped_indices.Length; ++i)
             {
                 mapped_indices[i] = -1;
             }
+
+            // legacy
             NativeArray<double3> p0_2_starts = new NativeArray<double3>(resolution + 1, Allocator.Temp);
             NativeArray<double3> p1_2_ends = new NativeArray<double3>(resolution + 1, Allocator.Temp);
             for (int i = 0; i <= resolution; ++i)
@@ -218,21 +222,38 @@ public class NoisesTest : MonoBehaviour
             }
 
             int incre = 0;
+            //for (int j = 0; j <= resolution; ++j)
+            //{
+            //    var pos_start = p0_2_starts[j];
+            //    var pos_end = p1_2_ends[j];
+            //    var diff = pos_end - pos_start;
+
+            //    var tp0 = add_vert0(0, 1, pos_start, diff, verts_d3);
+            //    add_vert2map(tp0, j * 2 * mapped_vert_width, mapped_verts, ref incre, mapped_indices);
+
+            //    for (int i = 0; i < resolution - j; ++i)
+            //    {
+            //        int index0 = i * 2 + j * 2 * mapped_vert_width;
+
+            //        var tp1 = add_vert0(i + 1, resolution - j, pos_start, diff, verts_d3);
+            //        add_vert2map(tp1, index0 + 2, mapped_verts, ref incre, mapped_indices);
+            //    }
+            //}
+            NativeArray<double3> tmp_straight = default;
+            half_fill(p0, p1, p2,
+                4, ref tmp_straight, planet_radius);
             for (int j = 0; j <= resolution; ++j)
             {
-                var pos_start = p0_2_starts[j];
-                var pos_end = p1_2_ends[j];
-                var diff = pos_end - pos_start;
 
-                var tp0 = add_vert0(0, 1, pos_start, diff, verts_d3);
-                add_vert2map(tp0, j * 2 * mapped_vert_width, mapped_verts, ref incre, mapped_indices);
+                //var tp0 = tmp_straight[j];
+                //add_vert2map(tp0, j * 2 * mapped_vert_width, mapped_verts, ref incre, mapped_indices);
 
-                for (int i = 0; i < resolution - j; ++i)
+                for (int i = 0; i <= resolution - j; ++i)
                 {
                     int index0 = i * 2 + j * 2 * mapped_vert_width;
 
-                    var tp1 = add_vert0(i + 1, resolution - j, pos_start, diff, verts_d3);
-                    add_vert2map(tp1, index0 + 2, mapped_verts, ref incre, mapped_indices);
+                    var tp1 = tmp_straight[i + j * (resolution + 1)];
+                    add_vert2map(tp1, index0/* + 2*/, mapped_verts, ref incre, mapped_indices);
                 }
             }
             if ((edge_lod & EL_Top) != 0) // top
@@ -242,7 +263,7 @@ public class NoisesTest : MonoBehaviour
                     var tp0 = mapped_verts[i * 2];
                     var tp1 = mapped_verts[i * 2 + 2];
 
-                    add_vert2map((tp0 + tp1) / 2.0, i * 2 + 1, mapped_verts, ref incre, mapped_indices);
+                    add_vert2map(rescale((tp0 + tp1) / 2.0, planet_radius), i * 2 + 1, mapped_verts, ref incre, mapped_indices);
                 }
             }
             if ((edge_lod & EL_Right) != 0) // right
@@ -253,7 +274,7 @@ public class NoisesTest : MonoBehaviour
                     var tp0 = mapped_verts[o_index];
                     var tp1 = mapped_verts[o_index - resolution * 4];
 
-                    add_vert2map((tp0 + tp1) / 2.0, o_index - resolution * 2, mapped_verts, ref incre, mapped_indices);
+                    add_vert2map(rescale((tp0 + tp1) / 2.0, planet_radius), o_index - resolution * 2, mapped_verts, ref incre, mapped_indices);
                 }
             }
             if ((edge_lod & EL_Left) != 0) // left
@@ -263,7 +284,7 @@ public class NoisesTest : MonoBehaviour
                     var tp0 = mapped_verts[i * mapped_vert_width * 2];
                     var tp1 = mapped_verts[(i + 1) * mapped_vert_width * 2];
 
-                    add_vert2map((tp0 + tp1) / 2.0, i * mapped_vert_width * 2 + mapped_vert_width, mapped_verts, ref incre, mapped_indices);
+                    add_vert2map(rescale((tp0 + tp1) / 2.0, planet_radius), i * mapped_vert_width * 2 + mapped_vert_width, mapped_verts, ref incre, mapped_indices);
                 }
             }
 
