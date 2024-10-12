@@ -89,27 +89,26 @@ public class PlanetaryTerrain : MonoBehaviour
     {
         if (three != null && three.Length == 3)
         {
-            for(int i = 0; i < three.Length; i++)
-            {
-                if (three[i] == null)
-                {
-                    return;
-                }
-            }
-            Gizmos.DrawLine(three[0].position, three[1].position);
-            Gizmos.DrawLine(three[2].position, three[1].position);
-            Gizmos.DrawLine(three[0].position, three[2].position);
+            //for(int i = 0; i < three.Length; i++)
+            //{
+            //    if (three[i] == null)
+            //    {
+            //        return;
+            //    }
+            //}
+            //Gizmos.DrawLine(three[0].position, three[1].position);
+            //Gizmos.DrawLine(three[2].position, three[1].position);
+            //Gizmos.DrawLine(three[0].position, three[2].position);
 
-            NativeArray<double3> tmp = default;
-            NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
-                4, ref tmp, 1);
-            for(int i = 0; i < tmp.Length; ++i)
-            {
-                Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
-            }
-            tmp.Dispose();
-            // clockwise winding
-            //triangle_divide(three[0].position, three[1].position, three[2].position, default, 2);
+            //NativeArray<double3> tmp = default;
+            //NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
+            //    4, ref tmp, 1);
+            //for(int i = 0; i < tmp.Length; ++i)
+            //{
+            //    Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
+            //}
+            //tmp.Dispose();
+
         }
     }
     static void triangle_divide(float3 p0, float3 p1, float3 p2, NativeList<float3> points, int level)
@@ -154,7 +153,7 @@ public class PlanetaryTerrain : MonoBehaviour
     static bool triangle_size2cam(double3 p0, double3 p1, double3 p2, TerrainGenParams tgp)
     {
         var center = (p0 + p1 + p2) / 3f;
-        var to_center = math.distance(center, tgp.pivot_pos);
+        var to_center = math.distance(center, vec3_double3(calc_planet_pos(tgp.pivot_pos, tgp.pivot_cell_coord, tgp.cell_half_extents)));
         var dist = math.distance(p0, p1) + math.distance(p0, p2);
         dist /= 2f;
         return to_center > dist;
@@ -249,7 +248,57 @@ public class PlanetaryTerrain : MonoBehaviour
     {
         return new double3(val.x, val.y, val.z);
     }
+    public int dbg_face_select;
+    static Vector3 calc_planet_pos(Vector3 local_pos, int3 cell_coord, float _cell_half_extent)
+    {
+        return local_pos + new Vector3(cell_coord.x, cell_coord.y, cell_coord.z) * _cell_half_extent * 2.0f;
+    }
+    void refresh_lods()
+    {
+        for (int i = 0; i < meshes.Count; i++)
+        {
+            meshes[i].Clear();
 
+        }
+
+        mesh_gen_count = 0;
+        var tgp = new TerrainGenParams();
+        tgp.pivot_pos = cam_transform.position;
+        tgp.planet_radius = radius;
+        tgp.pivot_cell_coord = cell_pos;
+        tgp.cell_half_extents = cell_half_extents;
+
+
+        int dir_idx = 0;
+        double dotted = 0.0;
+        var abspos = calc_planet_pos(cam_transform.position, cell_pos, cell_half_extents);
+        var pivot_d3 = vec3_double3(abspos);
+        for (int i = 0; i < 6; ++i)
+        {
+            var this_dot = math.dot(axis6[i], pivot_d3);
+            if (this_dot > dotted)
+            {
+                dotted = this_dot;
+                dir_idx = i;
+            }
+        }
+        dbg_face_select = dir_idx;
+
+        var faces_selected = faces_selectors[dir_idx];
+        for (int i = 0; i < 4; ++i)
+        {
+            var p0 = axis6[faces[faces_selected[i] * 3]] * radius;
+            var p1 = axis6[faces[faces_selected[i] * 3 + 1]] * radius;
+            var p2 = axis6[faces[faces_selected[i] * 3 + 2]] * radius;
+            //Debug.DrawLine(double3_vec3(p0 * radius), double3_vec3(p1 * radius), Color.green);
+            //Debug.DrawLine(double3_vec3(p1 * radius), double3_vec3(p2 * radius), Color.green);
+            //Debug.DrawLine(double3_vec3(p0 * radius), double3_vec3(p2 * radius), Color.green);
+
+            //triangle_divide_mesh(tgp.relative2cell_center(p0), tgp.relative2cell_center(p1), tgp.relative2cell_center(p2),
+            triangle_divide_mesh(p0, p1, p2,
+                tgp, meshes, ref mesh_gen_count, max_lod);
+        }
+    }
     // Update is called once per frame
     void Update()
     {
@@ -288,72 +337,15 @@ public class PlanetaryTerrain : MonoBehaviour
                 pivot_pos.z += cell_half_extents * 2f;
                 cell_pos.z--;
             }
+            cam_transform.position = pivot_pos;
+            refresh_lods();
         }
-        //cam_transform.position = pivot_pos;
         if (refresh)
         {
             if (continuous_refresh == false)
                 refresh = false;
-            for (int i = 0; i < meshes.Count; i++)
-            {
-                meshes[i].Clear();
+            refresh_lods();
 
-            }
-
-            mesh_gen_count = 0;
-            var tgp = new TerrainGenParams();
-            tgp.pivot_pos = cam_transform.position;
-            tgp.planet_radius = radius;
-            tgp.pivot_cell_coord = cell_pos;
-            tgp.cell_half_extent = cell_half_extents;
-            //double3 cell_center = new double3(cell_pos) * cell_half_extents * 2.0;
-            //var cell_center_dir_normalized = math.normalize(cell_center);
-            //double3 right_dir = math.cross(cell_center_dir_normalized, new double3(0.0, 1.0, 0.0));
-            //var right_mag = math.distance(right_dir, 0.0);
-            //if(right_mag > 0.001f)
-            //{
-            //    right_dir = math.normalize(right_dir);
-            //}
-            //else
-            //{
-            //    right_dir = new double3(0.0, 0.0, 1.0);
-            //}
-            
-            int dir_idx = 0;
-            double dotted = 0.0;
-            var pivot_d3 = vec3_double3(cam_transform.position);
-            for (int i = 0; i < 6; ++i)
-            {
-                var this_dot = math.dot(axis6[i], pivot_d3);
-                if(this_dot > dotted)
-                {
-                    dotted = this_dot;
-                    dir_idx = i;
-                }
-            }
-
-            var faces_selected = faces_selectors[dir_idx];
-            for (int i = 0; i < 4; ++i)
-            {
-                var p0 = axis6[faces[faces_selected[i] * 3]] * radius;
-                var p1 = axis6[faces[faces_selected[i] * 3 + 1]] * radius;
-                var p2 = axis6[faces[faces_selected[i] * 3 + 2]] * radius;
-                //Debug.DrawLine(double3_vec3(p0 * radius), double3_vec3(p1 * radius), Color.green);
-                //Debug.DrawLine(double3_vec3(p1 * radius), double3_vec3(p2 * radius), Color.green);
-                //Debug.DrawLine(double3_vec3(p0 * radius), double3_vec3(p2 * radius), Color.green);
-
-                //triangle_divide_mesh(tgp.relative2cell_center(p0), tgp.relative2cell_center(p1), tgp.relative2cell_center(p2),
-                triangle_divide_mesh(p0, p1, p2,
-                    tgp, meshes, ref mesh_gen_count, max_lod);
-            }
-
-                //var up_dir = math.normalize(math.cross(right_dir, cell_center_dir_normalized));
-                //var up_offset = up_dir * cell_half_extents * 4f;
-                //var right_offset = right_dir * cell_half_extents * 4f;
-                //Debug.DrawLine(double3_vec3(cell_center), double3_vec3(cell_center + up_offset), Color.red);
-                //Debug.DrawLine(double3_vec3(cell_center), double3_vec3(cell_center + right_offset), Color.green);
-            //triangle_divide_mesh(three[0].position, three[1].position, three[2].position, tgp,
-            //    meshes, ref mesh_gen_count, max_lod);
         }
         for (int i = 0; i < meshes.Count; i++)
         {
@@ -373,12 +365,12 @@ public struct TerrainGenParams
     public float3 pivot_pos; // pivot's position in cell space, or CamControl.self.root.transform.position
     public int3 pivot_cell_coord; // pivot's cell coord
     public float planet_radius; // planet radius in meters
-    public float cell_half_extent;
+    public float cell_half_extents;
     public float3 relative2cell_center(double3 p)
     {
-        p /= cell_half_extent * 2f;
+        p /= cell_half_extents * 2f;
         p -= pivot_cell_coord;
-        return new float3(p * cell_half_extent * 2f);
+        return new float3(p * cell_half_extents * 2f);
     }
 }
 public struct TerrainMeshStates
