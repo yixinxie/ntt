@@ -183,6 +183,69 @@ public class PlanetaryTerrain : MonoBehaviour
             //(v0.x + v1.x)
         }
     }
+    public struct TerrainLODInfo
+    {
+        public int4 child_indices;
+        public byte expanded;
+        public ushort lod;
+    }
+    static void triangle_divide_pass0_lod(int index, double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, NativeList<TerrainLODInfo> patch_list, ref int mesh_added, ushort level)
+    {
+        var patch_info = patch_list[index];
+        patch_info.lod = level;
+        if (level == 0 || triangle_size2cam(p0, p1, p2, tgparams))
+        {
+            
+
+            //var job = new NoisesTest.mesh_triangle();
+
+            //job.p0 = p0;
+            //job.p1 = p1;
+            //job.p2 = p2;
+            
+            //Mesh mesh2use = null;
+            //if (mesh_added >= meshes.Count)
+            //{
+            //    var tms = new TerrainMeshStates();
+            //    tms.mesh = new Mesh();
+            //    meshes.Add(tms);
+            //}
+            //{
+            //    var tmp = meshes[mesh_added];
+            //    tmp.wrotation = quaternion.identity;
+            //    tmp.wposition = tgparams.relative2cell_center((job.p0 + job.p1 + job.p2) / 3.0);
+            //    meshes[mesh_added] = tmp;
+            //}
+            //mesh2use = meshes[mesh_added].mesh;
+
+
+            mesh_added++;
+            patch_list[index] = patch_info;
+            return;
+        }
+        patch_info.expanded = 1;
+        double3 q0 = (p0 + p1) / 2.0;
+        double3 q1 = (p1 + p2) / 2.0;
+        double3 q2 = (p0 + p2) / 2.0;
+        q0 = math.normalize(q0) * tgparams.planet_radius;
+        q1 = math.normalize(q1) * tgparams.planet_radius;
+        q2 = math.normalize(q2) * tgparams.planet_radius;
+
+        patch_list.AddReplicate(default, 4);
+        patch_info.child_indices = new int4(
+            patch_list.Length - 4,
+            patch_list.Length - 3,
+            patch_list.Length - 2,
+            patch_list.Length - 1);
+        patch_list[index] = patch_info;
+        var child_indices = patch_info.child_indices;
+
+        ushort one_level_lower = (ushort)(level - 1);
+        triangle_divide_pass0_lod(child_indices.x, p0, q0, q2, tgparams, patch_list, ref mesh_added, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.y, q0, p1, q1, tgparams, patch_list, ref mesh_added, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.z, q0, q1, q2, tgparams, patch_list, ref mesh_added, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.w, q2, q1, p2, tgparams, patch_list, ref mesh_added, one_level_lower);
+    }
     static void triangle_divide_mesh(double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, List<TerrainMeshStates> meshes, ref int mesh_added, int level)
     {
         if (level == 0 || triangle_size2cam(p0, p1, p2, tgparams))
