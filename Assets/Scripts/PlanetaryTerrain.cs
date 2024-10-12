@@ -18,6 +18,7 @@ public class PlanetaryTerrain : MonoBehaviour
     public Transform cam_transform; // pivot transform ref
     public int3 cell_pos; // cell index inside a planet's volume, if the range is just the planet.
     public float radius = 200000f;
+    public float height = 5f;
     NativeArray<double3> axis6;
     NativeArray<byte> faces;
     NativeArray<int4> faces_selectors;
@@ -191,7 +192,9 @@ public class PlanetaryTerrain : MonoBehaviour
             //job.p0 = tgparams.relative2cell_center(p0);
             //job.p1 = tgparams.relative2cell_center(p1);
             //job.p2 = tgparams.relative2cell_center(p2);
-
+            //unsafe{
+            //    job.tgp = &tgparams;
+            //}
             job.p0 = p0;
             job.p1 = p1;
             job.p2 = p2;
@@ -199,7 +202,7 @@ public class PlanetaryTerrain : MonoBehaviour
             //var mesh_base_pos = (job.p0 + job.p1 + job.p2) / 3f;
             job.resolution = 4;
             job.starting_freq = 0.03f;
-            job.intensity = 5f;
+            job.intensity = tgparams.noise_height;
             job.verts = new NativeList<float3>(65535, Allocator.TempJob);
             job.indices = new NativeList<int>(65535, Allocator.TempJob);
             job.Run();
@@ -214,6 +217,7 @@ public class PlanetaryTerrain : MonoBehaviour
                 var tmp = meshes[mesh_added];
                 tmp.wrotation = quaternion.identity;
                 tmp.wposition = tgparams.relative2cell_center((job.p0 + job.p1 + job.p2) / 3.0);
+                //tmp.wposition = -new float3((job.p0 + job.p1 + job.p2) / 3.0);
                 meshes[mesh_added] = tmp;
             }
             mesh2use = meshes[mesh_added].mesh;
@@ -267,6 +271,7 @@ public class PlanetaryTerrain : MonoBehaviour
         tgp.planet_radius = radius;
         tgp.pivot_cell_coord = cell_pos;
         tgp.cell_half_extents = cell_half_extents;
+        tgp.noise_height = height;
 
 
         int dir_idx = 0;
@@ -366,11 +371,15 @@ public struct TerrainGenParams
     public int3 pivot_cell_coord; // pivot's cell coord
     public float planet_radius; // planet radius in meters
     public float cell_half_extents;
+    public float noise_height;
     public float3 relative2cell_center(double3 p)
     {
-        p /= cell_half_extents * 2f;
-        p -= pivot_cell_coord;
-        return new float3(p * cell_half_extents * 2f);
+        var ret = p - new double3(pivot_cell_coord.x, pivot_cell_coord.y, pivot_cell_coord.z) * cell_half_extents * 2f;
+        return (float3)ret;
+        //p /= cell_half_extents * 2f;
+
+        //p -= pivot_cell_coord;
+        //return new float3(p * cell_half_extents * 2f);
     }
 }
 public struct TerrainMeshStates

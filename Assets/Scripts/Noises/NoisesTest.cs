@@ -118,13 +118,14 @@ public class NoisesTest : MonoBehaviour
     
 
     [BurstCompile]
-    public struct mesh_triangle : IJob
+    unsafe public struct mesh_triangle : IJob
     {
         public NativeList<float3> verts;
         public NativeList<int> indices;
         public double3 p0;  // should be in planet space, the magnitude must be equal to planet radius.
         public double3 p1;
         public double3 p2;
+        //public TerrainGenParams* tgp;
         public float planet_radius;
         public byte edge_lod;
         public int resolution; // number of segments. vertice count per edge is resolution + 1.
