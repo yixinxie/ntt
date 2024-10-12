@@ -211,17 +211,16 @@ public class NoisesTest : MonoBehaviour
                 mapped_indices[i] = -1;
             }
 
-            // legacy
-            NativeArray<double3> p0_2_starts = new NativeArray<double3>(resolution + 1, Allocator.Temp);
-            NativeArray<double3> p1_2_ends = new NativeArray<double3>(resolution + 1, Allocator.Temp);
-            for (int i = 0; i <= resolution; ++i)
-            {
-                float t = (float)i / resolution;
-                p0_2_starts[i] = p0 + diff0_2 * t;
-                p1_2_ends[i] = p1 + diff1_2 * t;
-            }
-
             int incre = 0;
+            // legacy
+            //NativeArray<double3> p0_2_starts = new NativeArray<double3>(resolution + 1, Allocator.Temp);
+            //NativeArray<double3> p1_2_ends = new NativeArray<double3>(resolution + 1, Allocator.Temp);
+            //for (int i = 0; i <= resolution; ++i)
+            //{
+            //    float t = (float)i / resolution;
+            //    p0_2_starts[i] = p0 + diff0_2 * t;
+            //    p1_2_ends[i] = p1 + diff1_2 * t;
+            //}
             //for (int j = 0; j <= resolution; ++j)
             //{
             //    var pos_start = p0_2_starts[j];
@@ -244,16 +243,11 @@ public class NoisesTest : MonoBehaviour
                 4, ref tmp_straight, planet_radius);
             for (int j = 0; j <= resolution; ++j)
             {
-
-                //var tp0 = tmp_straight[j];
-                //add_vert2map(tp0, j * 2 * mapped_vert_width, mapped_verts, ref incre, mapped_indices);
-
                 for (int i = 0; i <= resolution - j; ++i)
                 {
-                    int index0 = i * 2 + j * 2 * mapped_vert_width;
-
                     var tp1 = tmp_straight[i + j * (resolution + 1)];
-                    add_vert2map(tp1, index0/* + 2*/, mapped_verts, ref incre, mapped_indices);
+                    int write_index = i * 2 + j * 2 * mapped_vert_width;
+                    add_vert2map(tp1, write_index/* + 2*/, mapped_verts, ref incre, mapped_indices);
                 }
             }
             if ((edge_lod & EL_Top) != 0) // top

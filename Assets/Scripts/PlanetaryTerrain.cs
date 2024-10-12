@@ -214,7 +214,7 @@ public class PlanetaryTerrain : MonoBehaviour
             {
                 var tmp = meshes[mesh_added];
                 tmp.wrotation = quaternion.identity;
-                tmp.wposition = new float3((job.p0 + job.p1 + job.p2) / 3.0);
+                tmp.wposition = tgparams.relative2cell_center((job.p0 + job.p1 + job.p2) / 3.0);
                 meshes[mesh_added] = tmp;
             }
             mesh2use = meshes[mesh_added].mesh;
@@ -376,9 +376,9 @@ public struct TerrainGenParams
     public float cell_half_extent;
     public float3 relative2cell_center(double3 p)
     {
-        p /= cell_half_extent;
+        p /= cell_half_extent * 2f;
         p -= pivot_cell_coord;
-        return new float3(p * cell_half_extent);
+        return new float3(p * cell_half_extent * 2f);
     }
 }
 public struct TerrainMeshStates
