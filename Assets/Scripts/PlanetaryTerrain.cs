@@ -1,21 +1,26 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlanetaryTerrain : MonoBehaviour
 {
     public Transform[] three;
     public float cell_half_extents = 200f;
-    public int max_lod = 4;
+    public ushort max_lod = 4;
     public int mesh_gen_count = 0;
     public bool refresh;
     public bool continuous_refresh;
     public List<TerrainMeshStates> meshes = new List<TerrainMeshStates>(8);
     public Material terrain_mat;
     public Transform cam_transform; // pivot transform ref
+
+    public Transform prev_pivot;
+    public Transform this_pivot;
     public int3 cell_pos; // cell index inside a planet's volume, if the range is just the planet.
     public float radius = 200000f;
     NativeArray<double3> axis6;
@@ -87,68 +92,129 @@ public class PlanetaryTerrain : MonoBehaviour
     }
     private void OnDrawGizmos()
     {
-        if (three != null && three.Length == 3)
+        //if (three != null && three.Length == 3)
+        //{
+        //    for (int i = 0; i < three.Length; i++)
+        //    {
+        //        if (three[i] == null)
+        //        {
+        //            return;
+        //        }
+        //    }
+        //    Gizmos.DrawLine(three[0].position, three[1].position);
+        //    Gizmos.DrawLine(three[2].position, three[1].position);
+        //    Gizmos.DrawLine(three[0].position, three[2].position);
+        //    //NativeArray<double3> tmp = default;
+        //    //NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
+        //    //    4, ref tmp, 1);
+        //    //for(int i = 0; i < tmp.Length; ++i)
+        //    //{
+        //    //    Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
+        //    //}
+        //    //tmp.Dispose();
+
+        //}
+        if(lodcmd_test)
         {
-            //for(int i = 0; i < three.Length; i++)
-            //{
-            //    if (three[i] == null)
-            //    {
-            //        return;
-            //    }
-            //}
-            //Gizmos.DrawLine(three[0].position, three[1].position);
-            //Gizmos.DrawLine(three[2].position, three[1].position);
-            //Gizmos.DrawLine(three[0].position, three[2].position);
+            lodcmd_test = false;
+            var tgp = new TerrainGenParams();
+            tgp.planet_radius = radius;
+            tgp.cell_half_extents = 0.5f;
+            tgp.pivot_pos = prev_pivot.position;
+            var patches = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
+            patches.Add(default);
+            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches, max_lod);
+            //var sbuilder = new StringBuilder();
+            tgp.pivot_pos = this_pivot.position;
+            var patches_this = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
+            patches_this.Add(default);
+            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_this, max_lod);
 
-            //NativeArray<double3> tmp = default;
-            //NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
-            //    4, ref tmp, 1);
-            //for(int i = 0; i < tmp.Length; ++i)
-            //{
-            //    Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
-            //}
-            //tmp.Dispose();
 
+            Gizmos.color = Color.green;
+            for(int i = 0; i < patches.Length; i++)
+            {
+                var patch = patches[i];
+                //sbuilder.AppendLineFormat("{0} {1} {2} {3}", i, patch.expanded, patch.lod, patch.child_indices.ToString());
+                if(patch.expanded == 0)
+                {
+                    Gizmos.DrawLine(double3_vec3(patch.p0), double3_vec3(patch.p1));
+                    Gizmos.DrawLine(double3_vec3(patch.p0), double3_vec3(patch.p2));
+                    Gizmos.DrawLine(double3_vec3(patch.p2), double3_vec3(patch.p1));
+                }
+            }
+            //Debug.Log(sbuilder.ToString());
         }
     }
-    static void triangle_divide(float3 p0, float3 p1, float3 p2, NativeList<float3> points, int level)
+    public struct TerrainPatchGenCmd
     {
-        // float height = 1f;
-        // var p0_nml = math.normalize(p0);
-        // //var height = NoisesTest.mesh0.octaves(p0_nml, 4);
-        // p0 = p0_nml * height;
 
-        // var p1_nml = math.normalize(p1);
-        //// height = NoisesTest.mesh0.octaves(p1_nml, 4);
-        // p1 = p1_nml * height;
+    }
+    public struct TerrainPatchClearCmd
+    {
 
-        // var p2_nml = math.normalize(p2);
-        // //height = NoisesTest.mesh0.octaves(p2_nml, 4);
-        // p2 = p2_nml * height;
+    }
+    public bool lodcmd_test;
+    void recursive_patch_remove(NativeList<TerrainLODInfo> patch_tree, int index, NativeList<TerrainPatchClearCmd> clear_cmds)
+    {
+        var cur_patch = patch_tree[index];
+        if (cur_patch.expanded == 0)
+        {
+            var cmd = new TerrainPatchClearCmd();
+            clear_cmds.Add(cmd);
+            return;
+        }
+        recursive_patch_remove(patch_tree, cur_patch.child_indices[0], clear_cmds);
+        recursive_patch_remove(patch_tree, cur_patch.child_indices[1], clear_cmds);
+        recursive_patch_remove(patch_tree, cur_patch.child_indices[2], clear_cmds);
+        recursive_patch_remove(patch_tree, cur_patch.child_indices[3], clear_cmds);
+    }
+    void recursive_patch_gen(NativeList<TerrainLODInfo> patch_tree, int index, NativeList<TerrainPatchGenCmd> gen_cmds)
+    {
+        var cur_patch = patch_tree[index];
+        if (cur_patch.expanded == 0)
+        {
+            var cmd = new TerrainPatchGenCmd();
+            gen_cmds.Add(cmd);
+            return;
+        }
+        recursive_patch_gen(patch_tree, cur_patch.child_indices[0], gen_cmds);
+        recursive_patch_gen(patch_tree, cur_patch.child_indices[1], gen_cmds);
+        recursive_patch_gen(patch_tree, cur_patch.child_indices[2], gen_cmds);
+        recursive_patch_gen(patch_tree, cur_patch.child_indices[3], gen_cmds);
+    }
+    void compare_trees(NativeList<TerrainLODInfo> prev_patches, NativeList<TerrainLODInfo> expected_patches, int index, NativeList<TerrainPatchGenCmd> gen_list
+        , NativeList<TerrainPatchClearCmd> clear_list)
+    {
+        var this_patch = expected_patches[index];
+        if (prev_patches[index].expanded != this_patch.expanded)
+        {
+            if (expected_patches[index].expanded == 0)
+            {
+                // contraction
+                var tpgen = new TerrainPatchGenCmd();
 
+                gen_list.Add(tpgen);
 
-        Gizmos.DrawLine(p0, p1);
-        Gizmos.DrawLine(p1, p2);
-        Gizmos.DrawLine(p0, p2);
-        if (level == 0) return;
-        float3 q0 = (p0 + p1) / 2f;
-        float3 q1 = (p1 + p2) / 2f;
-        float3 q2 = (p0 + p2) / 2f;
-
-        //var height = NoisesTest.mesh0.octaves(q0, 4);
-        //q0 = math.normalize(q0) * height;
-
-        //height = NoisesTest.mesh0.octaves(q1, 4);
-        //q1 = math.normalize(q1) * height;
-
-        //height = NoisesTest.mesh0.octaves(q2, 4);
-        //q2 = math.normalize(q2) * height;
-
-
-        triangle_divide(p0, q0, q2, points, level - 1);
-        triangle_divide(q0, p1, q1, points, level - 1);
-        triangle_divide(q0, q1, q2, points, level - 1);
-        triangle_divide(q2, q1, p2, points, level - 1);
+                recursive_patch_remove(expected_patches, index, clear_list);
+                return;
+            }
+            else
+            {
+                var tpremove = new TerrainPatchClearCmd();
+                clear_list.Add(tpremove);
+                // expansion
+                recursive_patch_gen(expected_patches, index, gen_list);
+                return;
+            }
+        }
+        else if (this_patch.expanded == 1)
+        {
+            compare_trees(prev_patches, expected_patches, this_patch.child_indices[0], gen_list, clear_list);
+            compare_trees(prev_patches, expected_patches, this_patch.child_indices[1], gen_list, clear_list);
+            compare_trees(prev_patches, expected_patches, this_patch.child_indices[2], gen_list, clear_list);
+            compare_trees(prev_patches, expected_patches, this_patch.child_indices[3], gen_list, clear_list);
+        }
     }
     static bool triangle_size2cam(double3 p0, double3 p1, double3 p2, TerrainGenParams tgp)
     {
@@ -188,38 +254,18 @@ public class PlanetaryTerrain : MonoBehaviour
         public int4 child_indices;
         public byte expanded;
         public ushort lod;
+        public double3 p0, p1, p2;
     }
-    static void triangle_divide_pass0_lod(int index, double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, NativeList<TerrainLODInfo> patch_list, ref int mesh_added, ushort level)
+    public static void triangle_divide_pass0_lod(int index, double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, NativeList<TerrainLODInfo> patch_list, ushort level)
     {
         var patch_info = patch_list[index];
         patch_info.lod = level;
+        patch_info.p0 = p0;
+        patch_info.p1 = p1;
+        patch_info.p2 = p2;
         if (level == 0 || triangle_size2cam(p0, p1, p2, tgparams))
         {
-            
-
-            //var job = new NoisesTest.mesh_triangle();
-
-            //job.p0 = p0;
-            //job.p1 = p1;
-            //job.p2 = p2;
-            
-            //Mesh mesh2use = null;
-            //if (mesh_added >= meshes.Count)
-            //{
-            //    var tms = new TerrainMeshStates();
-            //    tms.mesh = new Mesh();
-            //    meshes.Add(tms);
-            //}
-            //{
-            //    var tmp = meshes[mesh_added];
-            //    tmp.wrotation = quaternion.identity;
-            //    tmp.wposition = tgparams.relative2cell_center((job.p0 + job.p1 + job.p2) / 3.0);
-            //    meshes[mesh_added] = tmp;
-            //}
-            //mesh2use = meshes[mesh_added].mesh;
-
-
-            mesh_added++;
+            patch_info.child_indices = new int4(-1, -1, -1, -1);
             patch_list[index] = patch_info;
             return;
         }
@@ -227,9 +273,9 @@ public class PlanetaryTerrain : MonoBehaviour
         double3 q0 = (p0 + p1) / 2.0;
         double3 q1 = (p1 + p2) / 2.0;
         double3 q2 = (p0 + p2) / 2.0;
-        q0 = math.normalize(q0) * tgparams.planet_radius;
-        q1 = math.normalize(q1) * tgparams.planet_radius;
-        q2 = math.normalize(q2) * tgparams.planet_radius;
+        //q0 = math.normalize(q0) * tgparams.planet_radius;
+        //q1 = math.normalize(q1) * tgparams.planet_radius;
+        //q2 = math.normalize(q2) * tgparams.planet_radius;
 
         patch_list.AddReplicate(default, 4);
         patch_info.child_indices = new int4(
@@ -241,10 +287,10 @@ public class PlanetaryTerrain : MonoBehaviour
         var child_indices = patch_info.child_indices;
 
         ushort one_level_lower = (ushort)(level - 1);
-        triangle_divide_pass0_lod(child_indices.x, p0, q0, q2, tgparams, patch_list, ref mesh_added, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.y, q0, p1, q1, tgparams, patch_list, ref mesh_added, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.z, q0, q1, q2, tgparams, patch_list, ref mesh_added, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.w, q2, q1, p2, tgparams, patch_list, ref mesh_added, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.x, p0, q0, q2, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.y, q0, p1, q1, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.z, q0, q1, q2, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.w, q2, q1, p2, tgparams, patch_list, one_level_lower);
     }
     static void triangle_divide_mesh(double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, List<TerrainMeshStates> meshes, ref int mesh_added, int level)
     {
