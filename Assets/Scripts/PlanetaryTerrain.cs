@@ -256,10 +256,10 @@ public class PlanetaryTerrain : MonoBehaviour
             {
                 // contraction
                 var tpgen = new TerrainPatchGenCmd();
-                tpgen.index = (ushort)prev_index;
-                tpgen.p0 = prev_patch.p0;
-                tpgen.p1 = prev_patch.p1;
-                tpgen.p2 = prev_patch.p2;
+                tpgen.index = (ushort)expected_index;
+                tpgen.p0 = this_patch.p0;
+                tpgen.p1 = this_patch.p1;
+                tpgen.p2 = this_patch.p2;
                 gen_list.Add(tpgen);
 
                 recursive_patch_remove(prev_patches, prev_index, clear_list);
