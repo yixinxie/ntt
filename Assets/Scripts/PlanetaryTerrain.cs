@@ -24,6 +24,8 @@ public class PlanetaryTerrain : MonoBehaviour
     public int3 cell_pos; // cell index inside a planet's volume, if the range is just the planet.
     public float radius = 200000f;
     public float height = 5f;
+    public bool draw_dbg_triangle;
+    public float draw_dbg_offset;
     NativeArray<double3> axis6;
     NativeArray<byte> faces;
     NativeArray<int4> faces_selectors;
@@ -93,67 +95,116 @@ public class PlanetaryTerrain : MonoBehaviour
     }
     private void OnDrawGizmos()
     {
-        //if (three != null && three.Length == 3)
-        //{
-        //    for (int i = 0; i < three.Length; i++)
-        //    {
-        //        if (three[i] == null)
-        //        {
-        //            return;
-        //        }
-        //    }
-        //    Gizmos.DrawLine(three[0].position, three[1].position);
-        //    Gizmos.DrawLine(three[2].position, three[1].position);
-        //    Gizmos.DrawLine(three[0].position, three[2].position);
-        //    //NativeArray<double3> tmp = default;
-        //    //NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
-        //    //    4, ref tmp, 1);
-        //    //for(int i = 0; i < tmp.Length; ++i)
-        //    //{
-        //    //    Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
-        //    //}
-        //    //tmp.Dispose();
-
-        //}
-        if(lodcmd_test)
+        if (three != null && three.Length == 3 && draw_dbg_triangle)
         {
-            lodcmd_test = false;
+            for (int i = 0; i < three.Length; i++)
+            {
+                if (three[i] == null)
+                {
+                    return;
+                }
+            }
+            Gizmos.DrawLine(three[0].position, three[1].position);
+            Gizmos.DrawLine(three[2].position, three[1].position);
+            Gizmos.DrawLine(three[0].position, three[2].position);
+            //NativeArray<double3> tmp = default;
+            //NoisesTest.mesh_triangle.half_fill(vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position),
+            //    4, ref tmp, 1);
+            //for(int i = 0; i < tmp.Length; ++i)
+            //{
+            //    Gizmos.DrawLine(double3_vec3(tmp[i]), double3_vec3(tmp[i]) + Vector3.up * 5f);
+            //}
+            //tmp.Dispose();
+
+        }
+        
+        {
+            //lodcmd_test = false;
             var tgp = new TerrainGenParams();
             tgp.planet_radius = radius;
             tgp.cell_half_extents = 0.5f;
             tgp.pivot_pos = prev_pivot.position;
-            var patches = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
-            patches.Add(default);
-            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches, max_lod);
-            //var sbuilder = new StringBuilder();
+            var patches_prev = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
+            patches_prev.Add(default);
+            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_prev, max_lod);
             tgp.pivot_pos = this_pivot.position;
             var patches_this = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
             patches_this.Add(default);
             triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_this, max_lod);
 
-
-            Gizmos.color = Color.green;
-            for(int i = 0; i < patches.Length; i++)
+            NativeList<TerrainPatchGenCmd> gen_list = new NativeList<TerrainPatchGenCmd>(4, Allocator.Temp);
+            NativeList<TerrainPatchClearCmd> clear_list = new NativeList<TerrainPatchClearCmd>(4, Allocator.Temp);
+            compare_trees(patches_prev, patches_this, 0, gen_list, clear_list);
+            if (lodcmd_test)
             {
-                var patch = patches[i];
-                //sbuilder.AppendLineFormat("{0} {1} {2} {3}", i, patch.expanded, patch.lod, patch.child_indices.ToString());
-                if(patch.expanded == 0)
+                lodcmd_test = false;
+                var sbuilder = new StringBuilder();
+                sbuilder.AppendLine("gen:");
+                for (int i = 0; i < gen_list.Length; ++i)
                 {
-                    Gizmos.DrawLine(double3_vec3(patch.p0), double3_vec3(patch.p1));
-                    Gizmos.DrawLine(double3_vec3(patch.p0), double3_vec3(patch.p2));
-                    Gizmos.DrawLine(double3_vec3(patch.p2), double3_vec3(patch.p1));
+
+                    sbuilder.AppendLineFormat("{0}", gen_list[i].index);
+                }
+                Debug.Log(sbuilder.ToString());
+            }
+            Gizmos.color = Color.green;
+            var ofs = Vector3.forward * -draw_dbg_offset;
+            for (int i = 0; i < patches_this.Length; i++)
+            {
+                var patch = patches_this[i];
+                if (patch.expanded == 0)
+                {
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p1));
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p2));
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p2), ofs + double3_vec3(patch.p1));
                 }
             }
-            //Debug.Log(sbuilder.ToString());
+            Gizmos.color = Color.magenta;
+            ofs = Vector3.forward * draw_dbg_offset;
+            for (int i = 0; i < patches_prev.Length; i++)
+            {
+                var patch = patches_prev[i];
+                if (patch.expanded == 0)
+                {
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p1));
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p2));
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p2), ofs + double3_vec3(patch.p1));
+                }
+            }
+
+            Gizmos.color = Color.blue;
+            ofs = Vector3.right * draw_dbg_offset;
+            for (int i = 0; i < gen_list.Length; i++)
+            {
+                var patch = gen_list[i];
+                var up_ofs = new Vector3(0, i, 0)* 10f;
+                Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
+                Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
+                Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
+            }
+
+            Gizmos.color = Color.red;
+            ofs = -Vector3.right * draw_dbg_offset;
+            for (int i = 0; i < clear_list.Length; i++)
+            {
+                var patch_index = clear_list[i];
+                var patch = patches_prev[patch_index.index];
+                var up_ofs = new Vector3(0, i, 0) * 10f;
+                Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
+                Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
+                Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
+            }
+
         }
     }
     public struct TerrainPatchGenCmd
     {
-
+        public ushort index;
+        public double3 p0, p1, p2;
     }
     public struct TerrainPatchClearCmd
     {
-
+        public ushort index;
     }
     public bool lodcmd_test;
     void recursive_patch_remove(NativeList<TerrainLODInfo> patch_tree, int index, NativeList<TerrainPatchClearCmd> clear_cmds)
@@ -162,6 +213,7 @@ public class PlanetaryTerrain : MonoBehaviour
         if (cur_patch.expanded == 0)
         {
             var cmd = new TerrainPatchClearCmd();
+            cmd.index = (ushort)index;
             clear_cmds.Add(cmd);
             return;
         }
@@ -176,6 +228,10 @@ public class PlanetaryTerrain : MonoBehaviour
         if (cur_patch.expanded == 0)
         {
             var cmd = new TerrainPatchGenCmd();
+            cmd.index = (ushort)index;
+            cmd.p0 = cur_patch.p0;
+            cmd.p1 = cur_patch.p1;
+            cmd.p2 = cur_patch.p2;
             gen_cmds.Add(cmd);
             return;
         }
@@ -194,7 +250,10 @@ public class PlanetaryTerrain : MonoBehaviour
             {
                 // contraction
                 var tpgen = new TerrainPatchGenCmd();
-
+                tpgen.index = (ushort)index;
+                tpgen.p0 = this_patch.p0;
+                tpgen.p1 = this_patch.p1;
+                tpgen.p2 = this_patch.p2;
                 gen_list.Add(tpgen);
 
                 recursive_patch_remove(expected_patches, index, clear_list);
@@ -203,6 +262,7 @@ public class PlanetaryTerrain : MonoBehaviour
             else
             {
                 var tpremove = new TerrainPatchClearCmd();
+                tpremove.index = (ushort)index;
                 clear_list.Add(tpremove);
                 // expansion
                 recursive_patch_gen(expected_patches, index, gen_list);
