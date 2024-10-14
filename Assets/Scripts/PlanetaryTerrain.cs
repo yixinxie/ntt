@@ -134,7 +134,7 @@ public class PlanetaryTerrain : MonoBehaviour
 
             NativeList<TerrainPatchGenCmd> gen_list = new NativeList<TerrainPatchGenCmd>(4, Allocator.Temp);
             NativeList<TerrainPatchClearCmd> clear_list = new NativeList<TerrainPatchClearCmd>(4, Allocator.Temp);
-            compare_trees(patches_prev, patches_this, 0, gen_list, clear_list);
+            compare_trees(patches_prev, 0, patches_this, 0, gen_list, clear_list);
             if (lodcmd_test)
             {
                 lodcmd_test = false;
@@ -240,41 +240,47 @@ public class PlanetaryTerrain : MonoBehaviour
         recursive_patch_gen(patch_tree, cur_patch.child_indices[2], gen_cmds);
         recursive_patch_gen(patch_tree, cur_patch.child_indices[3], gen_cmds);
     }
-    void compare_trees(NativeList<TerrainLODInfo> prev_patches, NativeList<TerrainLODInfo> expected_patches, int index, NativeList<TerrainPatchGenCmd> gen_list
+    void compare_trees(NativeList<TerrainLODInfo> prev_patches, int prev_index, NativeList<TerrainLODInfo> expected_patches, int expected_index, NativeList<TerrainPatchGenCmd> gen_list
         , NativeList<TerrainPatchClearCmd> clear_list)
     {
-        var this_patch = expected_patches[index];
-        if (prev_patches[index].expanded != this_patch.expanded)
+        //if (index >= expected_patches.Length) 
+        //    return;
+
+        //if (index >= prev_patches.Length) 
+        //    return;
+        var this_patch = expected_patches[expected_index];
+        var prev_patch = prev_patches[prev_index];
+        if (prev_patch.expanded != this_patch.expanded)
         {
-            if (expected_patches[index].expanded == 0)
+            if (this_patch.expanded == 0)
             {
                 // contraction
                 var tpgen = new TerrainPatchGenCmd();
-                tpgen.index = (ushort)index;
-                tpgen.p0 = this_patch.p0;
-                tpgen.p1 = this_patch.p1;
-                tpgen.p2 = this_patch.p2;
+                tpgen.index = (ushort)prev_index;
+                tpgen.p0 = prev_patch.p0;
+                tpgen.p1 = prev_patch.p1;
+                tpgen.p2 = prev_patch.p2;
                 gen_list.Add(tpgen);
 
-                recursive_patch_remove(expected_patches, index, clear_list);
+                recursive_patch_remove(prev_patches, prev_index, clear_list);
                 return;
             }
             else
             {
                 var tpremove = new TerrainPatchClearCmd();
-                tpremove.index = (ushort)index;
+                tpremove.index = (ushort)prev_index;
                 clear_list.Add(tpremove);
                 // expansion
-                recursive_patch_gen(expected_patches, index, gen_list);
+                recursive_patch_gen(expected_patches, expected_index, gen_list);
                 return;
             }
         }
         else if (this_patch.expanded == 1)
         {
-            compare_trees(prev_patches, expected_patches, this_patch.child_indices[0], gen_list, clear_list);
-            compare_trees(prev_patches, expected_patches, this_patch.child_indices[1], gen_list, clear_list);
-            compare_trees(prev_patches, expected_patches, this_patch.child_indices[2], gen_list, clear_list);
-            compare_trees(prev_patches, expected_patches, this_patch.child_indices[3], gen_list, clear_list);
+            compare_trees(prev_patches, prev_patch.child_indices[0], expected_patches, this_patch.child_indices[0], gen_list, clear_list);
+            compare_trees(prev_patches, prev_patch.child_indices[1], expected_patches, this_patch.child_indices[1], gen_list, clear_list);
+            compare_trees(prev_patches, prev_patch.child_indices[2], expected_patches, this_patch.child_indices[2], gen_list, clear_list);
+            compare_trees(prev_patches, prev_patch.child_indices[3], expected_patches, this_patch.child_indices[3], gen_list, clear_list);
         }
     }
     static bool triangle_size2cam(double3 p0, double3 p1, double3 p2, TerrainGenParams tgp)
