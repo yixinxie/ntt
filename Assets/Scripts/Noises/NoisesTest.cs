@@ -177,7 +177,9 @@ public class NoisesTest : MonoBehaviour
             half_fills(dim2map, _resolution / 2, ((_resolution + 1) * (_resolution + 1) - 1) / 2, 1, radius); // p1 -> p2
             half_fills(dim2map, _resolution * (_resolution + 1) / 2, ((_resolution + 1) * (_resolution + 1) - 1) / 2, 1, radius); // p1 -> p2
         }
-
+        public const byte EL_Top = 0b1;
+        public const byte EL_Right = 0b10;
+        public const byte EL_Left = 0b100;
         static void half_fills(NativeArray<double3> straight, int st, int end, int level, float radius)
         {
             if (level == 0) return;
@@ -194,9 +196,7 @@ public class NoisesTest : MonoBehaviour
         }
         public void Execute()
         {
-            const byte EL_Top = 0b1;
-            const byte EL_Right = 0b10;
-            const byte EL_Left = 0b100;
+            
 
             
             var diff0_1 = p1 - p0;

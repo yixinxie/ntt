@@ -200,6 +200,7 @@ public class PlanetaryTerrain : MonoBehaviour
     public struct TerrainPatchGenCmd
     {
         public ushort index;
+        public byte lod_edges;
         public double3 p0, p1, p2;
     }
     public struct TerrainPatchClearCmd
@@ -240,7 +241,58 @@ public class PlanetaryTerrain : MonoBehaviour
         recursive_patch_gen(patch_tree, cur_patch.child_indices[2], gen_cmds);
         recursive_patch_gen(patch_tree, cur_patch.child_indices[3], gen_cmds);
     }
-    void compare_trees(NativeList<TerrainLODInfo> prev_patches, int prev_index, NativeList<TerrainLODInfo> expected_patches, int expected_index, NativeList<TerrainPatchGenCmd> gen_list
+    // execute after comparison
+    // the return value is the composition of the lowest lod level on each of the three edges.
+    public static int3 lod_edge_scan0(NativeList<TerrainLODInfo> expected_patches, int expected_index, int lod_expected)
+    {
+        var this_patch = expected_patches[expected_index];
+        if (this_patch.expanded == 0)
+        { 
+            return new int3(this_patch.lod, this_patch.lod, this_patch.lod);
+        }
+        var child0 = expected_patches[this_patch.child_indices[0]];
+        var child1 = expected_patches[this_patch.child_indices[1]];
+        var child2 = expected_patches[this_patch.child_indices[2]];
+        var child3 = expected_patches[this_patch.child_indices[3]];
+        if (child2.expanded == 1)
+        {
+            if (child0.expanded == 0)
+            {
+
+            }
+            if (child1.expanded == 0)
+            {
+
+            }
+            if (child3.expanded == 0)
+            {
+
+            }
+        }
+        else
+        {
+            if (child0.expanded == 1)
+            {
+
+            }
+            if (child1.expanded == 1)
+            {
+
+            }
+            if (child3.expanded == 1)
+            {
+
+            }
+        }
+        var r0 = lod_edge_scan0(expected_patches, this_patch.child_indices[0], lod_expected);
+        var r1 = lod_edge_scan0(expected_patches, this_patch.child_indices[1], lod_expected);
+        var r2 = lod_edge_scan0(expected_patches, this_patch.child_indices[2], lod_expected);
+        var r3 = lod_edge_scan0(expected_patches, this_patch.child_indices[3], lod_expected);
+        return math.min(math.min(r0, r1), math.min(r2, r3));
+
+    }
+    void compare_trees(NativeList<TerrainLODInfo> prev_patches, int prev_index, NativeList<TerrainLODInfo> expected_patches, int expected_index, 
+        NativeList<TerrainPatchGenCmd> gen_list
         , NativeList<TerrainPatchClearCmd> clear_list)
     {
         //if (index >= expected_patches.Length) 
@@ -321,8 +373,10 @@ public class PlanetaryTerrain : MonoBehaviour
         public int4 child_indices;
         public byte expanded;
         public ushort lod;
+        public byte lod_edges; // edge flags
         public double3 p0, p1, p2;
     }
+    
     public static void triangle_divide_pass0_lod(int index, double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, NativeList<TerrainLODInfo> patch_list, ushort level)
     {
         var patch_info = patch_list[index];
