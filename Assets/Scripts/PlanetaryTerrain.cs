@@ -147,31 +147,38 @@ public class PlanetaryTerrain : MonoBehaviour
                 }
                 Debug.Log(sbuilder.ToString());
             }
+            
+            // current state
             Gizmos.color = Color.green;
             var ofs = Vector3.forward * -draw_dbg_offset;
             for (int i = 0; i < patches_this.Length; i++)
             {
                 var patch = patches_this[i];
+                var up_ofs = new Vector3(0, i, 0) * 10f;
                 if (patch.expanded == 0)
                 {
-                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p1));
-                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p2));
-                    Gizmos.DrawLine(ofs + double3_vec3(patch.p2), ofs + double3_vec3(patch.p1));
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
                 }
             }
+
+            // previous state
             Gizmos.color = Color.magenta;
             ofs = Vector3.forward * draw_dbg_offset;
             for (int i = 0; i < patches_prev.Length; i++)
             {
                 var patch = patches_prev[i];
+                var up_ofs = new Vector3(0, i, 0) * 10f;
                 if (patch.expanded == 0)
                 {
-                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p1));
-                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0), ofs + double3_vec3(patch.p2));
-                    Gizmos.DrawLine(ofs + double3_vec3(patch.p2), ofs + double3_vec3(patch.p1));
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
+                    Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
                 }
             }
 
+            // add list
             Gizmos.color = Color.blue;
             ofs = Vector3.right * draw_dbg_offset;
             for (int i = 0; i < gen_list.Length; i++)
@@ -182,7 +189,14 @@ public class PlanetaryTerrain : MonoBehaviour
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
             }
+            // draw bounding triangle
+            Gizmos.color = Color.gray;
+            ofs += Vector3.down * 10f;
+            Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
 
+            // removal list
             Gizmos.color = Color.red;
             ofs = -Vector3.right * draw_dbg_offset;
             for (int i = 0; i < clear_list.Length; i++)
@@ -194,6 +208,12 @@ public class PlanetaryTerrain : MonoBehaviour
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
             }
+            // draw bounding triangle
+            Gizmos.color = Color.gray;
+            ofs += Vector3.down * 10f;
+            Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
 
         }
     }
