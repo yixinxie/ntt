@@ -211,7 +211,7 @@ Transform:
   m_GameObject: {fileID: 96105802}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 47, y: 0, z: 109}
+  m_LocalPosition: {x: -3, y: 0, z: 7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -842,6 +842,7 @@ MonoBehaviour:
   height: 5
   draw_dbg_triangle: 0
   draw_dbg_offset: 0
+  yellow_index: 0
   lodcmd_test: 0
   dbg_face_select: 0
 --- !u!4 &886053126
@@ -1710,7 +1711,7 @@ MonoBehaviour:
   - {fileID: 4447796043149370292}
   - {fileID: 6994619036186334301}
   cell_half_extents: 200
-  max_lod: 2
+  max_lod: 3
   mesh_gen_count: 0
   refresh: 1
   continuous_refresh: 1
@@ -1725,7 +1726,8 @@ MonoBehaviour:
   radius: 1000
   height: 5
   draw_dbg_triangle: 1
-  draw_dbg_offset: 337.8
+  draw_dbg_offset: 387.7
+  yellow_index: -1
   lodcmd_test: 0
   dbg_face_select: 0
 --- !u!4 &5947760184785895255

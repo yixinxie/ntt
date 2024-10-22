@@ -93,6 +93,7 @@ public class PlanetaryTerrain : MonoBehaviour
     {
         
     }
+    public int yellow_index;
     private void OnDrawGizmos()
     {
         if (three != null && three.Length == 3 && draw_dbg_triangle)
@@ -149,7 +150,7 @@ public class PlanetaryTerrain : MonoBehaviour
             }
             
             // current state
-            Gizmos.color = Color.green;
+
             var ofs = Vector3.forward * -draw_dbg_offset;
             for (int i = 0; i < patches_this.Length; i++)
             {
@@ -157,6 +158,7 @@ public class PlanetaryTerrain : MonoBehaviour
                 var up_ofs = new Vector3(0, i, 0) * 10f;
                 if (patch.expanded == 0)
                 {
+                    Gizmos.color = (i == yellow_index) ? Color.yellow : Color.green;
                     Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
                     Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
                     Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
@@ -164,7 +166,6 @@ public class PlanetaryTerrain : MonoBehaviour
             }
 
             // previous state
-            Gizmos.color = Color.magenta;
             ofs = Vector3.forward * draw_dbg_offset;
             for (int i = 0; i < patches_prev.Length; i++)
             {
@@ -172,6 +173,7 @@ public class PlanetaryTerrain : MonoBehaviour
                 var up_ofs = new Vector3(0, i, 0) * 10f;
                 if (patch.expanded == 0)
                 {
+                    Gizmos.color = (i == yellow_index) ? Color.yellow : Color.magenta;
                     Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
                     Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
                     Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
@@ -185,6 +187,7 @@ public class PlanetaryTerrain : MonoBehaviour
             {
                 var patch = gen_list[i];
                 var up_ofs = new Vector3(0, i, 0)* 10f;
+                Gizmos.color = (i == yellow_index) ? Color.yellow : Color.blue;
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
@@ -204,6 +207,7 @@ public class PlanetaryTerrain : MonoBehaviour
                 var patch_index = clear_list[i];
                 var patch = patches_prev[patch_index.index];
                 var up_ofs = new Vector3(0, i, 0) * 10f;
+                Gizmos.color = (i == yellow_index) ? Color.yellow : Color.red;
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p0) + up_ofs, ofs + double3_vec3(patch.p2) + up_ofs);
                 Gizmos.DrawLine(ofs + double3_vec3(patch.p2) + up_ofs, ofs + double3_vec3(patch.p1) + up_ofs);
@@ -428,10 +432,15 @@ public class PlanetaryTerrain : MonoBehaviour
         var child_indices = patch_info.child_indices;
 
         ushort one_level_lower = (ushort)(level - 1);
-        triangle_divide_pass0_lod(child_indices.x, p0, q0, q2, tgparams, patch_list, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.y, q0, p1, q1, tgparams, patch_list, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.z, q0, q1, q2, tgparams, patch_list, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.w, q2, q1, p2, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.x, q0, q2, p0, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.y, q1, q0, p1, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.z, q2, q1, p2, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.w, q2, q0, q1, tgparams, patch_list, one_level_lower);
+
+        //triangle_divide_mesh(q0, q2, p0, tgparams, meshes, ref mesh_added, level - 1);
+        //triangle_divide_mesh(q1, q0, p1, tgparams, meshes, ref mesh_added, level - 1);
+        //triangle_divide_mesh(q2, q1, p2, tgparams, meshes, ref mesh_added, level - 1);
+        //triangle_divide_mesh(q2, q0, q1, tgparams, meshes, ref mesh_added, level - 1);
     }
     static void triangle_divide_mesh(double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, List<TerrainMeshStates> meshes, ref int mesh_added, int level)
     {
@@ -488,10 +497,10 @@ public class PlanetaryTerrain : MonoBehaviour
         q1 = math.normalize(q1) * tgparams.planet_radius;
         q2 = math.normalize(q2) * tgparams.planet_radius;
 
-        triangle_divide_mesh(p0, q0, q2, tgparams, meshes, ref mesh_added, level - 1);
-        triangle_divide_mesh(q0, p1, q1, tgparams, meshes, ref mesh_added, level - 1);
-        triangle_divide_mesh(q0, q1, q2, tgparams, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q0, q2, p0, tgparams, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q1, q0, p1, tgparams, meshes, ref mesh_added, level - 1);
         triangle_divide_mesh(q2, q1, p2, tgparams, meshes, ref mesh_added, level - 1);
+        triangle_divide_mesh(q2, q0, q1, tgparams, meshes, ref mesh_added, level - 1);
     }
     public static Vector3 double3_vec3(double3 val)
     {
