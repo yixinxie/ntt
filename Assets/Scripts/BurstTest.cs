@@ -96,7 +96,7 @@ public partial struct cmpt : IAutoSerialized, IC2S_RPC
         //Debug.Log("server receives" + val);
         cmpt0 resp = default;
         resp.f_val = 1.235f;
-        resp.send(sender, ctx.pl, ctx.m_Driver);
+        //resp.send(sender, ctx.pl, ctx.m_Driver);
     }
 
 }

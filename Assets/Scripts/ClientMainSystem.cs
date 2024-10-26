@@ -57,13 +57,10 @@ public partial struct ClientMainSystem : ISystem
             {
                 Debug.Log("We are now connected to the server.");
 
-                //uint value = 1;
-                //m_Driver.BeginSend(pl, m_Connection, out var writer);
-                //writer.WriteUInt(value);
-                //m_Driver.EndSend(writer);
+
                 cmpt a = default;
                 a.val = 123;
-                a.send(m_Connection, pl, m_Driver);
+                //a.send(m_Connection, pl, m_Driver);
 
             }
             else if (cmd == NetworkEvent.Type.Data)
@@ -76,13 +73,9 @@ public partial struct ClientMainSystem : ISystem
                 int offset = 0;
                 Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                ClientRPCs.switcher(type_hash, ref offset, ref m_Connection, ref buffer, ref this, ref state);
+                //ClientRPCs.switcher(type_hash, ref offset, ref m_Connection, ref buffer, ref this, ref state);
 
-                //uint value = stream.ReadUInt();
-                //Debug.Log($"Got the value {value} back from the server.");
 
-                //m_Connection.Disconnect(m_Driver);
-                //m_Connection = default;
             }
             else if (cmd == NetworkEvent.Type.Disconnect)
             {

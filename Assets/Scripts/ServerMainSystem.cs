@@ -61,7 +61,6 @@ public partial struct ServerMainSystem : ISystem
                 
             //Debug.Log("Accepted a connection.");
         }
-        //BNH.bursted_rpc_update(ref m_Connections, ref m_Driver, ref pl, ref state);
 
         NativeList<byte> buffer = new NativeList<byte>(1024, Allocator.Temp);
         for (int i = 0; i < m_Connections.Length; i++)
@@ -81,7 +80,7 @@ public partial struct ServerMainSystem : ISystem
                     int offset = 0;
                     Bursted.ud_struct(buffer, out int type_hash, ref offset);
 
-                    ServerRPCs.switcher(type_hash, ref offset, ref conn, ref buffer, ref this, ref state);
+                    //ServerRPCs.switcher(type_hash, ref offset, ref conn, ref buffer, ref this, ref state);
 
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
