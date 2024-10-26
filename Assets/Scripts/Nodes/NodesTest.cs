@@ -11,7 +11,8 @@ public class NodesTest : MonoBehaviour
     // Start is called before the first frame update
     public NodeOpTypes node_type;
     public NodesTest[] input_refs;
-    public NodesTest[] outputs;
+    //public NodesTest[] outputs;
+    public int outputcount;
     public int allocated_index;
     public NodeValue4 val4;
     void Start()
@@ -30,7 +31,10 @@ public class NodesTest : MonoBehaviour
             reset_recursive(this, visited);
             Bursted.ns_generic(temp_buffer, new NodeValue4());
             serialize_recursive(temp_buffer, this, 0);
-            NodeGraph.eval(temp_buffer, 8);
+            unsafe
+            {
+                NodeGraph.eval(temp_buffer, sizeof(NodeValue4));
+            }
             int ofs = 0;
             Bursted.nd_generic(temp_buffer, out NodeValue4 testval, ref ofs, Allocator.Temp);
             Debug.Log(testval.val_float + ", " + testval.val_int);
@@ -50,17 +54,78 @@ public class NodesTest : MonoBehaviour
             }
         }
     }
+    //static void getbyoptype<T>(NodeOpTypes optype, out T out_val) where T : unmanaged, IRTNode
+    //{
+    //    var input_count = NodeGraph.optype2inputcount[(ushort)optype];
+
+    //    if (input_count == 1)
+    //    {
+    //        out_val = (T)new RTNode1();
+    //        //return new RTNode1();
+    //    }
+    //    else if (input_count == 2)
+    //    {
+    //        return new RTNode2(); 
+    //    }
+    //    else if (input_count == 3)
+    //    {
+    //        return new RTNode3();
+    //    }
+    //    else if (input_count == 4)
+    //    {
+    //        return new RTNode4();
+    //    }
+    //    return new RTNode1();
+    //}
     // depth first
     unsafe int serialize_recursive(NativeList<byte> temp_buffer, NodesTest node_states, int output_offset)
     {
-        RTNode n = default;
+        var input_count = NodeGraph.optype2inputcount[(ushort)node_states.node_type];
+        RTNode1 n1 = default;
+        RTNode2 n2 = default;
+        RTNode3 n3 = default;
+        RTNode4 n4 = default;
+        int* parent_indices = null;
+        int* input_offsets = null;
+        int* output_offsets = null;
         bool create_new = (node_states.allocated_index == -1);
         if (create_new)
         {
+            Bursted.ns_generic(temp_buffer, node_states.node_type);
             node_states.allocated_index = temp_buffer.Length;
-            n.init();
-            n.optype = node_states.node_type;
-            Bursted.ns_generic(temp_buffer, n);
+            
+            if (input_count == 1)
+            {
+                n1.init();
+                Bursted.ns_generic(temp_buffer, n1);
+                parent_indices = n1.parent_indices;
+                input_offsets = n1.input_offsets;
+                output_offsets = n1.output_offsets;
+            }
+            else if (input_count == 2)
+            {
+                n2.init();
+                Bursted.ns_generic(temp_buffer, n2);
+                parent_indices = n2.parent_indices;
+                input_offsets = n2.input_offsets;
+                output_offsets = n2.output_offsets;
+            }
+            else if (input_count == 3)
+            {
+                n3.init();
+                Bursted.ns_generic(temp_buffer, n3);
+                parent_indices = n3.parent_indices;
+                input_offsets = n3.input_offsets;
+                output_offsets = n3.output_offsets;
+            }
+            else if (input_count == 4)
+            {
+                n4.init();
+                Bursted.ns_generic(temp_buffer, n4);
+                parent_indices = n4.parent_indices;
+                input_offsets = n4.input_offsets;
+                output_offsets = n4.output_offsets;
+            }
 
 
             // operation specific
@@ -68,7 +133,7 @@ public class NodesTest : MonoBehaviour
             {
                 case NodeOpTypes.Constant:
                     {
-                        n.input_offsets[0] = temp_buffer.Length;
+                        input_offsets[0] = temp_buffer.Length;
                         var val0 = new NodeValue4();
                         val0 = node_states.val4;
                         Bursted.ns_generic(temp_buffer, val0);
@@ -76,28 +141,70 @@ public class NodesTest : MonoBehaviour
                     break;
                 case NodeOpTypes.Addition:
                     {
-                        n.input_offsets[0] = temp_buffer.Length;
+                        input_offsets[0] = temp_buffer.Length;
                         Bursted.ns_generic(temp_buffer, new NodeValue4());
-                        n.input_offsets[1] = temp_buffer.Length;
+                        input_offsets[1] = temp_buffer.Length;
                         Bursted.ns_generic(temp_buffer, new NodeValue4());
                     }
                     break;
             }
-            Bursted.us_struct_offset(temp_buffer, n, node_states.allocated_index);
+            if (input_count == 1)
+            {
+                Bursted.us_struct_offset(temp_buffer, n1, node_states.allocated_index);
+            }
+            else if (input_count == 2)
+            {
+                Bursted.us_struct_offset(temp_buffer, n2, node_states.allocated_index);
+            }
+            else if (input_count == 3)
+            {
+                Bursted.us_struct_offset(temp_buffer, n3, node_states.allocated_index);
+            }
+            else if (input_count == 4)
+            {
+                Bursted.us_struct_offset(temp_buffer, n4, node_states.allocated_index);
+            }
         }
         else
         {
             int offset = node_states.allocated_index;
-            Bursted.nd_generic(temp_buffer, out n, ref offset, Allocator.Temp);
+            if (input_count == 1)
+            {
+                Bursted.nd_generic(temp_buffer, out n1, ref offset, Allocator.Temp);
+                parent_indices = n1.parent_indices;
+                input_offsets = n1.input_offsets;
+                output_offsets = n1.output_offsets;
+            }
+            else if (input_count == 2)
+            {
+                Bursted.nd_generic(temp_buffer, out n2, ref offset, Allocator.Temp);
+                parent_indices = n2.parent_indices;
+                input_offsets = n2.input_offsets;
+                output_offsets = n2.output_offsets;
+            }
+            else if (input_count == 3)
+            {
+                Bursted.nd_generic(temp_buffer, out n3, ref offset, Allocator.Temp);
+                parent_indices = n3.parent_indices;
+                input_offsets = n3.input_offsets;
+                output_offsets = n3.output_offsets;
+            }
+            else if (input_count == 4)
+            {
+                Bursted.nd_generic(temp_buffer, out n4, ref offset, Allocator.Temp);
+                parent_indices = n4.parent_indices;
+                input_offsets = n4.input_offsets;
+                output_offsets = n4.output_offsets;
+            }
         }
 
 
         // end of op-specific
-        for (int i = 0; i < RTNode.MaxOutputs; i++)
+        for (int i = 0; i < RTNode8.MaxOutputs; i++)
         {
-            if (n.output_offsets[i] == -1)
+            if (output_offsets[i] == -1)
             {
-                n.output_offsets[i] = output_offset;
+                output_offsets[i] = output_offset;
                 break;
             }
         }
@@ -106,11 +213,26 @@ public class NodesTest : MonoBehaviour
         {
             for (int i = 0; i < node_states.input_refs.Length; ++i)
             {
-                n.parent_indices[i] = serialize_recursive(temp_buffer, node_states.input_refs[i], n.input_offsets[i]);
+                parent_indices[i] = serialize_recursive(temp_buffer, node_states.input_refs[i], input_offsets[i]);
             }
         }
-        Bursted.us_struct_offset(temp_buffer, n, node_states.allocated_index);
-        return node_states.allocated_index;
+        if (input_count == 1)
+        {
+            Bursted.us_struct_offset(temp_buffer, n1, node_states.allocated_index);
+        }
+        else if (input_count == 2)
+        {
+            Bursted.us_struct_offset(temp_buffer, n2, node_states.allocated_index);
+        }
+        else if (input_count == 3)
+        {
+            Bursted.us_struct_offset(temp_buffer, n3, node_states.allocated_index);
+        }
+        else if (input_count == 4)
+        {
+            Bursted.us_struct_offset(temp_buffer, n4, node_states.allocated_index);
+        }
+        return node_states.allocated_index - 2;
     }
 
     // Update is called once per frame
@@ -143,30 +265,66 @@ public enum NodeVarTypes : byte
 }
 public struct NodeGraph
 {
+    public static readonly int[] optype2inputcount = new int[] { 0, 1, 2, 2, 1, 2, 0};
     unsafe public static void eval(NativeList<byte> buffer, int index)
     {
         int offset = index;
-        Bursted.nd_generic(buffer, out RTNode current, ref offset, Allocator.Temp);
-        for (int i = 0; i < RTNode.MaxInputs; ++i)
+        Bursted.nd_generic(buffer, out NodeOpTypes optype, ref offset, Allocator.Temp);
+        var input_count = optype2inputcount[(ushort)optype];
+        int* parent_indices = null;
+        int* input_offsets = null;
+        int* output_offsets = null;
+        if (input_count == 1)
         {
-            var idx = current.parent_indices[i];
-            if (idx >= 0)
+            Bursted.nd_generic(buffer, out RTNode1 current, ref offset, Allocator.Temp);
+            parent_indices = current.parent_indices;
+            input_offsets = current.input_offsets;
+            output_offsets = current.output_offsets;
+        }
+        else if (input_count == 2)
+        {
+            Bursted.nd_generic(buffer, out RTNode2 current, ref offset, Allocator.Temp);
+            parent_indices = current.parent_indices;
+            input_offsets = current.input_offsets;
+            output_offsets = current.output_offsets;
+        }
+        else if (input_count == 3)
+        {
+            Bursted.nd_generic(buffer, out RTNode3 current, ref offset, Allocator.Temp);
+            parent_indices = current.parent_indices;
+            input_offsets = current.input_offsets;
+            output_offsets = current.output_offsets;
+        }
+        else if (input_count == 4)
+        {
+            Bursted.nd_generic(buffer, out RTNode4 current, ref offset, Allocator.Temp);
+            parent_indices = current.parent_indices;
+            input_offsets = current.input_offsets;
+            output_offsets = current.output_offsets;
+        }
+        if (parent_indices != null)
+        {
+            for (int i = 0; i < input_count; ++i)
             {
-                eval(buffer, idx);
+                var idx = parent_indices[i];
+                if (idx >= 0)
+                {
+                    eval(buffer, idx);
+                }
             }
         }
-        switch (current.optype)
+        switch (optype)
         {
             case NodeOpTypes.Addition:
                 {
-                    offset = current.input_offsets[0];
+                    offset = input_offsets[0];
                     Bursted.ud_struct(buffer, out NodeValue4 left, ref offset);
-                    offset = current.input_offsets[1];
+                    offset = input_offsets[1];
                     Bursted.ud_struct(buffer, out NodeValue4 right, ref offset);
-                    RTNode.float_add(buffer, left, right, out var output);
-                    for (int i = 0; i < RTNode.MaxInputs; ++i)
+                    RTNode8.float_add(left, right, out var output);
+                    for (int i = 0; i < RTNode8.MaxOutputs; ++i)
                     {
-                        var idx = current.output_offsets[i];
+                        var idx = output_offsets[i];
                         if (idx < 0)
                             break;
                         Bursted.us_struct_offset(buffer, output, idx);
@@ -176,12 +334,12 @@ public struct NodeGraph
                 break;
             case NodeOpTypes.Constant:
                 {
-                    offset = current.input_offsets[0];
+                    offset = input_offsets[0];
                     Bursted.ud_struct(buffer, out NodeValue4 left, ref offset);
 
-                    for (int i = 0; i < RTNode.MaxInputs; ++i)
+                    for (int i = 0; i < RTNode8.MaxOutputs; ++i)
                     {
-                        var idx = current.output_offsets[i];
+                        var idx = output_offsets[i];
                         if (idx < 0)
                             break;
                         Bursted.us_struct_offset(buffer, left, idx);
@@ -192,17 +350,50 @@ public struct NodeGraph
         }
     }
 }
-unsafe public struct RTNode
+public interface IRTNode
+{
+    public int get_input_count();
+    unsafe public int* get_parent_indices();
+    unsafe public int* get_input_offsets();
+    unsafe public int* get_output_offsets();
+}
+unsafe public struct RTNode8 : IRTNode
 {
     public const int MaxInputs = 8;
     public const int MaxOutputs = 4;
     public fixed int parent_indices[MaxInputs];
     public fixed int input_offsets[MaxInputs];
     public fixed int output_offsets[MaxOutputs];
-    public NodeOpTypes optype;
+
+    public int get_input_count()
+    {
+        return MaxInputs;
+    }
+    unsafe public int* get_parent_indices()
+    {
+        fixed(int* p = parent_indices)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_input_offsets()
+    {
+        fixed (int* p = input_offsets)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_output_offsets()
+    {
+        fixed (int* p = output_offsets)
+        {
+            return p;
+        }
+    }
+    //public NodeOpTypes optype;
     public void init()
     {
-        optype = 0;
+        //optype = 0;
         for (int i = 0; i < MaxInputs; ++i)
         {
             parent_indices[i] = -1;
@@ -211,7 +402,7 @@ unsafe public struct RTNode
         }
     }
 
-    public static void float_add(NativeList<byte> buffer, NodeValue4 left, NodeValue4 right, out NodeValue4 output)
+    public static void float_add(NodeValue4 left, NodeValue4 right, out NodeValue4 output)
     {
 
         output = default;
@@ -247,6 +438,178 @@ unsafe public struct RTNode
     }
 
 
+}
+unsafe public struct RTNode4 :IRTNode
+{
+    public const int MaxInputs = 4;
+    public const int MaxOutputs = 4;
+    public fixed int parent_indices[MaxInputs];
+    public fixed int input_offsets[MaxInputs];
+    public fixed int output_offsets[MaxOutputs];
+    public int get_input_count()
+    {
+        return MaxInputs;
+    }
+    unsafe public int* get_parent_indices()
+    {
+        fixed (int* p = parent_indices)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_input_offsets()
+    {
+        fixed (int* p = input_offsets)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_output_offsets()
+    {
+        fixed (int* p = output_offsets)
+        {
+            return p;
+        }
+    }
+    public void init()
+    {
+        //optype = 0;
+        for (int i = 0; i < MaxInputs; ++i)
+        {
+            parent_indices[i] = -1;
+            input_offsets[i] = -1;
+            output_offsets[i] = -1;
+        }
+    }
+}
+unsafe public struct RTNode3 : IRTNode
+{
+    public const int MaxInputs = 3;
+    public const int MaxOutputs = 4;
+    public fixed int parent_indices[MaxInputs];
+    public fixed int input_offsets[MaxInputs];
+    public fixed int output_offsets[MaxOutputs];
+    public int get_input_count()
+    {
+        return MaxInputs;
+    }
+    unsafe public int* get_parent_indices()
+    {
+        fixed (int* p = parent_indices)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_input_offsets()
+    {
+        fixed (int* p = input_offsets)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_output_offsets()
+    {
+        fixed (int* p = output_offsets)
+        {
+            return p;
+        }
+    }
+    public void init()
+    {
+        //optype = 0;
+        for (int i = 0; i < MaxInputs; ++i)
+        {
+            parent_indices[i] = -1;
+            input_offsets[i] = -1;
+            output_offsets[i] = -1;
+        }
+    }
+}
+unsafe public struct RTNode2 : IRTNode
+{
+    public const int MaxInputs = 2;
+    public const int MaxOutputs = 4;
+    public fixed int parent_indices[MaxInputs];
+    public fixed int input_offsets[MaxInputs];
+    public fixed int output_offsets[MaxOutputs];
+    public int get_input_count()
+    {
+        return MaxInputs;
+    }
+    unsafe public int* get_parent_indices()
+    {
+        fixed (int* p = parent_indices)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_input_offsets()
+    {
+        fixed (int* p = input_offsets)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_output_offsets()
+    {
+        fixed (int* p = output_offsets)
+        {
+            return p;
+        }
+    }
+    public void init()
+    {
+        //optype = 0;
+        for (int i = 0; i < MaxInputs; ++i)
+        {
+            parent_indices[i] = -1;
+            input_offsets[i] = -1;
+            output_offsets[i] = -1;
+        }
+    }
+}
+unsafe public struct RTNode1:IRTNode
+{
+    public const int MaxInputs = 1;
+    public const int MaxOutputs = 4;
+    public fixed int parent_indices[MaxInputs];
+    public fixed int input_offsets[MaxInputs];
+    public fixed int output_offsets[MaxOutputs];
+    public int get_input_count()
+    {
+        return MaxInputs;
+    }
+    unsafe public int* get_parent_indices()
+    {
+        fixed (int* p = parent_indices)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_input_offsets()
+    {
+        fixed (int* p = input_offsets)
+        {
+            return p;
+        }
+    }
+    unsafe public int* get_output_offsets()
+    {
+        fixed (int* p = output_offsets)
+        {
+            return p;
+        }
+    }
+    public void init()
+    {
+        //optype = 0;
+        for (int i = 0; i < MaxInputs; ++i)
+        {
+            parent_indices[i] = -1;
+            input_offsets[i] = -1;
+            output_offsets[i] = -1;
+        }
+    }
 }
 
 [StructLayout(LayoutKind.Explicit), System.Serializable]

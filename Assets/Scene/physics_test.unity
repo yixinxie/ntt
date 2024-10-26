@@ -154,9 +154,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   node_type: 1
   input_refs: []
-  outputs:
-  - {fileID: 989097148}
-  allocated_index: 8
+  outputcount: 0
+  allocated_index: 110
   val4:
     var_type: 1
     val_float: 4e-45
@@ -877,9 +876,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   node_type: 1
   input_refs: []
-  outputs:
-  - {fileID: 989097148}
-  allocated_index: 8
+  outputcount: 0
+  allocated_index: 144
   val4:
     var_type: 1
     val_float: 3e-45
@@ -1004,9 +1002,8 @@ MonoBehaviour:
   input_refs:
   - {fileID: 25813708}
   - {fileID: 843326544}
-  outputs:
-  - {fileID: 0}
-  allocated_index: 8
+  outputcount: 0
+  allocated_index: 60
   val4:
     var_type: 0
     val_float: 0
@@ -1088,6 +1085,61 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 886053126}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1258920740
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1258920742}
+  - component: {fileID: 1258920741}
+  m_Layer: 0
+  m_Name: add (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1258920741
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1258920740}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e852b2cd2e0ea6a47b65c7b0fb83ef91, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  node_type: 2
+  input_refs:
+  - {fileID: 989097148}
+  - {fileID: 1380444368}
+  outputcount: 0
+  allocated_index: 10
+  val4:
+    var_type: 0
+    val_float: 0
+    val_int: 0
+  serialize: 0
+--- !u!4 &1258920742
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1258920740}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 46.00499, y: 55.055664, z: -32.46386}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1303790892
 GameObject:
@@ -1251,6 +1303,59 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 1061.4795, y: 385.8241, z: -5.367855}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1380444367
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1380444369}
+  - component: {fileID: 1380444368}
+  m_Layer: 0
+  m_Name: right (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1380444368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1380444367}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e852b2cd2e0ea6a47b65c7b0fb83ef91, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  node_type: 1
+  input_refs: []
+  outputcount: 0
+  allocated_index: 178
+  val4:
+    var_type: 1
+    val_float: 2.8e-44
+    val_int: 20
+  serialize: 0
+--- !u!4 &1380444369
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1380444367}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 46.00499, y: 55.055664, z: -32.46386}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1979,4 +2084,6 @@ SceneRoots:
   - {fileID: 290873667}
   - {fileID: 25813709}
   - {fileID: 843326545}
+  - {fileID: 1380444369}
   - {fileID: 989097149}
+  - {fileID: 1258920742}
