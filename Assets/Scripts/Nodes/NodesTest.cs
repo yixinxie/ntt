@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Collections;
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -12,9 +13,10 @@ public class NodesTest : MonoBehaviour
     public NodeOpTypes node_type;
     public NodesTest[] input_refs;
     //public NodesTest[] outputs;
-    public int outputcount;
+    //public int outputcount;
     public int allocated_index;
-    public NodeValue4 val4;
+    [SerializeField]
+    public NodeEditorValue val4;
     void Start()
     {
         
@@ -30,14 +32,15 @@ public class NodesTest : MonoBehaviour
             var visited = new NativeHashSet<int>(8, Allocator.Temp);
             reset_recursive(this, visited);
             Bursted.ns_generic(temp_buffer, new NodeValue4());
-            serialize_recursive(temp_buffer, this, 0);
+            Bursted.ns_generic(temp_buffer, new NodeValue4());
+            serialize_recursive(temp_buffer, this, 4);
             unsafe
             {
-                NodeGraph.eval(temp_buffer, sizeof(NodeValue4));
+                NodeGraph.eval(temp_buffer, sizeof(NodeValue4) * 2);
             }
-            int ofs = 0;
+            int ofs = 4;
             Bursted.nd_generic(temp_buffer, out NodeValue4 testval, ref ofs, Allocator.Temp);
-            Debug.Log(testval.val_float + ", " + testval.val_int);
+            Debug.Log(testval.ToString());
 
         }
     }
@@ -54,18 +57,17 @@ public class NodesTest : MonoBehaviour
             }
         }
     }
-    //static void getbyoptype<T>(NodeOpTypes optype, out T out_val) where T : unmanaged, IRTNode
+    //unsafe static void getbyoptype<T>(NodeOpTypes optype, ref T out_val) where T : struct, IRTNode
     //{
     //    var input_count = NodeGraph.optype2inputcount[(ushort)optype];
 
     //    if (input_count == 1)
     //    {
-    //        out_val = (T)new RTNode1();
-    //        //return new RTNode1();
+    //        out_val = new RTNode1();
     //    }
     //    else if (input_count == 2)
     //    {
-    //        return new RTNode2(); 
+    //        out_val = new RTNode2() as T;
     //    }
     //    else if (input_count == 3)
     //    {
@@ -135,8 +137,9 @@ public class NodesTest : MonoBehaviour
                     {
                         input_offsets[0] = temp_buffer.Length;
                         var val0 = new NodeValue4();
-                        val0 = node_states.val4;
+                        node_states.val4.set4(ref val0);
                         Bursted.ns_generic(temp_buffer, val0);
+                        Debug.Log(input_offsets[0] + " constant:" + val0.ToString());
                     }
                     break;
                 case NodeOpTypes.Addition:
@@ -145,6 +148,8 @@ public class NodesTest : MonoBehaviour
                         Bursted.ns_generic(temp_buffer, new NodeValue4());
                         input_offsets[1] = temp_buffer.Length;
                         Bursted.ns_generic(temp_buffer, new NodeValue4());
+
+                        Debug.Log(input_offsets[0] + " + " + input_offsets[1] + " add.");
                     }
                     break;
             }
@@ -200,9 +205,9 @@ public class NodesTest : MonoBehaviour
 
 
         // end of op-specific
-        for (int i = 0; i < RTNode8.MaxOutputs; i++)
+        for (int i = 0; i < RTNode4.MaxOutputs; i++)
         {
-            if (output_offsets[i] == -1)
+            if (output_offsets[i] == 0)
             {
                 output_offsets[i] = output_offset;
                 break;
@@ -241,6 +246,36 @@ public class NodesTest : MonoBehaviour
         
     }
 }
+[Serializable]
+public struct NodeEditorValue
+{
+    public NodeVarTypes type;
+    public int _int;
+    public float _float;
+
+    public void set4(ref NodeValue4 val)
+    {
+        val.var_type = type;
+        if (type == NodeVarTypes.Float)
+        {
+            val.val_float = _float;
+        }
+        else if (type == NodeVarTypes.Int)
+        {
+            val.val_int = _int;
+        }
+    }
+}
+public enum NodeVarTypes : byte
+{
+    None = 0,
+    Int, // 4 bytes
+    Float, // 4 bytes
+    Float2, // 8 bytes
+    Float3, // 12 bytes
+    Float4, // 16 bytes
+    Total
+}
 public enum NodeOpTypes:ushort
 {
     None = 0,
@@ -250,17 +285,6 @@ public enum NodeOpTypes:ushort
     Cosine,
     Compare,
     Branching,
-    Total
-}
-
-public enum NodeVarTypes : byte
-{
-    None = 0,
-    Int, // 4 bytes
-    Float, // 4 bytes
-    Float2, // 8 bytes
-    Float3, // 12 bytes
-    Float4, // 16 bytes
     Total
 }
 public struct NodeGraph
@@ -307,7 +331,7 @@ public struct NodeGraph
             for (int i = 0; i < input_count; ++i)
             {
                 var idx = parent_indices[i];
-                if (idx >= 0)
+                if (idx > 0)
                 {
                     eval(buffer, idx);
                 }
@@ -322,11 +346,12 @@ public struct NodeGraph
                     offset = input_offsets[1];
                     Bursted.ud_struct(buffer, out NodeValue4 right, ref offset);
                     RTNode8.float_add(left, right, out var output);
-                    for (int i = 0; i < RTNode8.MaxOutputs; ++i)
+                    for (int i = 0; i < RTNode4.MaxOutputs; ++i)
                     {
                         var idx = output_offsets[i];
-                        if (idx < 0)
+                        if (idx == 0)
                             break;
+                        Debug.Log("add result write to " + idx + " : " + left.ToString() + " + " + right.ToString() + " = " + output.ToString());
                         Bursted.us_struct_offset(buffer, output, idx);
                     }
                 }
@@ -337,277 +362,17 @@ public struct NodeGraph
                     offset = input_offsets[0];
                     Bursted.ud_struct(buffer, out NodeValue4 left, ref offset);
 
-                    for (int i = 0; i < RTNode8.MaxOutputs; ++i)
+                    for (int i = 0; i < RTNode4.MaxOutputs; ++i)
                     {
                         var idx = output_offsets[i];
-                        if (idx < 0)
+                        if (idx == 0)
                             break;
+                        Debug.Log("constant write to " + idx + " with " + left.ToString());
                         Bursted.us_struct_offset(buffer, left, idx);
                     }
                 }
                 break;
 
-        }
-    }
-}
-public interface IRTNode
-{
-    public int get_input_count();
-    unsafe public int* get_parent_indices();
-    unsafe public int* get_input_offsets();
-    unsafe public int* get_output_offsets();
-}
-unsafe public struct RTNode8 : IRTNode
-{
-    public const int MaxInputs = 8;
-    public const int MaxOutputs = 4;
-    public fixed int parent_indices[MaxInputs];
-    public fixed int input_offsets[MaxInputs];
-    public fixed int output_offsets[MaxOutputs];
-
-    public int get_input_count()
-    {
-        return MaxInputs;
-    }
-    unsafe public int* get_parent_indices()
-    {
-        fixed(int* p = parent_indices)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_input_offsets()
-    {
-        fixed (int* p = input_offsets)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_output_offsets()
-    {
-        fixed (int* p = output_offsets)
-        {
-            return p;
-        }
-    }
-    //public NodeOpTypes optype;
-    public void init()
-    {
-        //optype = 0;
-        for (int i = 0; i < MaxInputs; ++i)
-        {
-            parent_indices[i] = -1;
-            input_offsets[i] = -1;
-            output_offsets[i] = -1;
-        }
-    }
-
-    public static void float_add(NodeValue4 left, NodeValue4 right, out NodeValue4 output)
-    {
-
-        output = default;
-
-        if (left.var_type == NodeVarTypes.Float)
-        {
-            if (right.var_type == NodeVarTypes.Float)
-            {
-                output.var_type = NodeVarTypes.Float;
-                output.val_float = left.val_float + right.val_float;
-            }
-            else if (right.var_type == NodeVarTypes.Int)
-            {
-                output.var_type = NodeVarTypes.Float;
-                output.val_float = left.val_float + right.val_int;
-            }
-        }
-        else if (left.var_type == NodeVarTypes.Int)
-        {
-            if (right.var_type == NodeVarTypes.Int)
-            {
-                output.var_type = NodeVarTypes.Int;
-                output.val_int = left.val_int + right.val_int;
-
-            }
-            else if (right.var_type == NodeVarTypes.Float)
-            {
-                output.var_type = NodeVarTypes.Float;
-                output.val_float = left.val_int + right.val_float;
-            }
-        }
-                
-    }
-
-
-}
-unsafe public struct RTNode4 :IRTNode
-{
-    public const int MaxInputs = 4;
-    public const int MaxOutputs = 4;
-    public fixed int parent_indices[MaxInputs];
-    public fixed int input_offsets[MaxInputs];
-    public fixed int output_offsets[MaxOutputs];
-    public int get_input_count()
-    {
-        return MaxInputs;
-    }
-    unsafe public int* get_parent_indices()
-    {
-        fixed (int* p = parent_indices)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_input_offsets()
-    {
-        fixed (int* p = input_offsets)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_output_offsets()
-    {
-        fixed (int* p = output_offsets)
-        {
-            return p;
-        }
-    }
-    public void init()
-    {
-        //optype = 0;
-        for (int i = 0; i < MaxInputs; ++i)
-        {
-            parent_indices[i] = -1;
-            input_offsets[i] = -1;
-            output_offsets[i] = -1;
-        }
-    }
-}
-unsafe public struct RTNode3 : IRTNode
-{
-    public const int MaxInputs = 3;
-    public const int MaxOutputs = 4;
-    public fixed int parent_indices[MaxInputs];
-    public fixed int input_offsets[MaxInputs];
-    public fixed int output_offsets[MaxOutputs];
-    public int get_input_count()
-    {
-        return MaxInputs;
-    }
-    unsafe public int* get_parent_indices()
-    {
-        fixed (int* p = parent_indices)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_input_offsets()
-    {
-        fixed (int* p = input_offsets)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_output_offsets()
-    {
-        fixed (int* p = output_offsets)
-        {
-            return p;
-        }
-    }
-    public void init()
-    {
-        //optype = 0;
-        for (int i = 0; i < MaxInputs; ++i)
-        {
-            parent_indices[i] = -1;
-            input_offsets[i] = -1;
-            output_offsets[i] = -1;
-        }
-    }
-}
-unsafe public struct RTNode2 : IRTNode
-{
-    public const int MaxInputs = 2;
-    public const int MaxOutputs = 4;
-    public fixed int parent_indices[MaxInputs];
-    public fixed int input_offsets[MaxInputs];
-    public fixed int output_offsets[MaxOutputs];
-    public int get_input_count()
-    {
-        return MaxInputs;
-    }
-    unsafe public int* get_parent_indices()
-    {
-        fixed (int* p = parent_indices)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_input_offsets()
-    {
-        fixed (int* p = input_offsets)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_output_offsets()
-    {
-        fixed (int* p = output_offsets)
-        {
-            return p;
-        }
-    }
-    public void init()
-    {
-        //optype = 0;
-        for (int i = 0; i < MaxInputs; ++i)
-        {
-            parent_indices[i] = -1;
-            input_offsets[i] = -1;
-            output_offsets[i] = -1;
-        }
-    }
-}
-unsafe public struct RTNode1:IRTNode
-{
-    public const int MaxInputs = 1;
-    public const int MaxOutputs = 4;
-    public fixed int parent_indices[MaxInputs];
-    public fixed int input_offsets[MaxInputs];
-    public fixed int output_offsets[MaxOutputs];
-    public int get_input_count()
-    {
-        return MaxInputs;
-    }
-    unsafe public int* get_parent_indices()
-    {
-        fixed (int* p = parent_indices)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_input_offsets()
-    {
-        fixed (int* p = input_offsets)
-        {
-            return p;
-        }
-    }
-    unsafe public int* get_output_offsets()
-    {
-        fixed (int* p = output_offsets)
-        {
-            return p;
-        }
-    }
-    public void init()
-    {
-        //optype = 0;
-        for (int i = 0; i < MaxInputs; ++i)
-        {
-            parent_indices[i] = -1;
-            input_offsets[i] = -1;
-            output_offsets[i] = -1;
         }
     }
 }
@@ -621,4 +386,67 @@ public struct NodeValue4
     public float val_float;
     [FieldOffset(4)]
     public int val_int;
+    public override string ToString()
+    {
+        if (var_type == NodeVarTypes.Float)
+        {
+            return "float " + val_float;
+        }
+        else if (var_type == NodeVarTypes.Int)
+        {
+            return "int " + val_int;
+        }
+        return "none";
+    }
+}
+
+[StructLayout(LayoutKind.Explicit), System.Serializable]
+public struct NodeValue8
+{
+    [FieldOffset(0)]
+    public NodeVarTypes var_type;
+    [FieldOffset(4)]
+    public float2 val_float2;
+    //[FieldOffset(4)]
+    //public int2 val_int;
+    public override string ToString()
+    {
+        if (var_type == NodeVarTypes.Float2)
+        {
+            return "float2 " + val_float2;
+        }
+        return "none";
+    }
+}
+[StructLayout(LayoutKind.Explicit), System.Serializable]
+public struct NodeValue12
+{
+    [FieldOffset(0)]
+    public NodeVarTypes var_type;
+    [FieldOffset(4)]
+    public float3 val_float3;
+    public override string ToString()
+    {
+        if (var_type == NodeVarTypes.Float3)
+        {
+            return "float3 " + val_float3;
+        }
+        return "none";
+    }
+}
+[StructLayout(LayoutKind.Explicit), System.Serializable]
+public struct NodeValue16
+{
+    [FieldOffset(0)]
+    public NodeVarTypes var_type;
+    [FieldOffset(4)]
+    public float4 val_float4;
+    public override string ToString()
+    {
+        if (var_type == NodeVarTypes.Float4)
+        {
+            return "float4 " + val_float4;
+        }
+        return "none";
+    }
 }
