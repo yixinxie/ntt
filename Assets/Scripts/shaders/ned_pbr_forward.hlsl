@@ -57,150 +57,6 @@ Interpolators Vertex(Attributes input) {
 
 	return output;
 }
-half3 CalculateLightingColor2(LightingData lightingData, half3 albedo)
-{
-    half3 lightingColor = 0;
-
-    if (IsOnlyAOLightingFeatureEnabled())
-    {
-        return lightingData.giColor; // Contains white + AO
-    }
-
-    if (IsLightingFeatureEnabled(DEBUGLIGHTINGFEATUREFLAGS_GLOBAL_ILLUMINATION))
-    {
-        lightingColor += lightingData.giColor;
-    }
-
-    if (IsLightingFeatureEnabled(DEBUGLIGHTINGFEATUREFLAGS_MAIN_LIGHT))
-    {
-        lightingColor += lightingData.mainLightColor;
-    }
-
-    if (IsLightingFeatureEnabled(DEBUGLIGHTINGFEATUREFLAGS_ADDITIONAL_LIGHTS))
-    {
-        lightingColor += lightingData.additionalLightsColor;
-    }
-
-    if (IsLightingFeatureEnabled(DEBUGLIGHTINGFEATUREFLAGS_VERTEX_LIGHTING))
-    {
-        lightingColor += lightingData.vertexLightingColor;
-        //lightingColor.r = 1;
-    }
-
-    
-    lightingColor *= albedo;
-    //lightingColor += albedo;
-
-    if (IsLightingFeatureEnabled(DEBUGLIGHTINGFEATUREFLAGS_EMISSION))
-    {
-        lightingColor += lightingData.emissionColor;
-    }
-
-    return lightingColor;
-}
-
-half4 CalculateFinalColor2(LightingData lightingData, half alpha)
-{
-    half3 finalColor = CalculateLightingColor2(lightingData, 1);
-
-    return half4(finalColor, alpha);
-}
-
-half4 UniversalFragmentPBR2(InputData inputData, SurfaceData surfaceData)
-{
-#if defined(_SPECULARHIGHLIGHTS_OFF)
-    bool specularHighlightsOff = true;
-#else
-    bool specularHighlightsOff = false;
-#endif
-    BRDFData brdfData;
-
-    // NOTE: can modify "surfaceData"...
-    InitializeBRDFData(surfaceData, brdfData);
-
-#if defined(DEBUG_DISPLAY)
-    half4 debugColor;
-
-    if (CanDebugOverrideOutputColor(inputData, surfaceData, brdfData, debugColor))
-    {
-        return debugColor;
-    }
-#endif
-	//return half4(surfaceData.albedo, 1);
-
-    // Clear-coat calculation...
-    BRDFData brdfDataClearCoat = CreateClearCoatBRDFData(surfaceData, brdfData);
-    half4 shadowMask = CalculateShadowMask(inputData);
-    AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
-    uint meshRenderingLayers = GetMeshRenderingLayer();
-    Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
-
-    // NOTE: We don't apply AO to the GI here because it's done in the lighting calculation below...
-    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI);
-
-    LightingData lightingData = CreateLightingData(inputData, surfaceData);
-
-    lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
-        inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
-        inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
-#ifdef _LIGHT_LAYERS
-    if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
-#endif
-    {
-        lightingData.mainLightColor = LightingPhysicallyBased(brdfData, brdfDataClearCoat,
-            mainLight,
-            inputData.normalWS, inputData.viewDirectionWS,
-            surfaceData.clearCoatMask, specularHighlightsOff);
-        //lightingData.mainLightColor = 0.5;
-    }
-
-#if defined(_ADDITIONAL_LIGHTS)
-    uint pixelLightCount = GetAdditionalLightsCount();
-
-#if USE_FORWARD_PLUS
-    for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
-    {
-        FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
-
-            Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
-
-#ifdef _LIGHT_LAYERS
-        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
-#endif
-        {
-            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
-                inputData.normalWS, inputData.viewDirectionWS,
-                surfaceData.clearCoatMask, specularHighlightsOff);
-        }
-    }
-#endif
-
-    LIGHT_LOOP_BEGIN(pixelLightCount)
-        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
-
-#ifdef _LIGHT_LAYERS
-    if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
-#endif
-    {
-        lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
-            inputData.normalWS, inputData.viewDirectionWS,
-            surfaceData.clearCoatMask, specularHighlightsOff);
-    }
-    LIGHT_LOOP_END
-#endif
-
-#if defined(_ADDITIONAL_LIGHTS_VERTEX)
-        lightingData.vertexLightingColor += inputData.vertexLighting * brdfData.diffuse;
-#endif
-
-#if REAL_IS_HALF
-    // Clamp any half.inf+ to HALF_MAX
-    return min(CalculateFinalColor2(lightingData, surfaceData.alpha), HALF_MAX);
-#else
-    return CalculateFinalColor2(lightingData, surfaceData.alpha);
-    //return half4(lightingData.mainLightColor, 1);
-#endif
-}
 
 float4 Fragment(Interpolators input
 #ifdef _DOUBLE_SIDED_NORMALS
@@ -254,11 +110,12 @@ float4 Fragment(Interpolators input
 	surfaceInput.clearCoatSmoothness = SAMPLE_TEXTURE2D(_ClearCoatSmoothnessMask, sampler_ClearCoatSmoothnessMask, uv).r * _ClearCoatSmoothness;
 	surfaceInput.normalTS = normalTS;
 
-	//return UniversalFragmentPBR(lightingInput, surfaceInput);
-	half4 ret = UniversalFragmentPBR2(lightingInput, surfaceInput);
+	return UniversalFragmentPBR(lightingInput, surfaceInput);
+	//half4 ret = UniversalFragmentBlinnPhong(lightingInput, surfaceInput);
 	//ret.xyz = lightingInput.shadowCoord;
-	//ret = colorSample;
-	return ret;
+	
+	//ret = half4(normalize(viewDirWS), surfaceInput.alpha);
+	//return ret;
 }
 
 #endif

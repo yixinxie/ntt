@@ -6,7 +6,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.UIElements;
-using static UnityEngine.InputManagerEntry;
+//using static UnityEngine.InputManagerEntry;
 
 public class NoisesTest : MonoBehaviour
 {

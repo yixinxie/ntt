@@ -7,3 +7,4 @@ UserSettings
 *.sln
 .vs
 obj
+testbuilds
