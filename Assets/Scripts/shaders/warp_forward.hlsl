@@ -1,25 +1,46 @@
 
-
 #ifndef MY_LIT_FORWARD_LIT_PASS_INCLUDED
 #define MY_LIT_FORWARD_LIT_PASS_INCLUDED
 
-#include "ned_common.hlsl"
+#include "warp_common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ParallaxMapping.hlsl"
 
-float4 _WarpParams; 
+//CBUFFER_START(UnityPerMaterial)
+//float4 _ColorMap_ST;
+//float4 _ColorTint;
+//float _Cutoff;
+//float _NormalStrength;
+//float _Metalness;
+//float3 _SpecularTint;
+//float _Smoothness;
+//float3 _EmissionTint;
+//float _ParallaxStrength;
+//float _ClearCoatStrength;
+//float _ClearCoatSmoothness;
 
-CBUFFER_START(UnityPerMaterial)
+float4 _WarpParams;
 float4 _ASMLight0;
 float4 _ASMLight1;
 float4 _ASMLight2;
 float4 _ASMLight3;
-CBUFFER_END
+//CBUFFER_END
+
+//UNITY_INSTANCING_BUFFER_START(Props)
+//UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight0)
+//UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight1)
+//UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight2)
+//UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight3)
+//UNITY_INSTANCING_BUFFER_END(Props)
+
+
+
 
 struct Attributes {
 	float3 positionOS : POSITION;
 	float3 normalOS : NORMAL;
 	float4 tangentOS : TANGENT;
 	float2 uv : TEXCOORD0;
+	//UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct Interpolators {
@@ -29,8 +50,8 @@ struct Interpolators {
 	float3 positionWS : TEXCOORD1;
 	float3 normalWS : TEXCOORD2;
 	float4 tangentWS : TEXCOORD3;
-
 	float4 o_positionWS: TEXCOORD4;
+	//UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 half3 additional_asmlights(InputData inputData, float4 asmlight, BRDFData brdfData, BRDFData brdfDataClearCoat, half clearCoatMask, bool specularHighlightsOff)
 {
@@ -43,6 +64,9 @@ half3 additional_asmlights(InputData inputData, float4 asmlight, BRDFData brdfDa
 }
 Interpolators Vertex(Attributes input) {
 	Interpolators output;
+
+	/*UNITY_SETUP_INSTANCE_ID(input);
+	UNITY_TRANSFER_INSTANCE_ID(input, output);*/
 
 	// Found in URP/ShaderLib/ShaderVariablesFunctions.hlsl
 	VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
@@ -181,12 +205,15 @@ float4 Fragment(Interpolators input
 	, FRONT_FACE_TYPE frontFace : FRONT_FACE_SEMANTIC
 #endif
 ) : SV_TARGET{
+
+	//UNITY_SETUP_INSTANCE_ID(input);
+
 	float3 normalWS = input.normalWS;
 #ifdef _DOUBLE_SIDED_NORMALS
 	normalWS *= IS_FRONT_VFACE(frontFace, 1, -1);
 #endif
 
-	float3 positionWS = input.o_positionWS;
+	float3 positionWS = input.o_positionWS.xyz;
 	float3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS); // In ShaderVariablesFunctions.hlsl
 	float3 viewDirTS = GetViewDirectionTangentSpace(input.tangentWS, normalWS, viewDirWS); // In ParallaxMapping.hlsl
 
@@ -228,8 +255,12 @@ float4 Fragment(Interpolators input
 	surfaceInput.clearCoatSmoothness = SAMPLE_TEXTURE2D(_ClearCoatSmoothnessMask, sampler_ClearCoatSmoothnessMask, uv).r * _ClearCoatSmoothness;
 	surfaceInput.normalTS = normalTS;
 
+	//return UniversalFragmentPBR_lights(lightingInput, surfaceInput, 
+	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight0),
+	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight1),
+	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight2),
+	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight3));
 	return UniversalFragmentPBR_lights(lightingInput, surfaceInput, _ASMLight0, _ASMLight1, _ASMLight2, _ASMLight3);
-	//return input.positionCS.y / 1080;
 }
 
 #endif

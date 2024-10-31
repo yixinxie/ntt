@@ -44,7 +44,7 @@ Shader "asm/urp_lit_warp" {
         [NoScaleOffset] _ClearCoatSmoothnessMask("Clear coat smoothness mask", 2D) = "white" {}
         _ClearCoatSmoothness("Clear coat smoothness", Range(0, 1)) = 0
 
-        _WarpParams("Warp Parameters", Vector) = (1.0, 1.0, 1.0, 1.0)
+        _WarpParams("Warp Parameters", Vector) = (0.0, 0.0, 1000.0, 0.01)
 
         _ASMLight0("ASMLight0", Vector) = (0.0, 0.0, 0.0, 0.0)
         _ASMLight1("ASMLight1", Vector) = (0.0, 0.0, 0.0, 0.0)
@@ -75,11 +75,13 @@ Shader "asm/urp_lit_warp" {
 
                 #define _NORMALMAP
                 #define _CLEARCOATMAP
+                //#pragma multi_compile_instancing
                 #pragma shader_feature_local _ALPHA_CUTOUT
                 #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
                 #pragma shader_feature_local_fragment _SPECULAR_SETUP
                 #pragma shader_feature_local_fragment _ALPHAPREMULTIPLY_ON
-
+                #pragma target 4.5
+                #pragma multi_compile _ DOTS_INSTANCING_ON
     #if UNITY_VERSION >= 202120
                 #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
     #else
@@ -107,11 +109,12 @@ Shader "asm/urp_lit_warp" {
 
                 HLSLPROGRAM
 
-                #pragma shader_feature_local _ALPHA_CUTOUT
-                #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
-
+                #pragma target 4.5
+                #pragma multi_compile _ DOTS_INSTANCING_ON
                 #pragma vertex Vertex
                 #pragma fragment Fragment
+                #pragma shader_feature_local _ALPHA_CUTOUT
+                #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
 
                 #include "warp_shadowcaster.hlsl"
                 ENDHLSL
