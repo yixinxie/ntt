@@ -1,88 +1,122 @@
+// MIT License
+
+// Copyright (c) 2023 NedMakesGames
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files(the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 Shader "asm/urp_lit_warp" {
     Properties{
-       _MainTex("Albedo Map", 2D) = "white" {}
-        _NormalMap("Normal Map", 2D) = "bump" {}
-        _MetalnessMap("Metalness Map", 2D) = "black" {}
-        _RoughnessMap("Roughness Map", 2D) = "black" {}
-        _OcclusionMap("Occlusion Map", 2D) = "white" {}
+        [Header(Surface options)]
+        [MainTexture] _ColorMap("Color", 2D) = "white" {}
+        [MainColor] _ColorTint("Tint", Color) = (1, 1, 1, 1)
+        _Cutoff("Alpha cutout threshold", Range(0, 1)) = 0.5
+        [NoScaleOffset][Normal] _NormalMap("Normal", 2D) = "bump" {}
+        _NormalStrength("Normal strength", Range(0, 1)) = 1
+        [NoScaleOffset] _MetalnessMask("Metalness mask", 2D) = "white" {}
+        _Metalness("Metalness strength", Range(0, 1)) = 0
+        [Toggle(_SPECULAR_SETUP)] _SpecularSetupToggle("Use specular workflow", Float) = 0
+        [NoScaleOffset] _SpecularMap("Specular map", 2D) = "white" {}
+        _SpecularTint("Specular tint", Color) = (1, 1, 1, 1)
+        [NoScaleOffset] _SmoothnessMask("Smoothness mask", 2D) = "white" {}
+        _Smoothness("Smoothness multiplier", Range(0, 1)) = 0.5
+        [NoScaleOffset] _EmissionMap("Emission map", 2D) = "white" {}
+        [HDR] _EmissionTint("Emission tint", Color) = (0, 0, 0, 0)
+        [NoScaleOffset] _ParallaxMap("Height/displacement map", 2D) = "white" {}
+        _ParallaxStrength("Parallax strength", Range(0, 1)) = 0.005
+        [NoScaleOffset] _ClearCoatMask("Clear coat mask", 2D) = "white" {}
+        _ClearCoatStrength("Clear coat strength", Range(0, 1)) = 0
+        [NoScaleOffset] _ClearCoatSmoothnessMask("Clear coat smoothness mask", 2D) = "white" {}
+        _ClearCoatSmoothness("Clear coat smoothness", Range(0, 1)) = 0
 
-        _AlbedoColor("Albedo Color", Color) = (1.0, 1.0, 1.0, 1.0)
-        _FresnelColor("Fresnel Color (F0)", Color) = (1.0, 1.0, 1.0, 1.0)
-
-        _Roughness("Roughness", Range(0,1)) = 0
-        _Metalness("Metalness", Range(0,1)) = 0
-        _Anisotropy("Anisotropy", Range(0,1)) = 0
         _WarpParams("Warp Parameters", Vector) = (1.0, 1.0, 1.0, 1.0)
+
+        _ASMLight0("ASMLight0", Vector) = (0.0, 0.0, 0.0, 0.0)
+        _ASMLight1("ASMLight1", Vector) = (0.0, 0.0, 0.0, 0.0)
+        _ASMLight2("ASMLight2", Vector) = (0.0, 0.0, 0.0, 0.0)
+        _ASMLight3("ASMLight3", Vector) = (0.0, 0.0, 0.0, 0.0)
+
+        [HideInInspector] _Cull("Cull mode", Float) = 2 // 2 is "Back"
+        [HideInInspector] _SourceBlend("Source blend", Float) = 0
+        [HideInInspector] _DestBlend("Destination blend", Float) = 0
+        [HideInInspector] _ZWrite("ZWrite", Float) = 0
+        [HideInInspector] _SurfaceType("Surface type", Float) = 0
+        [HideInInspector] _BlendType("Blend type", Float) = 0
+        [HideInInspector] _FaceRenderingMode("Face rendering type", Float) = 0
     }
-    // Subshaders allow for different behaviour and options for different pipelines and platforms
-    SubShader
-    {
-            // These tags are shared by all passes in this sub shader
-        Tags{"RenderPipeline" = "UniversalPipeline"}
 
-        // Shaders can have several passes which are used to render different data about the material
-        // Each pass has it's own vertex and fragment function and shader variant keywords
-        Pass 
-        {
-            Name "WarpForwardLit" // For debugging
-            Tags{"LightMode" = "UniversalForward"} // Pass specific tags. 
-            // "UniversalForward" tells Unity this is the main lighting pass of this shader
+        SubShader{
+            Tags {"RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline"}
 
-            HLSLPROGRAM // Begin HLSL code
-            // Register our programmable stage functions
-            #pragma shader_feature _NORMALMAP
-            #pragma shader_feature _ALPHATEST_ON
-            #pragma shader_feature _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature _EMISSION
-            //#pragma shader_feature _METALLICSPECGLOSSMAP
-            //#pragma shader_feature _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-            //#pragma shader_feature _OCCLUSIONMAP
+            Pass {
+                Name "WarpForwardLit"
+                Tags{"LightMode" = "UniversalForward"}
 
-            //#pragma shader_feature _SPECULARHIGHLIGHTS_OFF
-            //#pragma shader_feature _ENVIRONMENTREFLECTIONS_OFF
-            ////#pragma shader_feature _SPECULAR_SETUP
-            //#pragma vertex vert
-            //#pragma fragment frag
-            
-            // URP Keywords
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
-            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-            #pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
-            #pragma multi_compile _ _SHADOWS_SOFT
-            #pragma multi_compile _ _MIXED_LIGHTING_SUBTRACTIVE
+                Blend[_SourceBlend][_DestBlend]
+                ZWrite[_ZWrite]
+                Cull[_Cull]
 
-            // Unity defined keywords
-            #pragma multi_compile _ DIRLIGHTMAP_COMBINED
-            #pragma multi_compile _ LIGHTMAP_ON
-            #pragma multi_compile_fog
+                HLSLPROGRAM
 
-            // Some added includes, required to use the Lighting functions
-            #include "warp_forward.hlsl"
-           
-            ENDHLSL
+                #define _NORMALMAP
+                #define _CLEARCOATMAP
+                #pragma shader_feature_local _ALPHA_CUTOUT
+                #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
+                #pragma shader_feature_local_fragment _SPECULAR_SETUP
+                #pragma shader_feature_local_fragment _ALPHAPREMULTIPLY_ON
+
+    #if UNITY_VERSION >= 202120
+                #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+    #else
+                #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
+                #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
+    #endif
+                #pragma multi_compile_fragment _ _SHADOWS_SOFT
+    #if UNITY_VERSION >= 202120
+                #pragma multi_compile_fragment _ DEBUG_DISPLAY
+    #endif
+
+                #pragma vertex Vertex
+                #pragma fragment Fragment
+
+                #include "warp_forward.hlsl"
+                ENDHLSL
+            }
+
+            Pass {
+                Name "ShadowCaster"
+                Tags{"LightMode" = "ShadowCaster"}
+
+                ColorMask 0
+                Cull[_Cull]
+
+                HLSLPROGRAM
+
+                #pragma shader_feature_local _ALPHA_CUTOUT
+                #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
+
+                #pragma vertex Vertex
+                #pragma fragment Fragment
+
+                #include "warp_shadowcaster.hlsl"
+                ENDHLSL
+            }
         }
-        Pass
-        {
 
-            // The shadow caster pass, which draws to shadow maps
-            Name "ShadowCaster"
-            Tags{"LightMode" = "ShadowCaster"}
-
-            ColorMask 0 // No color output, only depth
-
-            HLSLPROGRAM
-            #pragma vertex Vertex
-            #pragma fragment Fragment
-
-            #include "warp_shadercaster.hlsl"
-            ENDHLSL
-
-
-        }
-    }
+    //CustomEditor "NedPBRInspector"
 }
-
-// MIT License
-//https://gist.github.com/NedMakesGames/78993a8b2b184a6e27ce2732f3db82a0
-// Copyright (c) 2023 Ned

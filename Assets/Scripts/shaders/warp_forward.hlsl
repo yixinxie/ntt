@@ -1,94 +1,235 @@
-#include "UnityCG.cginc"
-//#include "AutoLight.cginc"
-//#include "Lighting.cginc"
-//#include "PBRLib.cginc"
-//#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-// Register our programmable stage functions
-#pragma vertex Vertex
-#pragma fragment Fragment
-#pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
-sampler2D _MainTex;
-sampler2D _NormalMap;
-sampler2D _MetalnessMap;
-sampler2D _RoughnessMap;
-sampler2D _OcclusionMap;
 
-float3 _AlbedoColor;
-float3 _FresnelColor;
+#ifndef MY_LIT_FORWARD_LIT_PASS_INCLUDED
+#define MY_LIT_FORWARD_LIT_PASS_INCLUDED
 
-float _Roughness;
-float _Metalness;
-float _Anisotropy;
+#include "ned_common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ParallaxMapping.hlsl"
 
-float4 _WarpParams;
+float4 _WarpParams; 
+
+CBUFFER_START(UnityPerMaterial)
+float4 _ASMLight0;
+float4 _ASMLight1;
+float4 _ASMLight2;
+float4 _ASMLight3;
+CBUFFER_END
 
 struct Attributes {
-    float3 positionOS : POSITION; // Position in object space
-    float2 uv : TEXCOORD0; // Material texture UVs
-    float3 normal : NORMAL;
-    float4 tangent: TANGENT;
+	float3 positionOS : POSITION;
+	float3 normalOS : NORMAL;
+	float4 tangentOS : TANGENT;
+	float2 uv : TEXCOORD0;
 };
 
-          
 struct Interpolators {
-    // This value should contain the position in clip space (which is similar to a position on screen)
-    // when output from the vertex function. It will be transformed into pixel position of the current
-    // fragment on the screen when read from the fragment function
-    float4 positionCS : SV_POSITION;
+	float4 positionCS : SV_POSITION;
 
-                
-    // The following variables will retain their values from the vertex stage, except the
-    // rasterizer will interpolate them between vertices
-    float2 uv : TEXCOORD0; // Material texture UVs
+	float2 uv : TEXCOORD0;
+	float3 positionWS : TEXCOORD1;
+	float3 normalWS : TEXCOORD2;
+	float4 tangentWS : TEXCOORD3;
 
-    float3 normal : TEXCOORD1;
-    float3 tangent: TEXCOORD2;
-    float3 bitangent: TEXCOORD3;
-    float3 worldPos : TEXCOORD4;
-
-    float3 tangentLocal: TEXCOORD5;
-    float3 bitangentLocal: TEXCOORD6;
-    float4 shadowCoords: TEXCOORD7;
+	float4 o_positionWS: TEXCOORD4;
 };
-float4 Fragment(Interpolators i) : SV_TARGET
+half3 additional_asmlights(InputData inputData, float4 asmlight, BRDFData brdfData, BRDFData brdfDataClearCoat, half clearCoatMask, bool specularHighlightsOff)
 {
-    return 0.0;
+	float distance2light = distance(inputData.positionWS, asmlight.xyz);
+	float intensity_after_falloff = 1 / distance2light * asmlight.w;
+	float3 light_dir = normalize(asmlight.xyz - inputData.positionWS);
+	return LightingPhysicallyBased(brdfData, brdfDataClearCoat, half3(intensity_after_falloff, intensity_after_falloff, intensity_after_falloff), light_dir, 1,
+		inputData.normalWS, inputData.viewDirectionWS,
+		clearCoatMask, specularHighlightsOff);
 }
+Interpolators Vertex(Attributes input) {
+	Interpolators output;
 
-Interpolators Vertex(Attributes v) {
+	// Found in URP/ShaderLib/ShaderVariablesFunctions.hlsl
+	VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
+	VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
+	// distort begins
+	float4 undistorted_wspos = mul(unity_ObjectToWorld, float4(input.positionOS, 1.0));
 
-    Interpolators o;
-    o.uv = v.uv;
-    float4 wpos = mul(unity_ObjectToWorld, float4(v.positionOS, 1.0));
+    float4 undistorted_cspos = mul(UNITY_MATRIX_VP, undistorted_wspos);
 
-    float4 undistorted_cspos = mul(UNITY_MATRIX_VP, wpos);
-    //float3 from_cam = wpos.xyz - _WorldSpaceCameraPos;
-    //float3 from_cam_dir = normalize(from_cam);
-    //float mag = distance(tocam, 0.0);
     float3 cam_forward = mul((float3x3)unity_CameraToWorld, float3(0, 0, 1));
     float3 distort_origin = _WorldSpaceCameraPos + cam_forward * _WarpParams.z;
-    float3 distort_dir = distort_origin - wpos.xyz;
+    float3 distort_dir = distort_origin - undistorted_wspos.xyz;
     float distort_dist = distance(distort_dir, 0.0);
     distort_dir /= distort_dist;
     //wpos.xyz = distort_origin + distort_dir * distort_dist * (1 - distance(undistorted_cspos.xy, float2(0.5, 0.5)));
-    wpos.xyz = wpos.xyz + distort_dir * pow(distance(undistorted_cspos.y, _WarpParams.y), 2) * _WarpParams.w;
+	float4 distorted_wspos = undistorted_wspos;
+	distorted_wspos.xyz = distorted_wspos.xyz + distort_dir * pow(distance(undistorted_cspos.xy, _WarpParams.xy), 2) * _WarpParams.w;
+    //o.worldPos = wpos.xyz;
+	output.positionWS = distorted_wspos.xyz;
+	output.positionCS = mul(UNITY_MATRIX_VP, distorted_wspos);
+	output.o_positionWS = undistorted_wspos;
+	// distort ends
 
-    o.worldPos = wpos.xyz;
-    o.positionCS = mul(UNITY_MATRIX_VP, wpos);
+	//output.positionCS = posnInputs.positionCS;
+	output.uv = TRANSFORM_TEX(input.uv, _ColorMap);
+	output.normalWS = normInputs.normalWS;
+	output.tangentWS = float4(normInputs.tangentWS, input.tangentOS.w);
+	//output.positionWS = posnInputs.positionWS;
 
-    //o.positionCS = mul(UNITY_MATRIX_MVP, float4(v.positionOS, 1.0));
-    //o.positionCS = UnityObjectToClipPos(v.positionOS);
-
-    // Normal mapping parameters
-    o.tangent = normalize(mul(unity_ObjectToWorld, v.tangent).xyz);
-    o.normal = normalize(UnityObjectToWorldNormal(v.normal));
-    o.bitangent = normalize(cross(o.normal, o.tangent.xyz));
-
-    o.tangentLocal = v.tangent;
-    o.bitangentLocal = normalize(cross(v.normal, o.tangentLocal));
-     
-    //VertexPositionInputs positions = GetVertexPositionInputs(v.positionOS.xyz);
-    //o.shadowCoords = TransformWorldToShadowCoord(v.positionOS.xyz);
-    return o;
+	return output;
 }
+half4 UniversalFragmentPBR_lights(InputData inputData, SurfaceData surfaceData, float4 asmlight0, float4 asmlight1, float4 asmlight2, float4 asmlight3)
+{
+#if defined(_SPECULARHIGHLIGHTS_OFF)
+    bool specularHighlightsOff = true;
+#else
+    bool specularHighlightsOff = false;
+#endif
+    BRDFData brdfData;
+
+    // NOTE: can modify "surfaceData"...
+    InitializeBRDFData(surfaceData, brdfData);
+
+#if defined(DEBUG_DISPLAY)
+    half4 debugColor;
+
+    if (CanDebugOverrideOutputColor(inputData, surfaceData, brdfData, debugColor))
+    {
+        return debugColor;
+    }
+#endif
+
+    // Clear-coat calculation...
+    BRDFData brdfDataClearCoat = CreateClearCoatBRDFData(surfaceData, brdfData);
+    half4 shadowMask = CalculateShadowMask(inputData);
+    AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
+    uint meshRenderingLayers = GetMeshRenderingLayer();
+    Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
+
+    // NOTE: We don't apply AO to the GI here because it's done in the lighting calculation below...
+    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI);
+
+    LightingData lightingData = CreateLightingData(inputData, surfaceData);
+
+    lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
+        inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
+        inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+#ifdef _LIGHT_LAYERS
+    if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+#endif
+    {
+        lightingData.mainLightColor = LightingPhysicallyBased(brdfData, brdfDataClearCoat,
+            mainLight,
+            inputData.normalWS, inputData.viewDirectionWS,
+            surfaceData.clearCoatMask, specularHighlightsOff);
+    }
+
+	//lightingData.additionalLightsColor += asmlight0.xyz;
+	/*float distance2light = distance(inputData.positionWS, asmlight0.xyz);
+	float intensity_after_falloff = 1 / distance2light * asmlight0.w;
+	lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, half3(intensity_after_falloff, intensity_after_falloff, intensity_after_falloff), asmlight0.xyz, 6,
+		                inputData.normalWS, inputData.viewDirectionWS,
+		                surfaceData.clearCoatMask, specularHighlightsOff);*/
+
+	lightingData.additionalLightsColor += additional_asmlights(inputData, asmlight0, brdfData, brdfDataClearCoat, surfaceData.clearCoatMask, specularHighlightsOff);
+	lightingData.additionalLightsColor += additional_asmlights(inputData, asmlight1, brdfData, brdfDataClearCoat, surfaceData.clearCoatMask, specularHighlightsOff);
+	lightingData.additionalLightsColor += additional_asmlights(inputData, asmlight2, brdfData, brdfDataClearCoat, surfaceData.clearCoatMask, specularHighlightsOff);
+	lightingData.additionalLightsColor += additional_asmlights(inputData, asmlight3, brdfData, brdfDataClearCoat, surfaceData.clearCoatMask, specularHighlightsOff);
+//#if defined(_ADDITIONAL_LIGHTS)
+//    uint pixelLightCount = GetAdditionalLightsCount();
+//#if USE_FORWARD_PLUS
+//    for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
+//    {
+//        FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
+//
+//            Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+//
+//#ifdef _LIGHT_LAYERS
+//        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+//#endif
+//        {
+//            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
+//                inputData.normalWS, inputData.viewDirectionWS,
+//                surfaceData.clearCoatMask, specularHighlightsOff);
+//        }
+//    }
+//#endif
+
+//    LIGHT_LOOP_BEGIN(pixelLightCount)
+//        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+//
+//#ifdef _LIGHT_LAYERS
+//    if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+//#endif
+//    {
+//        lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
+//            inputData.normalWS, inputData.viewDirectionWS,
+//            surfaceData.clearCoatMask, specularHighlightsOff);
+//    }
+//    LIGHT_LOOP_END
+//#endif
+
+//#if defined(_ADDITIONAL_LIGHTS_VERTEX)
+//        lightingData.vertexLightingColor += inputData.vertexLighting * brdfData.diffuse;
+//#endif
+
+#if REAL_IS_HALF
+    // Clamp any half.inf+ to HALF_MAX
+    return min(CalculateFinalColor(lightingData, surfaceData.alpha), HALF_MAX);
+#else
+    return CalculateFinalColor(lightingData, surfaceData.alpha);
+#endif
+}
+float4 Fragment(Interpolators input
+#ifdef _DOUBLE_SIDED_NORMALS
+	, FRONT_FACE_TYPE frontFace : FRONT_FACE_SEMANTIC
+#endif
+) : SV_TARGET{
+	float3 normalWS = input.normalWS;
+#ifdef _DOUBLE_SIDED_NORMALS
+	normalWS *= IS_FRONT_VFACE(frontFace, 1, -1);
+#endif
+
+	float3 positionWS = input.o_positionWS;
+	float3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS); // In ShaderVariablesFunctions.hlsl
+	float3 viewDirTS = GetViewDirectionTangentSpace(input.tangentWS, normalWS, viewDirWS); // In ParallaxMapping.hlsl
+
+	float2 uv = input.uv;
+	uv += ParallaxMapping(TEXTURE2D_ARGS(_ParallaxMap, sampler_ParallaxMap), viewDirTS, _ParallaxStrength, uv);
+
+	float4 colorSample = SAMPLE_TEXTURE2D(_ColorMap, sampler_ColorMap, uv) * _ColorTint;
+	TestAlphaClip(colorSample);
+
+	float3 normalTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv), _NormalStrength);
+	float3x3 tangentToWorld = CreateTangentToWorld(normalWS, input.tangentWS.xyz, input.tangentWS.w);
+	normalWS = normalize(TransformTangentToWorld(normalTS, tangentToWorld));
+
+	InputData lightingInput = (InputData)0;
+	lightingInput.positionWS = positionWS;
+	lightingInput.normalWS = normalWS;
+	lightingInput.viewDirectionWS = viewDirWS;
+	lightingInput.shadowCoord = TransformWorldToShadowCoord(positionWS);
+#if UNITY_VERSION >= 202120
+	lightingInput.positionCS = input.positionCS;
+	lightingInput.tangentToWorld = tangentToWorld;
+#endif
+
+	SurfaceData surfaceInput = (SurfaceData)0;
+	surfaceInput.albedo = colorSample.rgb;
+
+	surfaceInput.alpha = colorSample.a;
+
+#ifdef _SPECULAR_SETUP
+	surfaceInput.specular = SAMPLE_TEXTURE2D(_SpecularMap, sampler_SpecularMap, uv).rgb * _SpecularTint;
+	surfaceInput.metallic = 0;
+#else
+	surfaceInput.specular = 1;
+	surfaceInput.metallic = SAMPLE_TEXTURE2D(_MetalnessMask, sampler_MetalnessMask, uv).r * _Metalness;
+#endif
+	surfaceInput.smoothness = SAMPLE_TEXTURE2D(_SmoothnessMask, sampler_SmoothnessMask, uv).r * _Smoothness;
+	surfaceInput.emission = SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, uv).rgb * _EmissionTint;
+	surfaceInput.clearCoatMask = SAMPLE_TEXTURE2D(_ClearCoatMask, sampler_ClearCoatMask, uv).r * _ClearCoatStrength;
+	surfaceInput.clearCoatSmoothness = SAMPLE_TEXTURE2D(_ClearCoatSmoothnessMask, sampler_ClearCoatSmoothnessMask, uv).r * _ClearCoatSmoothness;
+	surfaceInput.normalTS = normalTS;
+
+	return UniversalFragmentPBR_lights(lightingInput, surfaceInput, _ASMLight0, _ASMLight1, _ASMLight2, _ASMLight3);
+	//return input.positionCS.y / 1080;
+}
+
+#endif
