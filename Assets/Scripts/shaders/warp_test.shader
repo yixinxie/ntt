@@ -76,6 +76,7 @@ Shader "asm/urp_lit_warp" {
                 #define _NORMALMAP
                 #define _CLEARCOATMAP
                 //#pragma multi_compile_instancing
+            #pragma enable_cbuffer
                 #pragma shader_feature_local _ALPHA_CUTOUT
                 #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
                 #pragma shader_feature_local_fragment _SPECULAR_SETUP

@@ -72,9 +72,10 @@ Interpolators Vertex(Attributes input) {
 	VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
 	VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
 	// distort begins
+	//float4 undistorted_wspos = posnInputs.positionCS;
 	float4 undistorted_wspos = mul(unity_ObjectToWorld, float4(input.positionOS, 1.0));
 
-    float4 undistorted_cspos = mul(UNITY_MATRIX_VP, undistorted_wspos);
+	float4 undistorted_cspos = posnInputs.positionCS;// mul(UNITY_MATRIX_VP, undistorted_wspos);
 
     float3 cam_forward = mul((float3x3)unity_CameraToWorld, float3(0, 0, 1));
     float3 distort_origin = _WorldSpaceCameraPos + cam_forward * _WarpParams.z;
