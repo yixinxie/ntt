@@ -6,7 +6,7 @@ using Unity.Rendering;
 [DisallowMultipleComponent]
 public class EntityCubeTestAuthoring : MonoBehaviour
 {
-   
+    public Color initial_color;
     public class Bakery : Baker<EntityCubeTestAuthoring>
     {
         public override void Bake(EntityCubeTestAuthoring authoring)
@@ -21,6 +21,8 @@ public class EntityCubeTestAuthoring : MonoBehaviour
                 typeof(CubePerInstanceProp),
                 //typeof(StorageCellLimit),
             }));
+            float4 c = new float4(authoring.initial_color.r, authoring.initial_color.g, authoring.initial_color.b, 1.0f);
+            SetComponent(entity, new CubePerInstanceProp() { value = c });
          
         }
     }

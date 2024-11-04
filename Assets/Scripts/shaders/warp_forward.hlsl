@@ -72,7 +72,7 @@ Interpolators Vertex(Attributes input) {
 	VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
 	VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
 	// distort begins
-	//float4 undistorted_wspos = posnInputs.positionCS;
+
 	float4 undistorted_wspos = mul(unity_ObjectToWorld, float4(input.positionOS, 1.0));
 
 	float4 undistorted_cspos = posnInputs.positionCS;// mul(UNITY_MATRIX_VP, undistorted_wspos);
