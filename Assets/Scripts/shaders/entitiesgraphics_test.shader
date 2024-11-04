@@ -3,7 +3,8 @@ Shader "Unlit/entitiesgraphics_test"
     Properties
     {
         [MainTexture] _BaseMap ("BaseMap", 2D) = "white" {}
-        _Color("Color", Vector) = (1, 1, 1, 1)
+        _Color("Color", Color) = (1, 1, 1, 1)
+        _CBrightness("cbrightness", Color) = (1, 1, 1, 1)
     }
     SubShader
     {
@@ -15,65 +16,76 @@ Shader "Unlit/entitiesgraphics_test"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            // make fog work
-
             #pragma target 4.5
             #pragma multi_compile _ DOTS_INSTANCING_ON
-            #pragma enable_cbuffer
-
-
-            //#pragma multi_compile_instancing
-            #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+            #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
-            //UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
-            //UNITY_DOTS_INSTANCED_PROP(float4, _Color)
-            //UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
-
-            CBUFFER_START(UnityPerMaterial)
-            float4 _Color;
-            CBUFFER_END 
+            //#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+             
+            //CBUFFER_START(UnityPerMaterial)
+            //float4 _Color;
+            //float4 _BaseMap_ST;
+            //CBUFFER_END 
 
             struct Attributes
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+#if UNITY_ANY_INSTANCING_ENABLED
+                uint instanceID : INSTANCEID_SEMANTIC;
+#endif
             };
+
 
             struct Varyings
             {
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
+
+#if UNITY_ANY_INSTANCING_ENABLED
+                uint instanceID : CUSTOM_INSTANCE_ID;
+#endif
                 //UNITY_FOG_COORDS(1)
             };
+
+#ifdef DOTS_INSTANCING_ON
+            UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
+                UNITY_DOTS_INSTANCED_PROP(float4, _Color)
+                UNITY_DOTS_INSTANCED_PROP(float4, _CBrightness)
+            UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
+#define _Color UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _Color)
+#endif
+
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
 
-            CBUFFER_START(UnityPerMaterial)
-            float4 _BaseMap_ST;
-            CBUFFER_END
+            //CBUFFER_START(UnityPerMaterial)
+            //CBUFFER_END
 
             Varyings vert (Attributes v)
             {
                 Varyings o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
                 o.vertex = TransformObjectToHClip(v.vertex.xyz);
-                o.uv = TRANSFORM_TEX(v.uv, _BaseMap);
-
-                //o.vertex = UnityObjectToClipPos(v.vertex);
-                //o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                //UNITY_TRANSFER_FOG(o,o.vertex);
+                //o.uv = TRANSFORM_TEX(v.uv, _BaseMap);
+                o.uv = v.uv;
                 return o;
             }
-             
-            half4 frag (Varyings  i) : SV_Target
+            half4 frag(Varyings i) : SV_Target
             {
-                // sample the texture
-                half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
-                // apply fog
-                //UNITY_APPLY_FOG(i.fogCoord, col);
+                UNITY_SETUP_INSTANCE_ID(i);
+                //uint rawMetadataValue = UNITY_DOTS_INSTANCED_METADATA_NAME(float4, _CBrightness);
+                ///float4 c0 = UNITY_ACCESS_DOTS_INSTANCED_PROP(float4, _CBrightness);
+                half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * float4(1,1,0,1);
+
                 return col;
             }
             ENDHLSL
         }
     }
 }
+
+//https://discussions.unity.com/t/texture-array-shader-missing-dots_instancing_on-variant/909146/12
