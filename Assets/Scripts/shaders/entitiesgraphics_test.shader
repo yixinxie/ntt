@@ -4,7 +4,7 @@ Shader "Unlit/entitiesgraphics_test"
     {
         [MainTexture] _BaseMap ("BaseMap", 2D) = "white" {}
         _Color("Color", Color) = (1, 1, 1, 1)
-        _CBrightness("cbrightness", Color) = (1, 1, 1, 1)
+        //_CBrightness("cbrightness", Color) = (1, 1, 1, 1)
     }
     SubShader
     {
@@ -24,11 +24,7 @@ Shader "Unlit/entitiesgraphics_test"
 
             //#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
              
-            //CBUFFER_START(UnityPerMaterial)
-            //float4 _Color;
-            //float4 _BaseMap_ST;
-            //CBUFFER_END 
-
+            
             struct Attributes
             {
                 float4 vertex : POSITION;
@@ -50,11 +46,16 @@ Shader "Unlit/entitiesgraphics_test"
                 //UNITY_FOG_COORDS(1)
             };
 
-#ifdef DOTS_INSTANCING_ON
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Color;
+            //float4 _BaseMap_ST;
+            CBUFFER_END
+
+#ifdef UNITY_DOTS_INSTANCING_ENABLED
             UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
                 UNITY_DOTS_INSTANCED_PROP(float4, _Color)
-                UNITY_DOTS_INSTANCED_PROP(float4, _CBrightness)
             UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
+                //UNITY_DOTS_INSTANCED_PROP(float4, _CBrightness)
 #define _Color UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _Color)
 #endif
 
@@ -77,9 +78,10 @@ Shader "Unlit/entitiesgraphics_test"
             half4 frag(Varyings i) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(i);
-                //uint rawMetadataValue = UNITY_DOTS_INSTANCED_METADATA_NAME(float4, _CBrightness);
-                ///float4 c0 = UNITY_ACCESS_DOTS_INSTANCED_PROP(float4, _CBrightness);
-                half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * float4(1,1,0,1);
+                //uint rawMetadataValue = UNITY_DOTS_INSTANCED_METADATA_NAME(float4, _Color);
+                //float4 c0 = UNITY_ACCESS_DOTS_INSTANCED_PROP(float4, _Color);
+                //half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * c0;
+                half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _Color;
 
                 return col;
             }
