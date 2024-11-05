@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: entitiesgraphics_test_mat
+  m_Name: warp_unlit_mat
   m_Shader: {fileID: 4800000, guid: b3f4bf75ad3fa0f4996498cc811e74a1, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0

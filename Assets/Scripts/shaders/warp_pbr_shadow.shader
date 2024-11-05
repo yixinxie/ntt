@@ -1,27 +1,7 @@
-// MIT License
-
-// Copyright (c) 2023 NedMakesGames
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
+// warp pbr shadow multilights entities
 Shader "asm/warp_pbr_shadow" {
-    Properties{
+    Properties
+    {
         [Header(Surface options)]
         [MainTexture] _ColorMap("Color", 2D) = "white" {}
         [MainColor] _ColorTint("Tint", Color) = (1, 1, 1, 1)
@@ -60,67 +40,69 @@ Shader "asm/warp_pbr_shadow" {
         [HideInInspector] _FaceRenderingMode("Face rendering type", Float) = 0
     }
 
-        SubShader{
-            Tags {"RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline"}
+    SubShader
+    {
+        Tags {"RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline"}
 
-            Pass {
-                Name "WarpForwardLit"
-                Tags{"LightMode" = "UniversalForward"}
+        Pass 
+        {
+            Name "WarpForwardLit"
+            Tags{"LightMode" = "UniversalForward"}
 
-                Blend[_SourceBlend][_DestBlend]
-                ZWrite[_ZWrite]
-                Cull[_Cull]
+            Blend[_SourceBlend][_DestBlend]
+            ZWrite[_ZWrite]
+            Cull[_Cull]
 
-                HLSLPROGRAM
+            HLSLPROGRAM
 
-                #define _NORMALMAP
-                #define _CLEARCOATMAP
-                //#pragma multi_compile_instancing
-            #pragma enable_cbuffer
-                #pragma shader_feature_local _ALPHA_CUTOUT
-                #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
-                #pragma shader_feature_local_fragment _SPECULAR_SETUP
-                #pragma shader_feature_local_fragment _ALPHAPREMULTIPLY_ON
-                #pragma target 4.5
-                #pragma multi_compile _ DOTS_INSTANCING_ON
-    #if UNITY_VERSION >= 202120
-                #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
-    #else
-                #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
-                #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
-    #endif
-                #pragma multi_compile_fragment _ _SHADOWS_SOFT
-    #if UNITY_VERSION >= 202120
-                #pragma multi_compile_fragment _ DEBUG_DISPLAY
-    #endif
+            #define _NORMALMAP
+            #define _CLEARCOATMAP
+            //#pragma multi_compile_instancing
+            //#pragma enable_cbuffer
+            #pragma shader_feature_local _ALPHA_CUTOUT
+            #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
+            #pragma shader_feature_local_fragment _SPECULAR_SETUP
+            #pragma shader_feature_local_fragment _ALPHAPREMULTIPLY_ON
+            #pragma target 4.5
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+#if UNITY_VERSION >= 202120
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+#else
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
+#endif
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+#if UNITY_VERSION >= 202120
+            #pragma multi_compile_fragment _ DEBUG_DISPLAY
+#endif
 
-                #pragma vertex Vertex
-                #pragma fragment Fragment
+            #pragma vertex Vertex
+            #pragma fragment Fragment
 
-                #include "warp_forward.hlsl"
-                ENDHLSL
-            }
-
-            Pass {
-                Name "ShadowCaster"
-                Tags{"LightMode" = "ShadowCaster"}
-
-                ColorMask 0
-                Cull[_Cull]
-
-                HLSLPROGRAM
-
-                #pragma target 4.5
-                #pragma multi_compile _ DOTS_INSTANCING_ON
-                #pragma vertex Vertex
-                #pragma fragment Fragment
-                #pragma shader_feature_local _ALPHA_CUTOUT
-                #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
-
-                #include "warp_shadowcaster.hlsl"
-                ENDHLSL
-            }
+            #include "warp_pbr_shadow_forward.hlsl"
+            ENDHLSL
         }
+
+        Pass {
+            Name "ShadowCaster"
+            Tags{"LightMode" = "ShadowCaster"}
+
+            ColorMask 0
+            Cull[_Cull]
+
+            HLSLPROGRAM
+
+            #pragma target 4.5
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+            #pragma vertex Vertex
+            #pragma fragment Fragment
+            #pragma shader_feature_local _ALPHA_CUTOUT
+            #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
+
+            #include "warp_shadowcaster.hlsl"
+            ENDHLSL
+        }
+    }
 
     //CustomEditor "NedPBRInspector"
 }

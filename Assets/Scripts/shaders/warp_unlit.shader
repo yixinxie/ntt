@@ -1,10 +1,11 @@
+// warp unlit entities
 Shader "asm/WarpUnlit"
 {
     Properties
     {
         [MainTexture] _BaseMap ("BaseMap", 2D) = "white" {}
         _Color("Color", Color) = (1, 1, 1, 1)
-            _WarpParams("Warp Parameters", Vector) = (0.0, 0.0, 1000.0, 0.01)
+        _WarpParams("Warp Parameters", Vector) = (0.0, 0.0, 1000.0, 0.01)
         //_CBrightness("cbrightness", Color) = (1, 1, 1, 1)
     }
     SubShader
