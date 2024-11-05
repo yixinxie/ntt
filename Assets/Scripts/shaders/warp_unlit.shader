@@ -1,5 +1,5 @@
 // warp unlit entities
-Shader "asm/WarpUnlit"
+Shader "asm/warp_unlit"
 {
     Properties
     {

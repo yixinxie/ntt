@@ -1,82 +1,6 @@
 
-#ifndef MY_LIT_FORWARD_LIT_PASS_INCLUDED
-#define MY_LIT_FORWARD_LIT_PASS_INCLUDED
 
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-//#include "warp_common.hlsl"
-#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ParallaxMapping.hlsl"
-
-
-struct Attributes {
-	float3 positionOS : POSITION;
-	float3 normalOS : NORMAL;
-	float4 tangentOS : TANGENT;
-	float2 uv : TEXCOORD0;
-#if UNITY_ANY_INSTANCING_ENABLED
-	uint instanceID : INSTANCEID_SEMANTIC;
-#endif
-};
-
-struct Interpolators {
-	float4 positionCS : SV_POSITION;
-
-	float2 uv : TEXCOORD0;
-	float3 positionWS : TEXCOORD1;
-	float3 normalWS : TEXCOORD2;
-	float4 tangentWS : TEXCOORD3;
-	float4 o_positionWS: TEXCOORD4;
-#if UNITY_ANY_INSTANCING_ENABLED
-	uint instanceID : CUSTOM_INSTANCE_ID;
-#endif
-};
-
-
-
-CBUFFER_START(UnityPerMaterial)
-	float4 _ColorMap_ST;
-	float4 _ColorTint;
-	float _Cutoff;
-	float _NormalStrength;
-	float _Metalness;
-	float3 _SpecularTint;
-	float _Smoothness;
-	float3 _EmissionTint;
-	float _ParallaxStrength;
-	float _ClearCoatStrength;
-	float _ClearCoatSmoothness;
-
-	float4 _WarpParams;
-	float4 _ASMLight0;
-	float4 _ASMLight1;
-	float4 _ASMLight2;
-	float4 _ASMLight3;
-CBUFFER_END
-
-TEXTURE2D(_ColorMap); SAMPLER(sampler_ColorMap);
-TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
-TEXTURE2D(_MetalnessMask); SAMPLER(sampler_MetalnessMask);
-TEXTURE2D(_SpecularMap); SAMPLER(sampler_SpecularMap);
-TEXTURE2D(_SmoothnessMask); SAMPLER(sampler_SmoothnessMask);
-TEXTURE2D(_EmissionMap); SAMPLER(sampler_EmissionMap);
-TEXTURE2D(_ParallaxMap); SAMPLER(sampler_ParallaxMap);
-TEXTURE2D(_ClearCoatMask); SAMPLER(sampler_ClearCoatMask);
-TEXTURE2D(_ClearCoatSmoothnessMask); SAMPLER(sampler_ClearCoatSmoothnessMask);
-
-#ifdef UNITY_DOTS_INSTANCING_ENABLED
-
-UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
-	UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight0)
-	UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight1)
-	UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight2)
-	UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight3)
-UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
-
-#define _ASMLight0 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight0)
-#define _ASMLight1 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight1)
-#define _ASMLight2 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight2)
-#define _ASMLight3 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight3)
-
-#endif
+#include "warp_core.hlsl"
 
 half3 additional_asmlights(InputData inputData, float4 asmlight, BRDFData brdfData, BRDFData brdfDataClearCoat, half clearCoatMask, bool specularHighlightsOff)
 {
@@ -93,27 +17,32 @@ Interpolators Vertex(Attributes input) {
 	UNITY_SETUP_INSTANCE_ID(input);
 	UNITY_TRANSFER_INSTANCE_ID(input, output);
 
-	// Found in URP/ShaderLib/ShaderVariablesFunctions.hlsl
-	VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
+	Distorted_vertex dv = warp_vertex(input.positionOS.xyz, _WarpParams);
+
+	output.positionWS = dv.positionWS;
+	output.positionCS = dv.positionCS;
+	output.o_positionWS = dv.o_positionWS;
+
+	//VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
 	VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
 	// distort begins
 
-	float4 undistorted_wspos = mul(unity_ObjectToWorld, float4(input.positionOS, 1.0));
+	//float4 undistorted_wspos = mul(unity_ObjectToWorld, float4(input.positionOS, 1.0));
 
-	float4 undistorted_cspos = posnInputs.positionCS;// mul(UNITY_MATRIX_VP, undistorted_wspos);
+	//float4 undistorted_cspos = posnInputs.positionCS;// mul(UNITY_MATRIX_VP, undistorted_wspos);
 
-    float3 cam_forward = mul((float3x3)unity_CameraToWorld, float3(0, 0, 1));
-    float3 distort_origin = _WorldSpaceCameraPos + cam_forward * _WarpParams.z;
-    float3 distort_dir = distort_origin - undistorted_wspos.xyz;
-    float distort_dist = distance(distort_dir, 0.0);
-    distort_dir /= distort_dist;
-    //wpos.xyz = distort_origin + distort_dir * distort_dist * (1 - distance(undistorted_cspos.xy, float2(0.5, 0.5)));
-	float4 distorted_wspos = undistorted_wspos;
-	distorted_wspos.xyz = distorted_wspos.xyz + distort_dir * pow(distance(undistorted_cspos.xy, _WarpParams.xy), 2) * _WarpParams.w;
+ //   float3 cam_forward = mul((float3x3)unity_CameraToWorld, float3(0, 0, 1));
+ //   float3 distort_origin = _WorldSpaceCameraPos + cam_forward * _WarpParams.z;
+ //   float3 distort_dir = distort_origin - undistorted_wspos.xyz;
+ //   float distort_dist = distance(distort_dir, 0.0);
+ //   distort_dir /= distort_dist;
+ //   //wpos.xyz = distort_origin + distort_dir * distort_dist * (1 - distance(undistorted_cspos.xy, float2(0.5, 0.5)));
+	//float4 distorted_wspos = undistorted_wspos;
+	//distorted_wspos.xyz = distorted_wspos.xyz + distort_dir * pow(distance(undistorted_cspos.xy, _WarpParams.xy), 2) * _WarpParams.w;
     //o.worldPos = wpos.xyz;
-	output.positionWS = distorted_wspos.xyz;
-	output.positionCS = mul(UNITY_MATRIX_VP, distorted_wspos);
-	output.o_positionWS = undistorted_wspos;
+	//output.positionWS = distorted_wspos.xyz;
+	//output.positionCS = mul(UNITY_MATRIX_VP, distorted_wspos);
+	//output.o_positionWS = undistorted_wspos;
 	// distort ends
 
 	//output.positionCS = posnInputs.positionCS;
@@ -294,6 +223,6 @@ float4 Fragment(Interpolators input
 	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight2),
 	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight3));
 	return UniversalFragmentPBR_lights(lightingInput, surfaceInput, _ASMLight0, _ASMLight1, _ASMLight2, _ASMLight3);
+	//return half4(1,1,1,1);
 }
 
-#endif
