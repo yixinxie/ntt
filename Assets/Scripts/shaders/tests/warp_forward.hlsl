@@ -4,7 +4,6 @@
 
 #include "warp_common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ParallaxMapping.hlsl"
-
 //CBUFFER_START(UnityPerMaterial)
 //float4 _ColorMap_ST;
 //float4 _ColorTint;

@@ -161,68 +161,73 @@ void TestAlphaClip(float4 colorSample) {
 	clip(colorSample.a * _ColorTint.a - _Cutoff);
 #endif
 }
-
-float4 Fragment(Interpolators input
-#ifdef _DOUBLE_SIDED_NORMALS
-	, FRONT_FACE_TYPE frontFace : FRONT_FACE_SEMANTIC
-#endif
-) : SV_TARGET{
-
+float4 Fragment(Interpolators input) :SV_TARGET
+{
 	UNITY_SETUP_INSTANCE_ID(input);
-
-	float3 normalWS = input.normalWS;
-#ifdef _DOUBLE_SIDED_NORMALS
-	normalWS *= IS_FRONT_VFACE(frontFace, 1, -1);
-#endif
-
-	float3 positionWS = input.o_positionWS.xyz;
-	float3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS); // In ShaderVariablesFunctions.hlsl
-	float3 viewDirTS = GetViewDirectionTangentSpace(input.tangentWS, normalWS, viewDirWS); // In ParallaxMapping.hlsl
-
-	float2 uv = input.uv;
-	uv += ParallaxMapping(TEXTURE2D_ARGS(_ParallaxMap, sampler_ParallaxMap), viewDirTS, _ParallaxStrength, uv);
-
-	float4 colorSample = SAMPLE_TEXTURE2D(_ColorMap, sampler_ColorMap, uv) * _ColorTint;
-	TestAlphaClip(colorSample);
-
-	float3 normalTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv), _NormalStrength);
-	float3x3 tangentToWorld = CreateTangentToWorld(normalWS, input.tangentWS.xyz, input.tangentWS.w);
-	normalWS = normalize(TransformTangentToWorld(normalTS, tangentToWorld));
-
-	InputData lightingInput = (InputData)0;
-	lightingInput.positionWS = positionWS;
-	lightingInput.normalWS = normalWS;
-	lightingInput.viewDirectionWS = viewDirWS;
-	lightingInput.shadowCoord = TransformWorldToShadowCoord(positionWS);
-#if UNITY_VERSION >= 202120
-	lightingInput.positionCS = input.positionCS;
-	lightingInput.tangentToWorld = tangentToWorld;
-#endif
-
-	SurfaceData surfaceInput = (SurfaceData)0;
-	surfaceInput.albedo = colorSample.rgb;
-
-	surfaceInput.alpha = colorSample.a;
-
-#ifdef _SPECULAR_SETUP
-	surfaceInput.specular = SAMPLE_TEXTURE2D(_SpecularMap, sampler_SpecularMap, uv).rgb * _SpecularTint;
-	surfaceInput.metallic = 0;
-#else
-	surfaceInput.specular = 1;
-	surfaceInput.metallic = SAMPLE_TEXTURE2D(_MetalnessMask, sampler_MetalnessMask, uv).r * _Metalness;
-#endif
-	surfaceInput.smoothness = SAMPLE_TEXTURE2D(_SmoothnessMask, sampler_SmoothnessMask, uv).r * _Smoothness;
-	surfaceInput.emission = SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, uv).rgb * _EmissionTint;
-	surfaceInput.clearCoatMask = SAMPLE_TEXTURE2D(_ClearCoatMask, sampler_ClearCoatMask, uv).r * _ClearCoatStrength;
-	surfaceInput.clearCoatSmoothness = SAMPLE_TEXTURE2D(_ClearCoatSmoothnessMask, sampler_ClearCoatSmoothnessMask, uv).r * _ClearCoatSmoothness;
-	surfaceInput.normalTS = normalTS;
-
-	//return UniversalFragmentPBR_lights(lightingInput, surfaceInput, 
-	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight0),
-	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight1),
-	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight2),
-	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight3));
-	return UniversalFragmentPBR_lights(lightingInput, surfaceInput, _ASMLight0, _ASMLight1, _ASMLight2, _ASMLight3);
-	//return half4(1,1,1,1);
+	return float4(1,1,1,1);
 }
+//
+//float4 Fragment(Interpolators input
+//#ifdef _DOUBLE_SIDED_NORMALS
+//	, FRONT_FACE_TYPE frontFace : FRONT_FACE_SEMANTIC
+//#endif
+//) : SV_TARGET{
+//
+//	UNITY_SETUP_INSTANCE_ID(input);
+//
+//	float3 normalWS = input.normalWS;
+//#ifdef _DOUBLE_SIDED_NORMALS
+//	normalWS *= IS_FRONT_VFACE(frontFace, 1, -1);
+//#endif
+//
+//	float3 positionWS = input.o_positionWS.xyz;
+//	float3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS); // In ShaderVariablesFunctions.hlsl
+//	float3 viewDirTS = GetViewDirectionTangentSpace(input.tangentWS, normalWS, viewDirWS); // In ParallaxMapping.hlsl
+//
+//	float2 uv = input.uv;
+//	uv += ParallaxMapping(TEXTURE2D_ARGS(_ParallaxMap, sampler_ParallaxMap), viewDirTS, _ParallaxStrength, uv);
+//
+//	float4 colorSample = SAMPLE_TEXTURE2D(_ColorMap, sampler_ColorMap, uv) * _ColorTint;
+//	TestAlphaClip(colorSample);
+//
+//	float3 normalTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv), _NormalStrength);
+//	float3x3 tangentToWorld = CreateTangentToWorld(normalWS, input.tangentWS.xyz, input.tangentWS.w);
+//	normalWS = normalize(TransformTangentToWorld(normalTS, tangentToWorld));
+//
+//	InputData lightingInput = (InputData)0;
+//	lightingInput.positionWS = positionWS;
+//	lightingInput.normalWS = normalWS;
+//	lightingInput.viewDirectionWS = viewDirWS;
+//	lightingInput.shadowCoord = TransformWorldToShadowCoord(positionWS);
+//#if UNITY_VERSION >= 202120
+//	lightingInput.positionCS = input.positionCS;
+//	lightingInput.tangentToWorld = tangentToWorld;
+//#endif
+//
+//	SurfaceData surfaceInput = (SurfaceData)0;
+//	surfaceInput.albedo = colorSample.rgb;
+//
+//	surfaceInput.alpha = colorSample.a;
+//
+//#ifdef _SPECULAR_SETUP
+//	surfaceInput.specular = SAMPLE_TEXTURE2D(_SpecularMap, sampler_SpecularMap, uv).rgb * _SpecularTint;
+//	surfaceInput.metallic = 0;
+//#else
+//	surfaceInput.specular = 1;
+//	surfaceInput.metallic = SAMPLE_TEXTURE2D(_MetalnessMask, sampler_MetalnessMask, uv).r * _Metalness;
+//#endif
+//	surfaceInput.smoothness = SAMPLE_TEXTURE2D(_SmoothnessMask, sampler_SmoothnessMask, uv).r * _Smoothness;
+//	surfaceInput.emission = SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, uv).rgb * _EmissionTint;
+//	surfaceInput.clearCoatMask = SAMPLE_TEXTURE2D(_ClearCoatMask, sampler_ClearCoatMask, uv).r * _ClearCoatStrength;
+//	surfaceInput.clearCoatSmoothness = SAMPLE_TEXTURE2D(_ClearCoatSmoothnessMask, sampler_ClearCoatSmoothnessMask, uv).r * _ClearCoatSmoothness;
+//	surfaceInput.normalTS = normalTS;
+//
+//	//return UniversalFragmentPBR_lights(lightingInput, surfaceInput, 
+//	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight0),
+//	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight1),
+//	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight2),
+//	//	UNITY_ACCESS_INSTANCED_PROP(Props, _ASMLight3));
+//	//return UniversalFragmentPBR_lights(lightingInput, surfaceInput, _ASMLight0, _ASMLight1, _ASMLight2, _ASMLight3);
+//	return half4(1,1,1,1);
+//}
 

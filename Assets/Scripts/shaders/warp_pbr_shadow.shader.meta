@@ -2,7 +2,16 @@ fileFormatVersion: 2
 guid: d427911dc3aa7724d87ef470409673d4
 ShaderImporter:
   externalObjects: {}
-  defaultTextures: []
+  defaultTextures:
+  - _ColorMap: {instanceID: 0}
+  - _NormalMap: {instanceID: 0}
+  - _MetalnessMask: {instanceID: 0}
+  - _SpecularMap: {instanceID: 0}
+  - _SmoothnessMask: {instanceID: 0}
+  - _EmissionMap: {instanceID: 0}
+  - _ParallaxMap: {instanceID: 0}
+  - _ClearCoatMask: {instanceID: 0}
+  - _ClearCoatSmoothnessMask: {instanceID: 0}
   nonModifiableTextures: []
   userData: 
   assetBundleName: 

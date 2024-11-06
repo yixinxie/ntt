@@ -85,9 +85,8 @@ Shader "asm/warp_pbr_shadow" {
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ParallaxMapping.hlsl"
-            //#include "warp_core.hlsl"
 
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ParallaxMapping.hlsl"
 
             struct Attributes {
                 float3 positionOS : POSITION;
@@ -188,27 +187,52 @@ Shader "asm/warp_pbr_shadow" {
             TEXTURE2D(_ClearCoatMask); SAMPLER(sampler_ClearCoatMask);
             TEXTURE2D(_ClearCoatSmoothnessMask); SAMPLER(sampler_ClearCoatSmoothnessMask);
 
-            #include "warp_pbr_shadow_forward.hlsl"
+            //#include "warp_pbr_shadow_forward.hlsl"
+#include "warp_core.hlsl"
+            Interpolators Vertex(Attributes input) {
+                Interpolators output;
+
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+
+                Distorted_vertex dv = warp_vertex(input.positionOS.xyz, _WarpParams);
+
+                output.positionWS = dv.positionWS;
+                output.positionCS = dv.positionCS;
+                output.o_positionWS = dv.o_positionWS;
+
+                VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
+               
+                output.uv = TRANSFORM_TEX(input.uv, _ColorMap);
+                output.normalWS = normInputs.normalWS;
+                output.tangentWS = float4(normInputs.tangentWS, input.tangentOS.w);
+
+                return output;
+            }
+            float4 Fragment(Interpolators input) :SV_TARGET
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                return float4(1,1,1,1);
+            }
             ENDHLSL
         }
-
+         
         Pass {
             Name "ShadowCaster"
             Tags{"LightMode" = "ShadowCaster"}
 
             ColorMask 0
-            Cull[_Cull]
+            Cull[_Cull] 
 
             HLSLPROGRAM
-
             #pragma target 4.5
+            #pragma multi_compile_instancing
             #pragma multi_compile _ DOTS_INSTANCING_ON
-            #pragma vertex Vertex
-            #pragma fragment Fragment
-            #pragma shader_feature_local _ALPHA_CUTOUT
-            #pragma shader_feature_local _DOUBLE_SIDED_NORMALS
+            #pragma vertex ShadowPassVertex
+            #pragma fragment ShadowPassFragment
 
-            #include "warp_asm_shadowcaster.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
             ENDHLSL
         }
     }
