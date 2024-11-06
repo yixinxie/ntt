@@ -1,7 +1,7 @@
 // warp pbr shadow multilights entities
 Shader "asm/warp_pbr_shadow" {
     Properties
-    {
+    { 
         [Header(Surface options)]
         [MainTexture] _ColorMap("Color", 2D) = "white" {}
         [MainColor] _ColorTint("Tint", Color) = (1, 1, 1, 1)
@@ -37,7 +37,7 @@ Shader "asm/warp_pbr_shadow" {
         [HideInInspector] _ZWrite("ZWrite", Float) = 0
         [HideInInspector] _SurfaceType("Surface type", Float) = 0
         [HideInInspector] _BlendType("Blend type", Float) = 0
-        [HideInInspector] _FaceRenderingMode("Face rendering type", Float) = 0
+         _FaceRenderingMode("Face rendering type", Float) = 0
     }
 
     SubShader
@@ -49,9 +49,9 @@ Shader "asm/warp_pbr_shadow" {
             Name "WarpPBRShadow"
             Tags{"LightMode" = "UniversalForward"}
 
-            Blend[_SourceBlend][_DestBlend]
-            ZWrite[_ZWrite]
-            Cull[_Cull]
+            //Blend[_SourceBlend][_DestBlend]
+            //ZWrite[_ZWrite]
+            //Cull[_Cull]
 
             HLSLPROGRAM
 
@@ -132,7 +132,6 @@ Shader "asm/warp_pbr_shadow" {
                 float4 _ASMLight3;
             CBUFFER_END
 
-            //UNITY_DEFINE_INSTANCED_PROP(float4, _ASMLight0)
             #ifdef UNITY_DOTS_INSTANCING_ENABLED
 
             UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
@@ -157,6 +156,7 @@ Shader "asm/warp_pbr_shadow" {
                 UNITY_DOTS_INSTANCED_PROP(float4, _ASMLight3)
             UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
 
+           
             #define _ColorMap_ST UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ColorMap_ST)
             #define _ColorTint UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ColorTint)
             #define _Cutoff UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _Cutoff)
@@ -168,16 +168,17 @@ Shader "asm/warp_pbr_shadow" {
             #define _ParallaxStrength UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _ParallaxStrength)
             #define _ClearCoatStrength UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _ClearCoatStrength)
             #define _ClearCoatSmoothness UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _ClearCoatSmoothness)
+
             #define _WarpParams UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _WarpParams)
 
             #define _ASMLight0 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight0)
             #define _ASMLight1 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight1)
             #define _ASMLight2 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight2)
             #define _ASMLight3 UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _ASMLight3)
-
             #endif
 
             TEXTURE2D(_ColorMap); SAMPLER(sampler_ColorMap);
+            
             TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
             TEXTURE2D(_MetalnessMask); SAMPLER(sampler_MetalnessMask);
             TEXTURE2D(_SpecularMap); SAMPLER(sampler_SpecularMap);
@@ -187,33 +188,38 @@ Shader "asm/warp_pbr_shadow" {
             TEXTURE2D(_ClearCoatMask); SAMPLER(sampler_ClearCoatMask);
             TEXTURE2D(_ClearCoatSmoothnessMask); SAMPLER(sampler_ClearCoatSmoothnessMask);
 
-            //#include "warp_pbr_shadow_forward.hlsl"
-#include "warp_core.hlsl"
-            Interpolators Vertex(Attributes input) {
-                Interpolators output;
+            #include "warp_pbr_shadow_forward.hlsl"
+//#include "warp_core.hlsl"
+            //Interpolators Vertex(Attributes input) {
+            //    Interpolators output;
 
-                UNITY_SETUP_INSTANCE_ID(input);
-                UNITY_TRANSFER_INSTANCE_ID(input, output);
+            //    UNITY_SETUP_INSTANCE_ID(input);
+            //    UNITY_TRANSFER_INSTANCE_ID(input, output);
 
-                Distorted_vertex dv = warp_vertex(input.positionOS.xyz, _WarpParams);
+            //    Distorted_vertex dv = warp_vertex(input.positionOS.xyz, _WarpParams);
 
-                output.positionWS = dv.positionWS;
-                output.positionCS = dv.positionCS;
-                output.o_positionWS = dv.o_positionWS;
+            //    output.positionWS = dv.positionWS;
+            //    output.positionCS = dv.positionCS;
+            //    output.o_positionWS = dv.o_positionWS;
 
-                VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
-               
-                output.uv = TRANSFORM_TEX(input.uv, _ColorMap);
-                output.normalWS = normInputs.normalWS;
-                output.tangentWS = float4(normInputs.tangentWS, input.tangentOS.w);
+            //    VertexNormalInputs normInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
 
-                return output;
-            }
-            float4 Fragment(Interpolators input) :SV_TARGET
-            {
-                UNITY_SETUP_INSTANCE_ID(input);
-                return float4(1,1,1,1);
-            }
+            //    //VertexPositionInputs posnInputs = GetVertexPositionInputs(input.positionOS);
+            //    //output.positionCS = posnInputs.positionCS;
+            //    //output.positionWS = posnInputs.positionWS;
+            //   
+            //    //output.uv = TRANSFORM_TEX(input.uv, _ColorMap);
+            //    output.uv = input.uv;
+            //    output.normalWS = normInputs.normalWS;
+            //    output.tangentWS = float4(normInputs.tangentWS, input.tangentOS.w);
+
+            //    return output;
+            //}
+            //float4 Fragment(Interpolators input) :SV_TARGET
+            //{
+            //    UNITY_SETUP_INSTANCE_ID(input);
+            //    return float4(1,1,1,1);
+            //}
             ENDHLSL
         }
          
