@@ -23,7 +23,7 @@ Shader "asm/warp_unlit"
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-            #include "warp_core.hlsl"
+            #include "warp_utils.hlsl"
             //#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
              
             

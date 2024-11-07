@@ -1,6 +1,6 @@
 
 
-#include "warp_core.hlsl"
+#include "warp_utils.hlsl"
 
 half3 additional_asmlights(InputData inputData, float4 asmlight, BRDFData brdfData, BRDFData brdfDataClearCoat, half clearCoatMask, bool specularHighlightsOff)
 {

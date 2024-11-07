@@ -150,7 +150,7 @@ Material:
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:
-    - _ASMLight0: {r: 0, g: 0, b: 0, a: 0}
+    - _ASMLight0: {r: 4.67, g: 1, b: 6.15, a: 52.93}
     - _ASMLight1: {r: 0, g: 0, b: 0, a: 0}
     - _ASMLight2: {r: 0, g: 0, b: 0, a: 0}
     - _ASMLight3: {r: 0, g: 0, b: 0, a: 0}
