@@ -195,9 +195,9 @@ public class PlanetaryTerrain : MonoBehaviour
             // draw bounding triangle
             Gizmos.color = Color.gray;
             ofs += Vector3.down * 10f;
-            Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
-            Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
-            Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
+            //Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
+            //Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
+            //Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
 
             // removal list
             Gizmos.color = Color.red;
@@ -215,9 +215,9 @@ public class PlanetaryTerrain : MonoBehaviour
             // draw bounding triangle
             Gizmos.color = Color.gray;
             ofs += Vector3.down * 10f;
-            Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
-            Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
-            Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
+            //Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
+            //Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
+            //Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
 
         }
     }
