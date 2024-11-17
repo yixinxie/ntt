@@ -127,11 +127,11 @@ public class PlanetaryTerrain : MonoBehaviour
             tgp.pivot_pos = prev_pivot.position;
             var patches_prev = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
             patches_prev.Add(default);
-            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_prev, max_lod);
+            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_prev, max_lod, 0);
             tgp.pivot_pos = this_pivot.position;
             var patches_this = new NativeList<TerrainLODInfo>(4, Allocator.Temp);
             patches_this.Add(default);
-            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_this, max_lod);
+            triangle_divide_pass0_lod(0, vec3_double3(three[0].position), vec3_double3(three[1].position), vec3_double3(three[2].position), tgp, patches_this, max_lod, 0);
 
             NativeList<TerrainPatchGenCmd> gen_list = new NativeList<TerrainPatchGenCmd>(4, Allocator.Temp);
             NativeList<TerrainPatchClearCmd> clear_list = new NativeList<TerrainPatchClearCmd>(4, Allocator.Temp);
@@ -195,9 +195,9 @@ public class PlanetaryTerrain : MonoBehaviour
             // draw bounding triangle
             Gizmos.color = Color.gray;
             ofs += Vector3.down * 10f;
-            //Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
-            //Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
-            //Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
+            Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
 
             // removal list
             Gizmos.color = Color.red;
@@ -215,9 +215,9 @@ public class PlanetaryTerrain : MonoBehaviour
             // draw bounding triangle
             Gizmos.color = Color.gray;
             ofs += Vector3.down * 10f;
-            //Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
-            //Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
-            //Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
+            Gizmos.DrawLine(three[0].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[2].position + ofs, three[1].position + ofs);
+            Gizmos.DrawLine(three[0].position + ofs, three[2].position + ofs);
 
         }
     }
@@ -232,6 +232,34 @@ public class PlanetaryTerrain : MonoBehaviour
         public ushort index;
     }
     public bool lodcmd_test;
+    void hash_lod_map_recalc(NativeList<TerrainLODInfo> patch_tree, int index, NativeHashMap<int2, int> posindex_lod_map)
+    {
+        var cur_patch = patch_tree[index];
+        if (cur_patch.expanded == 0)
+        {
+            int2 key = 0;
+            posindex_lod_map.TryAdd(new int2(cur_patch.self_pos_index, cur_patch.lod), index);
+            return;
+        }
+        hash_lod_map_recalc(patch_tree, cur_patch.child_indices[0], posindex_lod_map);
+        hash_lod_map_recalc(patch_tree, cur_patch.child_indices[1], posindex_lod_map);
+        hash_lod_map_recalc(patch_tree, cur_patch.child_indices[2], posindex_lod_map);
+        hash_lod_map_recalc(patch_tree, cur_patch.child_indices[3], posindex_lod_map);
+    }
+    void compute_adjacencies(NativeList<TerrainLODInfo> patch_tree, int index, NativeHashMap<int2, int> posindex_lod_map, int parent_pos_index, int parent_lod)
+    {
+        var cur_patch = patch_tree[index];
+        if (cur_patch.expanded == 0)
+        {
+            int2 key = 0;
+            return;
+        }
+
+        compute_adjacencies(patch_tree, cur_patch.child_indices[0], posindex_lod_map, cur_patch.self_pos_index, cur_patch.lod);
+        compute_adjacencies(patch_tree, cur_patch.child_indices[1], posindex_lod_map, cur_patch.self_pos_index, cur_patch.lod);
+        compute_adjacencies(patch_tree, cur_patch.child_indices[2], posindex_lod_map, cur_patch.self_pos_index, cur_patch.lod);
+        compute_adjacencies(patch_tree, cur_patch.child_indices[3], posindex_lod_map, cur_patch.self_pos_index, cur_patch.lod);
+    }
     void recursive_patch_remove(NativeList<TerrainLODInfo> patch_tree, int index, NativeList<TerrainPatchClearCmd> clear_cmds)
     {
         var cur_patch = patch_tree[index];
@@ -392,25 +420,29 @@ public class PlanetaryTerrain : MonoBehaviour
             //(v0.x + v1.x)
         }
     }
-    public struct TerrainLODInfo
+    unsafe public struct TerrainLODInfo
     {
         public int4 child_indices;
-        public byte expanded;
         public ushort lod;
+        public byte expanded;
+        public byte self_pos_index;
         public byte lod_edges; // edge flags
         public double3 p0, p1, p2;
+        public fixed int adj_indices[6];
     }
     
-    public static void triangle_divide_pass0_lod(int index, double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, NativeList<TerrainLODInfo> patch_list, ushort level)
+    public static void triangle_divide_pass0_lod(int index, double3 p0, double3 p1, double3 p2, TerrainGenParams tgparams, NativeList<TerrainLODInfo> patch_list, ushort level, byte pos_index)
     {
         var patch_info = patch_list[index];
         patch_info.lod = level;
         patch_info.p0 = p0;
         patch_info.p1 = p1;
         patch_info.p2 = p2;
+        patch_info.self_pos_index = 255;
         if (level == 0 || triangle_size2cam(p0, p1, p2, tgparams))
         {
             patch_info.child_indices = new int4(-1, -1, -1, -1);
+            patch_info.self_pos_index = pos_index;
             patch_list[index] = patch_info;
             return;
         }
@@ -432,10 +464,10 @@ public class PlanetaryTerrain : MonoBehaviour
         var child_indices = patch_info.child_indices;
 
         ushort one_level_lower = (ushort)(level - 1);
-        triangle_divide_pass0_lod(child_indices.x, q0, q2, p0, tgparams, patch_list, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.y, q1, q0, p1, tgparams, patch_list, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.z, q2, q1, p2, tgparams, patch_list, one_level_lower);
-        triangle_divide_pass0_lod(child_indices.w, q2, q0, q1, tgparams, patch_list, one_level_lower);
+        triangle_divide_pass0_lod(child_indices.x, p0, q0, q2, tgparams, patch_list, one_level_lower, 0);
+        triangle_divide_pass0_lod(child_indices.y, q0, p1, q1, tgparams, patch_list, one_level_lower, 1);
+        triangle_divide_pass0_lod(child_indices.z, q2, q1, p2, tgparams, patch_list, one_level_lower, 2);
+        triangle_divide_pass0_lod(child_indices.w, q1, q2, q0, tgparams, patch_list, one_level_lower, 3);
 
         //triangle_divide_mesh(q0, q2, p0, tgparams, meshes, ref mesh_added, level - 1);
         //triangle_divide_mesh(q1, q0, p1, tgparams, meshes, ref mesh_added, level - 1);
