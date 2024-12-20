@@ -460,7 +460,7 @@ GameObject:
   - component: {fileID: 976804088}
   - component: {fileID: 976804089}
   m_Layer: 0
-  m_Name: Cube
+  m_Name: grid
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -475,7 +475,7 @@ Transform:
   m_GameObject: {fileID: 976804083}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.89, y: 0, z: 0.18}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -501,7 +501,7 @@ MonoBehaviour:
     y: 0
   coord_test_target: {fileID: 0}
   draw_adj: 0
-  draw_hex_radius: 3
+  draw_hex_radius: 5
   draw_color: {r: 1, g: 1, b: 1, a: 1}
   scale: 1
   offset_t: {fileID: 0}

@@ -26,22 +26,26 @@ public class LAOverlapAuthoring : MonoBehaviour
 
             AddLAComponentsStatic(this, entity);
             SetComponent(entity, new BoidsCoeffs() { avoid_factor = 0.1f, goal_factor = 0.1f, cohesion_factor = 0.1f, speedavg_factor = 0.1f,goal_factor_max = 0.2f });
-            if (authoring.pushable)
-            {
-                SetComponent(entity, new MovementInfo() { speed = authoring.movement_speed, angular_speed = Mathf.Deg2Rad * authoring.turn_speed_degrees, move_state = MovementStates.Pushable });
-            }
-            else
-            {
-                SetComponent(entity, new MovementInfo() { speed = authoring.movement_speed, angular_speed = Mathf.Deg2Rad * authoring.turn_speed_degrees, move_state = MovementStates.HoldPosition });
-            }
+
             SetComponent(entity, new LA_Radius() { value = authoring.la_radius });
+
+            var mi = new MovementInfo()
+            {
+                speed = authoring.movement_speed,
+                angular_speed = Mathf.Deg2Rad * authoring.turn_speed_degrees,
+                move_state = (authoring.pushable) ? MovementStates.Pushable : MovementStates.HoldPosition,
+                blocked_state = 0
+            };
             if (authoring.movetarget != null)
             {
                 var dp = new DesiredPosition();
                 dp.value = authoring.movetarget.position;
-                dp.init_finish_line_vec(authoring.transform.localPosition);
+                dp.init_finish_line_vec(authoring.transform.position);
                 SetComponent(entity, dp);
+                var goal_dir = math.normalize(authoring.movetarget.position - authoring.transform.position);
+                mi.current_desired_dir = goal_dir;
             }
+            SetComponent(entity, mi);
 
             SetComponent(entity, new BoidsCoeffs()
             {

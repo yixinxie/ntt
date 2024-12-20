@@ -177,10 +177,10 @@ public struct HexCoord
 
 
     public static readonly int[] _offsets = new int[] {
-                1, 0, // -> east
+                1, 0, // -> east, +x
                 0, 1, // northeast
                 -1, 1, // northwest
-                -1, 0, // west
+                -1, 0, // west, -x
                 0, -1, // southwest
                 1, -1, // southeast
                 };

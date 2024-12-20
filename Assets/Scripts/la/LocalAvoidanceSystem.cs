@@ -98,20 +98,22 @@ public partial class LocalAvoidanceSystem : SystemBase
         var adj_mi_lookup = GetComponentLookup<MovementInfo>();
 
         Entities
-        .ForEach((Entity entity, DynamicBuffer<AdjacentEntities> adjIndices, ref ExternalInfluence influence, ref MovementInfo mi, in DesiredPosition desired, 
-        in LA_Radius self_radius, in BoidsCoeffs boids_coeffs, in LocalTransform c1) =>
+            .WithoutBurst()
+        .ForEach((Entity entity, DynamicBuffer<AdjacentEntities> adj_entities, ref ExternalInfluence influence, ref MovementInfo mi, in DesiredPosition desired, 
+        in LA_Radius self_radius, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
         {
 
-            float3 self_pos = adjPositions[entity].Position;
+            float3 self_pos = c0.Position;
             float3 prev_velocity = adjVelocities[entity].value;
-            float3 to_goal = mi.current_desired_dir;
+
 
             //influence.value = desired.value - self_pos;
-            float distance2goal = math.distance(to_goal, 0f);
+            float distance2goal = math.distance(desired.value, c0.Position);
             //influence.value /= distance2goal;
 
-            float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? to_goal / distance2goal : to_goal;
-            var goal_axial = HexCoord.FromPosition(goal_dir_normalized);
+            //float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? mi.current_desired_dir / distance2goal : mi.current_desired_dir;
+            float3 goal_dir_normalized = mi.current_desired_dir;
+            var goal_axial = HexCoord.FromPosition(mi.current_desired_dir);
 
             float3 adj_position_sum = 0f;
             float3 separation = 0f;
@@ -121,9 +123,10 @@ public partial class LocalAvoidanceSystem : SystemBase
             //NativeList<int2> blockade_list = new NativeList<int2>(Allocator.Temp);
             var self_axial = HexCoord.FromPosition(self_pos);
             var to_rounded_hcenter = HexCoord.ToPosition(self_axial) - self_pos;
-            for (int i = 0; i < adjIndices.Length; ++i)
+            NativeArray<byte> occupancies = new NativeArray<byte>(6, Allocator.Temp);
+            for (int i = 0; i < adj_entities.Length; ++i)
             {
-                Entity adj_entity = adjIndices[i].value;
+                Entity adj_entity = adj_entities[i].value;
 
                 if (adjPositions.HasComponent(adj_entity) == false)
                 {
@@ -132,44 +135,61 @@ public partial class LocalAvoidanceSystem : SystemBase
                 }
                 var adjpos = adjPositions[adj_entity].Position;
 
-                if (block_checked == false)
+                //var to_adj_diff = adjpos - self_pos;
+                //to_adj_diff = math.normalizesafe(to_adj_diff, 0f);
+                //var adj_axial = HexCoord.FromPosition(to_adj_diff);
+
+                //var adj_axial = HexCoord.FromPosition(adjpos + to_rounded_hcenter);
+                var adj_axial = HexCoord.FromPosition(adjpos);
+                adj_axial -= self_axial;
+
+                var adj_mi = adj_mi_lookup[adj_entity];
+                if (adj_mi.move_state == MovementStates.HoldPosition)
                 {
-                    var adj_axial = HexCoord.FromPosition(adjpos + to_rounded_hcenter);
-                    adj_axial -= self_axial;
-                    if (goal_axial.Equals(adj_axial))
+                    if (goal_axial.Equals(adj_axial) && HexCoord.hex_distance(0, adj_axial) == 1)
                     {
-                        var adj_mi = adj_mi_lookup[adj_entity];
-                        if(mi.move_state == MovementStates.HoldPosition)
+                        if (block_checked == false)
                         {
-                            block_checked = true;
-                            
-                            if(mi.blocked_state == 0)
+                            float sign = 0f;
+                            if (mi.blocked_state == 0)
                             {
-                                quaternion q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f));
-                                // rotate goal_axial
-                                mi.current_desired_dir = math.mul(q, HexCoord.ToPosition(goal_axial));
+                                if (mi.move_state == MovementStates.Pushable)
+                                {
+                                    int sdf = 0;
+                                }
+                                // decide which direction to take for this detour
                                 mi.blocked_state = 1;
+
+                                sign = (mi.blocked_state == 1) ? 1f : -1f;
+                                var q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * sign);
+                                // rotate goal_axial
+                                mi.current_desired_dir = math.mul(q, HexCoord.ToPosition(adj_axial));
+                                //Debug.Log();
                             }
                             else
                             {
-                                float sign = (mi.blocked_state == 1) ? -1f : 1f;
-                                quaternion q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * sign);
-                                mi.current_desired_dir = math.mul(q, mi.current_desired_dir);
-                                if(math.dot(mi.current_desired_dir, desired.value) < 0.1f)
+                                if (mi.move_state == MovementStates.Pushable)
                                 {
-                                    mi.blocked_state = 0;
+                                    int sdf = 0;
                                 }
+
+                                sign = (mi.blocked_state == 1) ? 1f : -1f;
+                                var q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * sign);
+                                mi.current_desired_dir = math.mul(q, mi.current_desired_dir);
+
                             }
-
-                            // decide which direction to take for this detour
-
 
                             block_checked = true;
                         }
+
                     }
+                    var occupied_dir_index = HexCoord.offset2dir_index(adj_axial);
+                    occupancies[occupied_dir_index] = 1;
                 }
 
-                float surface2surface = adjIndices[i].distance - self_radius.value;
+                
+
+                float surface2surface = adj_entities[i].distance - self_radius.value;
                 surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
 
                 if (surface2surface < self_radius.value)
@@ -194,8 +214,32 @@ public partial class LocalAvoidanceSystem : SystemBase
                     adj_count++;
                 }
             }
-            
-            //Debug.DrawLine(self_pos, self_pos + around_blockade_vector, Color.yellow, 0.016f, false);
+            if (block_checked == false && mi.blocked_state != 0)
+            {
+                if (mi.move_state == MovementStates.Pushable)
+                {
+                    int sdf = 0;
+                }
+                // reverse rotate 60 degrees and check
+                float sign = (mi.blocked_state == 1) ? 1f : -1f;
+                quaternion q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * -sign);
+                var test_dir = math.mul(q, mi.current_desired_dir);
+                var test_offset = HexCoord.FromPosition(test_dir);
+                var test_dir_index = HexCoord.offset2dir_index(test_offset);
+                if (occupancies[test_dir_index] == 0)
+                {
+                    mi.current_desired_dir = test_dir;
+                    var goal_dir_index = HexCoord.offset2dir_index(goal_axial);
+                    if (goal_dir_index == test_dir_index)
+                    {
+                        mi.blocked_state = 0;
+                        mi.current_desired_dir = math.normalize(desired.value - c0.Position);
+                    }
+                }
+
+            }
+
+            Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
             if (adj_count > 0)
             {
                 adj_velocity_sum /= adj_count;
