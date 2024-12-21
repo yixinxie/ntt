@@ -413,7 +413,7 @@ Transform:
   m_GameObject: {fileID: 805978539}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.18, y: 0, z: -0.11}
+  m_LocalPosition: {x: -1.48, y: 0, z: -0.92}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -428,26 +428,32 @@ MonoBehaviour:
   m_GameObject: {fileID: 805978539}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5a38056beb6ee2b4388ac4a304ce8358, type: 3}
+  m_Script: {fileID: 11500000, guid: fbaef2a320ed7c94ca2786498809b2b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  simulate: 0
-  velocity: 3
-  angular_velocity: 90
-  move_target: {fileID: 0}
-  radius: 0
-  search_radius: 0
-  self_col: {fileID: 0}
-  goal_dir: {x: 0, y: 0, z: 0}
-  adj_count: 0
-  movement_state: 0
-  trapped: 0
-  left1_right2_detour_dir: 0
-  previous_wall_center_dir: {x: 0, y: 0, z: 0}
-  cached_last_dir: {x: 0, y: 0, z: 0}
-  dbg_self_q: 0
-  frame_index: 0
-  frame_cmp: 0
+  mi_before:
+    acceleration: 0
+    deceleration: 0
+    speed: 0
+    angular_speed: 0
+    current_desired_dir:
+      x: 0
+      y: 0
+      z: 0
+    move_state: 0
+    blocked_state: 0
+  mi_after:
+    acceleration: 0
+    deceleration: 0
+    speed: 0
+    angular_speed: 0
+    current_desired_dir:
+      x: 0
+      y: 0
+      z: 0
+    move_state: 0
+    blocked_state: 0
+  copy: 0
 --- !u!1 &976804083
 GameObject:
   m_ObjectHideFlags: 0
@@ -494,11 +500,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target_axial_coord:
-    x: 0
-    y: 0
+    x: -1
+    y: -1
   target_diff_coord:
-    x: 1
-    y: 0
+    x: 0
+    y: -1
   coord_test_target: {fileID: 805978541}
   draw_adj: 0
   draw_hex_radius: 5

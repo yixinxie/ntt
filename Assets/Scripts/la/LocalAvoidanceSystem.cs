@@ -33,7 +33,117 @@ public partial class LocalAvoidanceSystem : SystemBase
         base.OnDestroy();
         finishers.Dispose();
     }
+    public static void detour_eval(LocalTransform c0, ref MovementInfo mi, 
+        NativeArray<LAAdjacentEntity> adj_entities, DesiredPosition desired,
+        ComponentLookup<LocalTransform> adjPositions,
+        ComponentLookup<MovementInfo> adj_mi_lookup)
+    {
+        float3 self_pos = c0.Position;
 
+
+        //float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? mi.current_desired_dir / distance2goal : mi.current_desired_dir;
+        float3 goal_dir_normalized = mi.current_desired_dir;
+        var goal_axial = HexCoord.FromPosition(mi.current_desired_dir);
+
+        float3 adj_position_sum = 0f;
+        float3 separation = 0f;
+        float3 adj_velocity_sum = 0f; // alignment
+        bool block_checked = false;
+        //NativeList<int2> blockade_list = new NativeList<int2>(Allocator.Temp);
+        var self_axial = HexCoord.FromPosition(self_pos);
+        var to_rounded_hcenter = HexCoord.ToPosition(self_axial) - self_pos;
+        NativeArray<byte> occupancies = new NativeArray<byte>(6, Allocator.Temp);
+        for (int i = 0; i < adj_entities.Length; ++i)
+        {
+            Entity adj_entity = adj_entities[i].value;
+
+            if (adjPositions.HasComponent(adj_entity) == false)
+            {
+                //int sdf = 0;
+                continue;
+            }
+            var adjpos = adjPositions[adj_entity].Position;
+
+            //var to_adj_diff = adjpos - self_pos;
+            //to_adj_diff = math.normalizesafe(to_adj_diff, 0f);
+            //var adj_axial = HexCoord.FromPosition(to_adj_diff);
+
+            var adj_axial = HexCoord.FromPosition(adjpos + to_rounded_hcenter);
+            //var adj_axial = HexCoord.FromPosition(adjpos);
+            adj_axial -= self_axial;
+
+            var adj_mi = adj_mi_lookup[adj_entity];
+            if (adj_mi.move_state == MovementStates.HoldPosition && HexCoord.hex_distance(0, adj_axial) == 1)
+            {
+                if (goal_axial.Equals(adj_axial))
+                {
+                    Debug.DrawLine(adjpos, adjpos + new float3(0f, 1f, 0f), Color.red);
+                    if (block_checked == false)
+                    {
+                        float sign = 0f;
+                        if (mi.blocked_state == 0)
+                        {
+                            if (mi.move_state == MovementStates.Pushable)
+                            {
+                                int sdf = 0;
+                            }
+                            // decide which direction to take for this detour
+                            mi.blocked_state = 1;
+
+                            sign = (mi.blocked_state == 1) ? 1f : -1f;
+                            var q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * sign);
+                            // rotate goal_axial
+                            mi.current_desired_dir = math.mul(q, HexCoord.ToPosition(adj_axial));
+                            //Debug.Log();
+                        }
+                        else
+                        {
+                            if (mi.move_state == MovementStates.Pushable)
+                            {
+                                int sdf = 0;
+                            }
+
+                            sign = (mi.blocked_state == 1) ? 1f : -1f;
+                            var q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * sign);
+                            mi.current_desired_dir = math.mul(q, mi.current_desired_dir);
+
+                        }
+
+                        block_checked = true;
+                    }
+
+                }
+                var occupied_dir_index = HexCoord.offset2dir_index(adj_axial);
+                occupancies[occupied_dir_index] = 1;
+            }
+
+        }
+        if (block_checked == false && mi.blocked_state != 0)
+        {
+            if (mi.move_state == MovementStates.Pushable)
+            {
+                int sdf = 0;
+            }
+            // reverse rotate 60 degrees and check
+            float sign = (mi.blocked_state == 1) ? 1f : -1f;
+            quaternion q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * -sign);
+            var test_dir = math.mul(q, mi.current_desired_dir);
+            var test_offset = HexCoord.FromPosition(test_dir);
+            var test_dir_index = HexCoord.offset2dir_index(test_offset);
+            if (occupancies[test_dir_index] == 0)
+            {
+                mi.current_desired_dir = test_dir;
+                var goal_dir_index = HexCoord.offset2dir_index(goal_axial);
+                if (goal_dir_index == test_dir_index)
+                {
+                    mi.blocked_state = 0;
+                    mi.current_desired_dir = math.normalize(desired.value - c0.Position);
+                    Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.5f, false);
+                }
+            }
+
+        }
+    }
     protected override void OnUpdate()
     {
         if(BoidsParameters.self != null)
@@ -65,7 +175,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             //.WithAll<LocalAvoidance>()
             //.WithNone<DisabledDuration>()
             .WithReadOnly(_physics)
-            .WithAll<DesiredPosition>().ForEach((Entity entity, DynamicBuffer<AdjacentEntities> c0, in LocalTransform c1, in LA_Radius radius) =>
+            .WithAll<DesiredPosition>().ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, in LocalTransform c1, in LA_Radius radius) =>
             {
                 PointDistanceInput inp = new PointDistanceInput();
                 inp.Position = c1.Position;
@@ -76,11 +186,11 @@ public partial class LocalAvoidanceSystem : SystemBase
 
                 NativeList<DistanceHit> hitsArray = new NativeList<DistanceHit>(Allocator.Temp);
                 _physics.CalculateDistance(inp, ref hitsArray);
-                c0.Clear();
+                adj_entities.Clear();
                 for (int i = 0; i < hitsArray.Length; ++i)
                 {
                     if (hitsArray[i].Entity == entity) continue;
-                    c0.Add(new AdjacentEntities() { value = hitsArray[i].Entity, distance = hitsArray[i].Distance });
+                    adj_entities.Add(new LAAdjacentEntity() { value = hitsArray[i].Entity, distance = hitsArray[i].Distance });
                 }
                 hitsArray.Dispose();
             }
@@ -90,16 +200,37 @@ public partial class LocalAvoidanceSystem : SystemBase
         Profiler.EndSample();
 
         Profiler.BeginSample("LA2 - calculate influences");
-
-        //var adjRadiuses = GetComponentDataFromEntity<LA_Radius>(true);
-        //var dp_array = GetComponentLookup<DesiredPosition>();
         var adjPositions = GetComponentLookup<LocalTransform>();
         var adjVelocities = GetComponentLookup<LastFrameVelocity>();
         var adj_mi_lookup = GetComponentLookup<MovementInfo>();
+        bool early = false;
+        if (early)
+        {
+            Entities
+            .WithoutBurst()
+            .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref ExternalInfluence influence, ref MovementInfo mi, in DesiredPosition desired,
+            in LA_Radius self_radius, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
+            {
+                if (mi.move_state == MovementStates.HoldPosition) return;
+                var mi_after = mi;
+                LAOccuTest.self.mi_before = mi; 
+                detour_eval(c0, ref mi_after, adj_entities.ToNativeArray(Allocator.Temp), desired, adjPositions, adj_mi_lookup);
+                LAOccuTest.self.mi_after = mi_after;
+                LAOccuTest.self.target = entity;
+
+                Debug.DrawLine(c0.Position, c0.Position + mi.current_desired_dir, Color.gray, 0.016f, false);
+                Debug.DrawLine(c0.Position, c0.Position + mi_after.current_desired_dir, Color.white, 0.016f, false);
+            }).Run();
+            return;
+        }
+
+        //var adjRadiuses = GetComponentDataFromEntity<LA_Radius>(true);
+        //var dp_array = GetComponentLookup<DesiredPosition>();
+        
 
         Entities
             .WithoutBurst()
-        .ForEach((Entity entity, DynamicBuffer<AdjacentEntities> adj_entities, ref ExternalInfluence influence, ref MovementInfo mi, in DesiredPosition desired, 
+        .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref ExternalInfluence influence, ref MovementInfo mi, in DesiredPosition desired, 
         in LA_Radius self_radius, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
         {
 
@@ -139,14 +270,14 @@ public partial class LocalAvoidanceSystem : SystemBase
                 //to_adj_diff = math.normalizesafe(to_adj_diff, 0f);
                 //var adj_axial = HexCoord.FromPosition(to_adj_diff);
 
-                //var adj_axial = HexCoord.FromPosition(adjpos + to_rounded_hcenter);
-                var adj_axial = HexCoord.FromPosition(adjpos);
+                var adj_axial = HexCoord.FromPosition(adjpos + to_rounded_hcenter);
+                //var adj_axial = HexCoord.FromPosition(adjpos);
                 adj_axial -= self_axial;
 
                 var adj_mi = adj_mi_lookup[adj_entity];
-                if (adj_mi.move_state == MovementStates.HoldPosition)
+                if (adj_mi.move_state == MovementStates.HoldPosition && HexCoord.hex_distance(0, adj_axial) == 1)
                 {
-                    if (goal_axial.Equals(adj_axial) && HexCoord.hex_distance(0, adj_axial) == 1)
+                    if (goal_axial.Equals(adj_axial))
                     {
                         if (block_checked == false)
                         {
@@ -186,8 +317,6 @@ public partial class LocalAvoidanceSystem : SystemBase
                     var occupied_dir_index = HexCoord.offset2dir_index(adj_axial);
                     occupancies[occupied_dir_index] = 1;
                 }
-
-                
 
                 float surface2surface = adj_entities[i].distance - self_radius.value;
                 surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
@@ -229,17 +358,19 @@ public partial class LocalAvoidanceSystem : SystemBase
                 if (occupancies[test_dir_index] == 0)
                 {
                     mi.current_desired_dir = test_dir;
-                    var goal_dir_index = HexCoord.offset2dir_index(goal_axial);
+                    var new_to_goal = math.normalize(desired.value - c0.Position);
+                    var goal_dir_index = HexCoord.offset2dir_index(HexCoord.FromPosition(new_to_goal));
                     if (goal_dir_index == test_dir_index)
                     {
                         mi.blocked_state = 0;
-                        mi.current_desired_dir = math.normalize(desired.value - c0.Position);
+                        mi.current_desired_dir = new_to_goal;
+                        Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.5f, false);
                     }
                 }
 
             }
 
-            Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
+            //Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
             if (adj_count > 0)
             {
                 adj_velocity_sum /= adj_count;

@@ -12,7 +12,7 @@ struct ExternalInfluence : IComponentData {
     public float distance2goal;
 }
 
-struct DesiredPosition : IComponentData {
+public struct DesiredPosition : IComponentData {
     public float3 value;
     public float3 finish_line_right;
     //public float goal_scale;
@@ -51,7 +51,7 @@ struct FrameDisplacement : IComponentData {
 
 
 [InternalBufferCapacity(8)]
-struct AdjacentEntities : IBufferElementData
+public struct LAAdjacentEntity : IBufferElementData
 {
     public Entity value;
     public float distance;

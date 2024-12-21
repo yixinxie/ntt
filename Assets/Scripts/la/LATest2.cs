@@ -607,7 +607,7 @@ public enum MovementStates:byte
     Pushable, // pushable
     HoldPosition, // not pushable
 }
-
+[System.Serializable]
 public struct MovementInfo : IComponentData
 {
     public float acceleration;

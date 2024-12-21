@@ -13,10 +13,10 @@ public class LAOverlapAuthoring : MonoBehaviour
     public bool skip_goal_position;
     public bool pushable;
     public bool use_pathfinding = true;
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
-        if(movetarget!=null)
-            Gizmos.DrawLine(transform.localPosition, movetarget.localPosition);
+        //if(movetarget!=null)
+        //    Gizmos.DrawLine(transform.localPosition, movetarget.localPosition);
     }
     public class Bakery : Baker<LAOverlapAuthoring>
     {
@@ -60,7 +60,7 @@ public class LAOverlapAuthoring : MonoBehaviour
     public static void AddLAComponentsStatic<T>(Baker<T> em, Entity entity) where T:UnityEngine.Component
     {
         em.AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
-                    typeof(AdjacentEntities),
+                    typeof(LAAdjacentEntity),
                     typeof(DesiredPosition),
                     typeof(MovementInfo),
                     typeof(LA_Radius),
@@ -89,7 +89,7 @@ public class LAOverlapAuthoring : MonoBehaviour
     public void AddLAComponent<T>(Baker<T> dstManager, Entity entity) where T : UnityEngine.Component
     {
         dstManager.AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
-                    typeof(AdjacentEntities),
+                    typeof(LAAdjacentEntity),
                     typeof(ExternalInfluence),
                     typeof(LastFrameVelocity),
                     //typeof(FrameDisplacement),
