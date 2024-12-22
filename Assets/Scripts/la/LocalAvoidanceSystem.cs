@@ -275,9 +275,9 @@ public partial class LocalAvoidanceSystem : SystemBase
                 adj_axial -= self_axial;
 
                 var adj_mi = adj_mi_lookup[adj_entity];
-                if (adj_mi.move_state == MovementStates.HoldPosition && HexCoord.hex_distance(0, adj_axial) == 1)
+                if (adj_mi.move_state == MovementStates.HoldPosition)
                 {
-                    if (goal_axial.Equals(adj_axial))
+                    if (goal_axial.Equals(adj_axial) && HexCoord.hex_distance(0, adj_axial) == 1)
                     {
                         if (block_checked == false)
                         {
@@ -314,8 +314,12 @@ public partial class LocalAvoidanceSystem : SystemBase
                         }
 
                     }
-                    var occupied_dir_index = HexCoord.offset2dir_index(adj_axial);
-                    occupancies[occupied_dir_index] = 1;
+                    if (HexCoord.hex_distance(0, adj_axial) < 3)
+                    {
+
+                        var occupied_dir_index = HexCoord.offset2dir_index(adj_axial);
+                        occupancies[occupied_dir_index] = 1;
+                    }
                 }
 
                 float surface2surface = adj_entities[i].distance - self_radius.value;
