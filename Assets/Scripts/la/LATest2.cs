@@ -631,9 +631,9 @@ public class StructureInteractions
     public const uint Layer_obstacle = (uint)1 << 27;
     //public const uint Layer_ring = (uint)1 << 26;
     public const uint Layer_ground = (uint)1 << 25;
-    //public const uint Layer_character = (uint)1 << 24; // bio-swarm, drones
+    public const uint Layer_character = (uint)1 << 24;
     //public const uint Layer_object_picking = (uint)1 << 23;
     public const uint Layer_ui = (uint)1 << 22;
-    //public const uint Layer_projectile = (uint)1 << 21;
+    public const uint Layer_projectile = (uint)1 << 21;
     public const uint Layer_galactic = (uint)1 << 20;
 }
