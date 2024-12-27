@@ -12,34 +12,28 @@ using Unity.Transforms;
 using Unity.Physics;
 using UnityEngine;
 
-[InternalBufferCapacity(4)]
-public struct TargetSearchRequest:IBufferElementData
-{
-    public float radius;
-    public short weapon_index; // weapon info does not change throughout a fight
-    public WeaponTypes cached_weapon_type;
-}
-[InternalBufferCapacity(4)]
-public struct WeaponInfo:IBufferElementData
-{
-    public WeaponTypes weapon_type;
-    public WeaponModes weapon_mode; // instant, or delayed projectile
-    public WeaponStatus status;
+//[InternalBufferCapacity(4)]
+//public struct WeaponInfo:IBufferElementData
+//{
+//    public WeaponTypes weapon_type;
+//    public WeaponModes weapon_mode; // instant, or delayed projectile
+//    public WeaponStatus status;
 
-    //public StructureType projectile_type;
-    public Entity target;
-    public float radius;
-    public float cooldown_left; // 0 means ready to fire
-    public float cooldown_max;
-    public int ammo_count;
-    public int ammo_max;
-    public float base_damage;
-}
-public enum WeaponStatus:byte
-{
-    NotSearching,
-    AlreadySearching,
-}
+//    //public StructureType projectile_type;
+//    public Entity target;
+//    public float radius;
+//    public float cooldown_left; // 0 means ready to fire
+//    public float cooldown_max;
+//    public int ammo_count;
+//    public int ammo_max;
+//    public float base_damage;
+//}
+//public enum WeaponStatus:byte
+//{
+//    NotSearching,
+//    AlreadySearching,
+//}
+[System.Serializable]
 public struct StorageCell:IBufferElementData
 {
     public ushort itemtype;
@@ -69,6 +63,10 @@ public struct CachedTurretTransform:IComponentData
 {
     public float3 c0;
     public quaternion c1;
+    public static CachedTurretTransform from_localtransform(LocalTransform lt)
+    {
+        return new CachedTurretTransform() { c0 = lt.Position, c1 = lt.Rotation };
+    }
 }
 // found on colliders
 public struct ColliderHostRef:IComponentData

@@ -94,6 +94,16 @@ public partial class WeaponFireSystemV3 : SystemBase
     }
     protected override void OnUpdate()
     {
+        Entities.ForEach((Entity entity, ref PhysicsCollider pcol, in CombatTeam cteam) =>
+        {
+            unsafe
+            {
+                var cfilter = pcol.ColliderPtr->GetCollisionFilter();
+                cfilter.BelongsTo = cfilter.BelongsTo | cteam.FriendlyTeamMask();
+                pcol.ColliderPtr->SetCollisionFilter(cfilter);
+            }
+
+        }).Run();
 //        float dt = World.Time.fixedDeltaTime;
 //        //var hex_unit_length = HexagonMap.unit_length;
 //        weapon_fire_attempts.Clear();
@@ -1189,35 +1199,6 @@ public partial class WeaponFireSystemV3 : SystemBase
         //var pmms = em.GetComponentData<ProjectileMissileMotionStates>(tmp_entity);
         //pmms.last_position = c0;
         //em.SetComponentData(tmp_entity, pmms);
-    }
-    public static BezierControls guided_platform_bezier(float3 c0, quaternion c1, float3 target)
-    {
-        BezierControls ret = default;
-        var dir = math.normalize(target - c0);
-        float dist = math.distance(target, c0);
-        float3 fwd = math.mul(c1, new float3(0f, 0f, 1f));
-        float3 up = math.mul(c1, new float3(0f, 1f, 0f));
-        float3 right = math.mul(c1, new float3(1f, 0f, 0f));
-        var is_fwd = -math.dot(math.cross(up, dir), right) > 0 ? -1f : 1f;
-        //Debug.DrawLine(c0, c0 + fwd * 50f, Color.blue);
-        //Debug.DrawLine(c0, c0 + math.mul(c1, new float3(0f, 1f, 0f)) * 50f, Color.green);
-        float remapped = math.remap(1f, -1f, 0f, 1f, math.dot(up, dir));
-        //Debug.Log(remapped);
-        const float above_platform_surface = 32f;
-        const float away_platform_center = 64f;
-        var ctrl0 = c0 + up * above_platform_surface + fwd * is_fwd * away_platform_center;
-        ctrl0 = math.lerp(c0 + up * dist / 3f, ctrl0, remapped);
-
-        var ctrl1 = c0 - up * (16f + above_platform_surface) + fwd * is_fwd* away_platform_center;
-        ctrl1 = math.lerp(c0 + dir * dist / 3f * 2f, ctrl1, remapped);
-        Debug.DrawLine(c0, ctrl0, Color.yellow, 1f);
-        Debug.DrawLine(ctrl0, ctrl1, Color.yellow, 1f);
-        Debug.DrawLine(target, ctrl1, Color.yellow, 1f);
-        ret.start = c0;
-        ret.end = target;
-        ret.start_ctrl = ctrl0;
-        ret.end_ctrl = ctrl1;
-        return ret;
     }
 
     public static BezierControls guided_bezier(float3 c0, quaternion c1, float3 target)
