@@ -1,0 +1,1564 @@
+//#define CARGOSHIP_VERBOSITY
+using SGF.Time;
+using System;
+using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+// 重庆森托利科技有限公司 2021-2024
+// 蒲公英号游戏逻辑模拟系统
+// 子系统：机器逻辑模拟系统
+
+// shared between server and client.
+public partial class MachineCoreSystem : SystemBase
+{
+    static void ri2asminv_virtual(DynamicBuffer<RouterInventory> ris, RouterStates rs, ref AssemblerInputInventory target_aii, ref bool should_pulse)
+    {
+        for (int j = 0; j < ris.Length; ++j)
+        {
+            var current_stack = ris[j];
+            if (current_stack.item_count > 0)
+            {
+                {
+                    // extractor 2 assembler.
+                    // assembler 2 assembler.
+                    int needed_amount = target_aii.NeedItemPlural(current_stack.item_type, ASMConstants.RouterVirtualShipTransferReserveMultiplier);
+                    if (needed_amount > 0)
+                    {
+                        var tt_limit = rs.get_router_transport_throughput_limit();
+                        // increment target inventory
+                        int actual_amount = min_three(needed_amount, current_stack.item_count, tt_limit);
+                        target_aii.PushPlural(current_stack.item_type, actual_amount);
+
+                        // decrement self inventory
+                        current_stack.item_count -= (ushort)actual_amount;
+                        ris[j] = current_stack;
+
+                        should_pulse = true;
+                    }
+                }
+            }
+        }
+    }
+
+    static void ri2liinv_virtual(DynamicBuffer<RouterInventory> ris, RouterStates rs, ref LauncherInputInventory target_lii, ref bool should_pulse)
+    {
+        for (int j = 0; j < ris.Length; ++j)
+        {
+            var current_stack = ris[j];
+            if (current_stack.item_count > 0)
+            {
+                {
+                    // extractor 2 assembler.
+                    // assembler 2 assembler.
+                    int needed_amount = target_lii.NeedItemPlural(current_stack.item_type, ASMConstants.RouterVirtualShipTransferReserveMultiplier);
+                    if (needed_amount > 0)
+                    {
+                        var tt_limit = rs.get_router_transport_throughput_limit();
+                        // increment target inventory
+                        int actual_amount = min_three(needed_amount, current_stack.item_count, tt_limit);
+                        target_lii.PushPlural(current_stack.item_type, actual_amount);
+
+                        // decrement self inventory
+                        current_stack.item_count -= (ushort)actual_amount;
+                        ris[j] = current_stack;
+
+                        should_pulse = true;
+                    }
+                }
+            }
+        }
+    }
+    // router distribute fuels to the users
+    static void ri2des_virtual(DynamicBuffer<RouterInventory> ris, RouterStates rs, ref DiscreteEnergyStates target_des, ref bool should_pulse)
+    {
+        for (int j = 0; j < ris.Length; ++j)
+        {
+            var current_stack = ris[j];
+            if (current_stack.item_count > 0)
+            {
+                // extractor 2 assembler.
+                // assembler 2 assembler.
+                int needed_amount = target_des.need_fuel(current_stack.item_type);
+                if (needed_amount > 0)
+                {
+                    int tt_limit = rs.get_router_transport_throughput_limit();
+                    // increment target inventory
+                    int actual_amount = min_three(needed_amount, current_stack.item_count, tt_limit);
+                    target_des.push_fuels(current_stack.item_type, (ushort)actual_amount);
+
+                    // decrement self inventory
+                    current_stack.item_count -= (ushort)actual_amount;
+                    ris[j] = current_stack;
+
+                    should_pulse = true;
+                }
+            }
+        }
+    }
+    
+    public static void moi2router_ri(DynamicBuffer<RouterInventory> ri, RouterStates rs, ref MachineOutputInventory moi, ref bool should_pulse)
+    {
+
+        var limit = rs.get_nonbase_limit(); // router collect
+        var tt_limit = rs.get_router_transport_throughput_limit();
+        int needed_amount = RouterInventory.NeedItemPlural(ri, moi.item_type, limit, out int item_index);
+        if (needed_amount > 0)
+        {
+            // increment target inventory
+            //should_pulse = true;
+            int actual_amount = min_three(needed_amount, moi.count, tt_limit);
+            var tmp = ri[item_index];
+            tmp.item_count += (ushort)actual_amount;
+            ri[item_index] = tmp;
+
+            // decrement self inventory
+            moi.count -= (short)actual_amount;
+            //oa.pass(attempt_output_index);
+            if (actual_amount > 0) should_pulse = true;
+            //Debug.DrawLine(c0_dict[entity].Position, c0_dict[target_entity].Position, Color.green, 2f);
+
+        }
+    }
+
+
+    static Entity router_collect(DynamicBuffer<RouterInventory> ri_db,
+        DynamicBuffer<RouterCollectTarget> collect_targets, in RouterStates rs,
+        ComponentLookup<MachineOutputInventory> moi_dict, ref OutputAlternate oa)
+    {
+        Entity ret = default;
+        // collect pass
+        for (int i = 0; i < ri_db.Length; ++i)
+        {
+            var ri = ri_db[i];
+            for (int j = 0; j < collect_targets.Length; ++j)
+            {
+                bool should_pulse = false;
+                int attempt_index = oa.attempt_index(collect_targets.Length, OutputAlternate.RouterCT);
+                Entity target_machine = collect_targets[attempt_index].value;
+                if (moi_dict.HasComponent(target_machine))
+                {
+                    var target_moi = moi_dict[target_machine];
+                    if (target_moi.item_type == ri.item_type && target_moi.count > 0)
+                    {
+                        moi2router_ri(ri_db, rs, ref target_moi, ref should_pulse);
+                        moi_dict[target_machine] = target_moi;
+                    }
+                }
+                oa.pass(OutputAlternate.RouterCT);
+                if (should_pulse)
+                {
+                    ret = target_machine;
+                    break;
+                }
+            }
+        }
+        return ret;
+    }
+
+    static Entity router_distribute_aii_des(DynamicBuffer<RouterInventory> ri_db, DynamicBuffer<RouterDistributeTarget> dist_targets,
+        RouterStates rs,
+        ComponentLookup<AssemblerInputInventory> aii_dict, 
+        ComponentLookup<DiscreteEnergyStates> des_dict, 
+        ComponentLookup<LauncherInputInventory> lii_dict, ref OutputAlternate oa)
+    {
+        Entity ret = default;
+        
+        // distribute pass
+        for (int i = 0; i < ri_db.Length; ++i) 
+        {
+            var ri = ri_db[i];
+            if (ri.item_count == 0) continue;
+            for (int j = 0; j < dist_targets.Length; ++j)
+            {
+                bool should_pulse = false;
+                //Entity target_machine = dist_targets[j].value;
+                int attempt_index = oa.attempt_index(dist_targets.Length, OutputAlternate.RouterDT);
+                Entity target_machine = dist_targets[attempt_index].value;
+
+
+                if (des_dict.HasComponent(target_machine) && DemoDefs.is_fuel((ItemType)ri.item_type))
+                {
+
+                    var target_des = des_dict[target_machine];
+                    ri2des_virtual(ri_db, rs, ref target_des, ref should_pulse);
+                    des_dict[target_machine] = target_des;
+                }
+                else if (aii_dict.HasComponent(target_machine))
+                {
+
+                    var target_aii = aii_dict[target_machine];
+                    ri2asminv_virtual(ri_db, rs, ref target_aii, ref should_pulse);
+                    aii_dict[target_machine] = target_aii;
+                }
+
+                if (lii_dict.HasComponent(target_machine))
+                {
+
+                    var target_lii = lii_dict[target_machine];
+                    ri2liinv_virtual(ri_db, rs, ref target_lii, ref should_pulse);
+                    lii_dict[target_machine] = target_lii;
+                }
+                oa.pass(OutputAlternate.RouterDT);
+                if (should_pulse)
+                {
+                    ret = target_machine;
+                    break;
+                }
+            }
+        }
+        return ret;
+    }
+   
+
+    public static int min_three(int source_amount_remaining, int per_tick_amount, int remaining_capacity_at_target)
+    {
+        return math.min(math.min(source_amount_remaining, per_tick_amount), remaining_capacity_at_target);
+    }
+    
+
+    public void refinery_updates_server(NativeHashMap<int, PlayerProductionFrameStats> ppfs)
+    {
+        Entities.WithNone<ColliderRef>()
+            //.WithNone<EngineeringStates>()
+            .ForEach((Entity entity, ref AssemblerInputInventory asm_inv, ref MachineOutputInventory output_inv, ref ExtraProductionStates eps,
+            ref CachedWorkingStates working_state, ref DiscreteEnergyStates des, in PlayerID_CD pid) =>
+            {
+                int aggregate = refinery_update_pure_nosc(ref des, ref asm_inv, ref output_inv, ref eps, ref working_state);
+                if (aggregate > 0)
+                {
+                    ProductionStatsManaged.submit_collection_pass(output_inv.item_type, aggregate, pid.value, ppfs);
+                }
+
+            }).Run();
+    }
+    public void refinery_updates_client(SimulationGroup sg, NativeHashMap<int, PlayerProductionFrameStats> ppfs)
+    {
+        Entities.WithSharedComponentFilter(sg)
+            .ForEach((Entity entity, ref AssemblerInputInventory asm_inv, ref MachineOutputInventory output_inv, ref ExtraProductionStates eps,
+            ref CachedWorkingStates working_state, ref DiscreteEnergyStates des, in PlayerID_CD pid) =>
+            {
+                int aggregate = refinery_update_pure_nosc(ref des, ref asm_inv, ref output_inv, ref eps, ref working_state);
+                if (aggregate > 0)
+                {
+                    ProductionStatsManaged.submit_collection_pass(output_inv.item_type, aggregate, pid.value, ppfs);
+                }
+
+            }).Run();
+    }
+
+    public static int refinery_update_pure_nosc(ref DiscreteEnergyStates destates, ref AssemblerInputInventory asm_inv, ref MachineOutputInventory output_inv,
+        ref ExtraProductionStates eps,
+            ref CachedWorkingStates working_state)
+    {
+        if(destates.current == 0)
+        {
+            if (destates.in_stock == 0)
+            {
+                working_state.value = 0;
+                return 0;
+            }
+        }
+        if(destates.timeleft == 0)
+        {
+            if (asm_inv.can_start() && output_inv.IsFull(ASMConstants.MachineOutputInventoryItemLimit) == false && destates.can_consume())
+            {
+                destates.consume_fuel();
+                working_state.value = 1;
+                asm_inv.consume();
+                destates.timeleft = (ushort)asm_inv.recipe.max_time;
+                //destates.current--;
+
+                //ecb.AddComponent<RunningEntity>(entity);
+                //Debug.Log(DebugEntity.Entity2Str(entity) + " add Running");
+                //changes.Add(new TileAnimStateChange() { entity = entity, states = TileAnimStateChange.OFF });
+            }
+            else
+            {
+                working_state.value = 0;
+            }
+            return 0;
+        }
+        int aggregate = 0;
+        if (destates.timeleft <= 1)
+        {
+            aggregate = eps.aggre(asm_inv.recipe.output_batch);
+            output_inv.count += (short)aggregate;
+            if(asm_inv.recipe.output_type2 != 0 && eps.get_hit())
+            {
+                output_inv.count2 += asm_inv.recipe.output_batch2;
+            }
+
+            if (asm_inv.can_start() && output_inv.IsFull(ASMConstants.MachineOutputInventoryItemLimit) == false && destates.can_consume())
+            {
+                destates.consume_fuel();
+                asm_inv.consume();
+                destates.timeleft = (ushort)asm_inv.recipe.max_time;
+
+                working_state.value = 1;
+                //destates.current--;
+            }
+            else
+            {
+                destates.timeleft = 0;
+                working_state.value = 0;
+            }
+        }
+        else
+        {
+            destates.consume_fuel();
+            destates.timeleft--;
+            working_state.value = 1;
+        }
+        return aggregate;
+    }
+
+    #region direct transport
+
+    // moi 2 belt
+    static void direct_transport_input_moi_shared(DynamicBuffer<MachineDirectTransportTarget> transports, ref OutputAlternate oa, ref MachineOutputInventory moi, ref ClientBeltEvent cbe)
+    {
+        //direct_transport_forward_pass(transports);
+
+        for (int i = 0; i < transports.Length; ++i)
+        {
+            if (moi.count == 0)
+                break;
+
+            var index = oa.attempt_index(transports.Length, OutputAlternate.ToBelt);
+            var t = transports[index];
+            if (t.value.Equals(Entity.Null))
+            {
+                oa.pass(OutputAlternate.ToBelt);
+                continue;
+            }
+            int need_count = t.need_count(true);
+
+            var actual = math.min(moi.count, need_count);
+            if (actual != 0)
+            {
+                t.left_current_bucket += (byte)actual;
+                moi.count -= (short)actual;
+                if (t.attempt2package_left())
+                {
+                    cbe.insert(index, true);
+                    oa.pass(OutputAlternate.ToBelt);
+                }
+                transports[index] = t;
+            }
+            else if(need_count == 0)
+            {
+                oa.pass(OutputAlternate.ToBelt);
+            }
+        }
+        if (moi.item_type2 != 0)
+        {
+            for (int i = 0; i < transports.Length; ++i)
+            {
+                if (moi.count2 == 0)
+                    break;
+
+                var index = oa.attempt_index(transports.Length, OutputAlternate.ToBelt + 1);
+                var t = transports[index];
+                if (t.value.Equals(Entity.Null))
+                {
+                    oa.pass(OutputAlternate.ToBelt + 1);
+                    continue;
+                }
+                int need_count = t.need_count(false);
+
+                var actual = math.min(moi.count2, need_count);
+                if (actual != 0)
+                {
+                    t.right_current_bucket += (byte)actual;
+                    moi.count2 -= (short)actual;
+                    if (t.attempt2package_right())
+                    {
+                        cbe.insert(index, false);
+                        oa.pass(OutputAlternate.ToBelt + 1);
+                    }
+                    transports[index] = t;
+                }
+                else if (need_count == 0)
+                {
+                    oa.pass(OutputAlternate.ToBelt + 1);
+                }
+            }
+        }
+    }
+
+    static void direct_transport_forward_pass(DynamicBuffer<MachineDirectTransportTarget> transports)
+    {
+        for (int i = 0; i < transports.Length; ++i)
+        {
+            var t = transports[i];
+            if (t.value.Equals(Entity.Null)) continue;
+            t.forward();
+            transports[i] = t;
+        }
+    }
+    static void direct_transport_input_router_shared_legacy(DynamicBuffer<MachineDirectTransportTarget> transports, DynamicBuffer<RouterInventory> ri_db, ref OutputAlternate oa, ref ClientBeltEvent cbe, int reserve_count)
+    {
+        direct_transport_forward_pass(transports);
+
+        for (int i = 0; i < transports.Length; ++i)
+        {
+            if (transports[i].value.Equals(Entity.Null)) continue;
+            if (ri_db.Length > 0)
+            {
+                var ri = ri_db[0];
+                if (ri.item_type != (ushort)ItemType.None)
+                {
+                    int index = oa.attempt_index(transports.Length, OutputAlternate.ToBelt);
+                    var t = transports[index];
+                    if (ri.item_count <= reserve_count)
+                        break;
+
+                    var actual = math.min(ri.item_count, t.need_count(true));
+                    if (actual > 0)
+                    {
+                        t.left_current_bucket += (byte)actual;
+                        ri.item_count -= (ushort)actual;
+                    }
+
+                    if (t.attempt2package_left())
+                        cbe.insert(index, true);
+
+                    transports[index] = t;
+                    ri_db[0] = ri;
+                    oa.pass(OutputAlternate.ToBelt);
+                }
+            }
+        }
+    }
+    /// <summary>
+    /// return values: should break loop.
+    /// </summary>
+    //unsafe static bool alternate_transfer(int origin_count, int target_need_count, byte* alternator, out int actual_amount)
+    //{
+    //    actual_amount = 0;
+    //    if (origin_count == 0) return true;
+
+    //    //if (target_need_count == 0)
+    //    //{
+    //    //    (*alternator)++;
+    //    //    return false;
+    //    //}
+
+    //    actual_amount = math.min(origin_count, target_need_count);
+
+    //    if(origin_count >= target_need_count)
+    //    {
+    //        (*alternator)++;
+    //    }
+    //    //return (target_need_count == actual_amount);
+    //    return false;
+    //}
+    // box 2 belt
+    unsafe static void direct_transport_input_box_shared_v3(
+        DynamicBuffer<MachineDirectTransportTarget> transports, 
+        DynamicBuffer<RouterInventory> ri_db, 
+        ref OutputAlternate oa, 
+        ref ClientBeltEvent cbe)
+    {
+        //direct_transport_forward_pass(transports);
+        if (transports.Length == 0) return;
+        if (ri_db.Length == 1 && ri_db[0].item_type != 0)
+        {
+            // two itemtypes of the same
+            ushort current_count = ri_db[0].item_count;
+            
+            MachineDirectTransportTarget outgoing_transport;
+
+            for (int i = 0; i < transports.Length * 2; ++i)
+            {
+                if (current_count == 0) break;
+
+                int index = oa.attempt_index(transports.Length * 2, OutputAlternate.ToBelt);
+                var mdtt_index = index >> 1;
+                outgoing_transport = transports[mdtt_index];
+                if (outgoing_transport.value.Equals(Entity.Null))
+                {
+                    //oa.pass(OutputAlternate.ToBelt);
+                    oa.pass(OutputAlternate.ToBelt);
+                    continue;
+                }
+                ushort actual_transfered;
+
+                if ((index & 1) == 0)
+                {
+                    var need_left = outgoing_transport.need_count(true);
+                    actual_transfered = (ushort)math.min(current_count, need_left);
+                    if (actual_transfered != 0)
+                    {
+                        outgoing_transport.left_current_bucket += (byte)actual_transfered;
+                        if (outgoing_transport.attempt2package_left())
+                        {
+                            oa.pass(OutputAlternate.ToBelt);
+                            cbe.insert(mdtt_index, true);
+                        }
+                        current_count -= actual_transfered;
+                    }
+                    else if (need_left == 0)
+                    {
+                        // when the current lane is blocked, we need to pass on to the next belt.
+                        oa.pass(OutputAlternate.ToBelt);
+                    }
+
+                }
+                else
+                {
+                    var need_right = outgoing_transport.need_count(false);
+                    actual_transfered = (ushort)math.min(current_count, outgoing_transport.need_count(false));
+                    if (actual_transfered != 0)
+                    {
+                        outgoing_transport.right_current_bucket += (byte)actual_transfered;
+                        if (outgoing_transport.attempt2package_right())
+                        {
+                            oa.pass(OutputAlternate.ToBelt);
+                            cbe.insert(mdtt_index, false);
+                        }
+                        current_count -= actual_transfered;
+                    }
+                    else if (need_right == 0)
+                    {
+                        // when the current lane is blocked, we need to pass on to the next belt.
+                        oa.pass(OutputAlternate.ToBelt);
+                    }
+                }
+                transports[mdtt_index] = outgoing_transport;
+            }
+            var assign_back = ri_db[0];
+            assign_back.item_count = current_count;
+            ri_db[0] = assign_back;
+            return;
+        }
+        // dual lane, two different itemtypes.
+        if (ri_db.Length == 2)
+        {
+            var ri = ri_db[0];
+            if(ri.item_type != 0)
+            {
+                MachineDirectTransportTarget outgoing_transport = default;
+                for (int i = 0; i < transports.Length; ++i)
+                {
+                    if (ri.item_count == 0) break;
+
+                    int index = oa.attempt_index(transports.Length, OutputAlternate.ToBelt);
+                    outgoing_transport = transports[index];
+                    if (outgoing_transport.value.Equals(Entity.Null))
+                    {
+                        oa.pass(OutputAlternate.ToBelt);
+                        continue;
+                    }
+                    var count_left = outgoing_transport.need_count(true);
+                    ushort actual_transfered = (ushort)math.min(ri.item_count, count_left);
+                    if (actual_transfered != 0)
+                    {
+                        outgoing_transport.left_current_bucket += (byte)actual_transfered;
+                        if (outgoing_transport.attempt2package_left())
+                        {
+                            oa.pass(OutputAlternate.ToBelt);
+                            cbe.insert(index, true);
+                        }
+
+                        ri.item_count -= actual_transfered;
+                        transports[index] = outgoing_transport;
+                    }
+                    else if(count_left == 0)
+                    {
+                        // when the current lane is blocked, we need to pass on to the next belt.
+                        oa.pass(OutputAlternate.ToBelt);
+                    }
+                }
+                ri_db[0] = ri;
+            }
+
+            ri = ri_db[1];
+            if (ri.item_type != 0)
+            {
+                MachineDirectTransportTarget outgoing_transport = default;
+                for (int i = 0; i < transports.Length; ++i)
+                {
+                    if (ri.item_count == 0) break;
+
+                    int index = oa.attempt_index(transports.Length, OutputAlternate.ToBelt + 1);
+                    outgoing_transport = transports[index];
+                    if (outgoing_transport.value.Equals(Entity.Null))
+                    {
+                        oa.pass(OutputAlternate.ToBelt + 1);
+                        continue;
+                    }
+                    var count_right = outgoing_transport.need_count(false);
+                    ushort actual_transfered = (ushort)math.min(ri.item_count, count_right);
+                    if (actual_transfered != 0)
+                    {
+                        outgoing_transport.right_current_bucket += (byte)actual_transfered;
+                        if (outgoing_transport.attempt2package_right())
+                        {
+                            oa.pass(OutputAlternate.ToBelt + 1);
+                            cbe.insert(index, false);
+                        }
+                        ri.item_count -= actual_transfered;
+                        transports[index] = outgoing_transport;
+                    }
+                    else if (count_right == 0)
+                    {
+                        // when the current lane is blocked, we need to pass on to the next belt.
+                        oa.pass(OutputAlternate.ToBelt + 1);
+                    }
+                }
+                ri_db[1] = ri;
+            }
+
+        }
+
+    }
+    // moi and ri to direct transport, belts move items forward, parallelizable,
+    public void direct_transport_input_update_server(SimulationGroup sg)
+    {
+        Entities.WithName("belt_forward").WithSharedComponentFilter(sg).ForEach((DynamicBuffer<MachineDirectTransportTarget> transports
+#if UNITY_EDITOR
+            , in ASMEntityGUID guiddbg
+#endif
+            ) =>
+        {
+            direct_transport_forward_pass(transports);
+        }).Run();
+
+        Entities.WithName("moi_output2belt").WithSharedComponentFilter(sg)
+            .ForEach((DynamicBuffer<MachineDirectTransportTarget> transports, ref OutputAlternate oa, ref MachineOutputInventory moi
+#if UNITY_EDITOR
+            , in ASMEntityGUID guid
+#endif
+            ) =>
+        {
+            ClientBeltEvent cbe = default;
+            direct_transport_input_moi_shared(transports, ref oa, ref moi, ref cbe);
+        }).Run();
+
+        // routers
+        Entities.WithName("routers_output2belt").WithSharedComponentFilter(sg).WithAll<RouterCollectTarget>()
+            .ForEach((DynamicBuffer<MachineDirectTransportTarget> transports, DynamicBuffer<RouterInventory> ri_db, DynamicBuffer<RouterDistributeTarget> rdt_db, ref OutputAlternate oa
+#if UNITY_EDITOR
+            , in ASMEntityGUID guid
+#endif
+            ) =>
+        {
+            ClientBeltEvent cbe = default;
+            if (ri_db.Length == 1 && ri_db[0].item_count > ((rdt_db.Length == 0) ? 0 : ASMConstants.Router2TargetItemReserve))
+            {
+                direct_transport_input_box_shared_v3(transports, ri_db, ref oa, ref cbe);
+            }
+            //direct_transport_input_router_shared_legacy(transports, ri_db, ref oa, ref cbe, (rdt_db.Length == 0) ? 0 : ASMConstants.Router2TargetItemReserve);
+        }).Run();
+
+        // boxes and logistations
+        Entities.WithName("boxeslogistations_output2belt").WithSharedComponentFilter(sg).WithNone<RouterCollectTarget>()
+            .ForEach((DynamicBuffer<MachineDirectTransportTarget> transports, DynamicBuffer<RouterInventory> ri_db, ref OutputAlternate oa
+#if UNITY_EDITOR
+            , in ASMEntityGUID guid
+#endif
+            ) =>
+        {
+            ClientBeltEvent cbe = default;
+            direct_transport_input_box_shared_v3(transports, ri_db, ref oa, ref cbe);
+        }).Run();
+
+    }
+    public void direct_transport_input_update_client(SimulationGroup sg)
+    {
+        Entities.WithSharedComponentFilter(sg).ForEach((DynamicBuffer<MachineDirectTransportTarget> transports
+#if UNITY_EDITOR
+            , in ASMEntityGUID guiddbg
+#endif
+            ) =>
+        {
+            direct_transport_forward_pass(transports);
+        }).Run();
+
+        Entities.WithSharedComponentFilter(sg).ForEach((DynamicBuffer<MachineDirectTransportTarget> transports, ref OutputAlternate oa, ref MachineOutputInventory moi, ref ClientBeltEvent cbe
+#if UNITY_EDITOR
+            , in ASMEntityGUID guiddbg
+#endif
+            ) =>
+        {
+            direct_transport_input_moi_shared(transports, ref oa, ref moi, ref cbe);
+        }).Run();
+
+
+        // routers
+        Entities.WithSharedComponentFilter(sg).WithAll<RouterCollectTarget>().ForEach((DynamicBuffer<MachineDirectTransportTarget> transports, DynamicBuffer<RouterInventory> ri_db
+            , DynamicBuffer<RouterDistributeTarget> rdt_db
+            , ref OutputAlternate oa, ref ClientBeltEvent cbe
+#if UNITY_EDITOR
+            , in ASMEntityGUID guiddbg
+#endif
+            ) =>
+        {
+            if (ri_db.Length == 1 && ri_db[0].item_count > ((rdt_db.Length == 0) ? 0 : ASMConstants.Router2TargetItemReserve))
+            {
+                direct_transport_input_box_shared_v3(transports, ri_db, ref oa, ref cbe);
+            }
+            //direct_transport_input_router_shared(transports, ri_db, ref oa, ref cbe, (rdt_db.Length == 0) ? 0 : ASMConstants.Router2TargetItemReserve);
+
+        }).Run();
+
+        // boxes and logistations
+        Entities.WithSharedComponentFilter(sg).WithNone<RouterCollectTarget>().ForEach((DynamicBuffer<MachineDirectTransportTarget> transports, DynamicBuffer<RouterInventory> ri_db
+            , ref OutputAlternate oa, ref ClientBeltEvent cbe
+#if UNITY_EDITOR
+            , in ASMEntityGUID guiddbg
+#endif
+            ) =>
+        {
+            direct_transport_input_box_shared_v3(transports, ri_db, ref oa, ref cbe);
+
+        }).Run();
+    }
+    #endregion
+    #region LongDistanceTransport
+    public void transport_updates_server(SimulationGroup sg)
+    {
+        long timestamp = SGFTime.GetTimeStamp();
+        //long remove_before = timestamp - 3600 * 6;
+        //Entities.ForEach((DynamicBuffer<TransportRecord> records) =>
+        //{
+        //    for(int i = 0; i < records.Length; ++i)
+        //    {
+        //        if (records[i].timestamp > remove_before)
+        //        {
+        //            if (i > 0)
+        //            {
+        //                records.RemoveRange(0, i);
+        //            }
+        //            break;
+        //        }
+        //    }
+        //}).Run();
+        var ecb = new EntityCommandBuffer(Allocator.TempJob);
+        var ri_dict = GetBufferLookup<RouterInventory>();
+        var ls_dict = GetComponentLookup<LogisticsStates>();
+        var rs_dict = GetComponentLookup<RouterStates>();
+        var guids_dict = GetComponentLookup<ASMEntityGUID>();
+        var pid_dict = GetComponentLookup<PlayerID_CD>();
+        var guids2entities = MapGridSystem.self.server_wc.guid2entities;
+        var fixed16_list = MapGridSystem.self.fixed_sync16_list;
+        var uid2players = MapGridSystem.self.server_wc.uid2player_entity;
+        var tra_dict = GetBufferLookup<TransportRecordAggregate>();
+        //var tr_dict = GetBufferLookup<TransportRecord>();
+        var remove_entities = new NativeList<Entity>(Allocator.TempJob);
+
+        var for_dict = GetBufferLookup<FlightOutgoingRef>();
+        var fir_dict = GetBufferLookup<FlightIncRef>();
+        //var fc_dict = GetBufferLookup<FlightCooldown>();
+        var tlogs = MapGridSystem.self.server_wc.transport_logs;
+        Entities.WithSharedComponentFilter(sg).ForEach((Entity entity, DynamicBuffer<RouterInventory> transport_ri_db, ref LogisticsDispatchStates ldstates, in ASMEntityGUID guid, in PlayerID_CD origin_pid) =>
+        {
+            if (ldstates.trip_type == 0)
+            {
+                ldstates.elapsed++;
+                if (ldstates.elapsed >= ldstates.total)
+                {
+                    // arrival
+                    var target_ri_db = ri_dict[ldstates.target];
+                    var target_ri = target_ri_db[0];
+                    ushort amount2transfer = transport_ri_db[0].item_count;
+                    var target_can_take = math.max(0, rs_dict[ldstates.target].get_nonbase_limit() - target_ri.item_count); // logistics tower
+                    amount2transfer = (ushort)math.min(target_can_take, amount2transfer);
+                    target_ri.item_count += amount2transfer;
+                    target_ri_db[0] = target_ri;
+
+                    var transport_ri = transport_ri_db[0];
+                    transport_ri.item_count -= amount2transfer;
+                    transport_ri_db[0] = transport_ri;
+
+                    ldstates.elapsed = 0;
+                    ldstates.trip_type = 1;
+
+                    var ls_target = ls_dict[ldstates.target];
+                    ls_target.adjustment -= amount2transfer;
+                    ls_dict[ldstates.target] = ls_target;
+
+                    {
+                        var target_pid = pid_dict[ldstates.target].value;
+                        Entity player_entity;
+
+                        #region universal_transport_logging
+                        var trr = new TransportRecordRaw();
+                        trr.itemtype = target_ri.item_type;
+                        trr.itemcount = amount2transfer;
+                        trr.timestamp = timestamp;
+                        #endregion
+
+                        if (target_pid == origin_pid.value)
+                        {
+                            // only track the receive record
+
+                            if (uid2players.TryGetValue(origin_pid.value, out player_entity))
+                            {
+                                // record keeping
+                                #region universal_transport_logging
+                                trr.type = TransportRecordTypes.delivered_from_self;
+                                trr.pid_or_gzone_name_index = 0;//to do!
+                                if (tlogs.TryGetValue(origin_pid.value, out PlayerTransportLog logs))
+                                {
+                                    logs.add(trr);
+                                    tlogs[origin_pid.value] = logs;
+                                }
+                                else
+                                {
+                                    var ptl = new PlayerTransportLog();
+                                    ptl.init();
+                                    ptl.add(trr);
+                                    tlogs.Add(origin_pid.value, ptl);
+                                }
+                                #endregion
+
+                                //var tr_origin = tr_dict[player_entity];
+                                var new_record = new TransportRecord();
+                                new_record.timestamp = timestamp;
+                                new_record.itemtype = target_ri.item_type;
+                                new_record.itemcount = amount2transfer;
+                                new_record.type = 0;
+                                //tr_origin.Add(new_record);
+                                ecb.AppendToBuffer(player_entity, new_record);
+
+                                var tra_db = tra_dict[player_entity];
+                                //if (tra_db.Length != (int)ItemType.Total)
+                                //{
+                                //    tra_db.Clear();
+                                //    for (int i = 0; i < (int)ItemType.Total; ++i)
+                                //    {
+                                //        tra_db.Add(default);
+                                //    }
+                                //}
+                                var tra_tmp = tra_db[target_ri.item_type];
+                                tra_tmp.itemcount_self += amount2transfer;
+                                tra_db[target_ri.item_type] = tra_tmp;
+                            }
+                        }
+                        else
+                        {
+                            
+
+                            var new_record = new TransportRecord();
+                            new_record.timestamp = timestamp;
+                            new_record.itemtype = target_ri.item_type;
+                            new_record.itemcount = amount2transfer;
+                            new_record.type = 2;
+                            if (uid2players.TryGetValue(origin_pid.value, out player_entity))
+                            {
+                                #region universal_transport_logging
+                                trr.type = TransportRecordTypes.delivered_to_guild;
+                                trr.pid_or_gzone_name_index = origin_pid.value;
+                                if (tlogs.TryGetValue(origin_pid.value, out PlayerTransportLog logs))
+                                {
+                                    logs.add(trr);
+                                    tlogs[origin_pid.value] = logs;
+                                }
+                                else
+                                {
+                                    var ptl = new PlayerTransportLog();
+                                    ptl.init();
+                                    ptl.add(trr);
+                                    tlogs.Add(origin_pid.value, ptl);
+                                }
+                                #endregion
+
+                                ecb.AppendToBuffer(player_entity, new_record);
+
+                                var tra_db = tra_dict[player_entity];
+                                if (tra_db.Length != (int)ItemType.Total)
+                                {
+                                    tra_db.Clear();
+                                    for (int i = 0; i < (int)ItemType.Total; ++i)
+                                    {
+                                        tra_db.Add(default);
+                                    }
+                                }
+                                var tra_tmp = tra_db[target_ri.item_type];
+                                tra_tmp.itemcount_outgoing += amount2transfer;
+                                tra_db[target_ri.item_type] = tra_tmp;
+                            }
+                            
+                            if (uid2players.TryGetValue(target_pid, out player_entity))
+                            {
+                                #region universal_transport_logging
+                                trr.type = TransportRecordTypes.delivered_from_guild;
+                                trr.pid_or_gzone_name_index = origin_pid.value;
+                                if (tlogs.TryGetValue(target_pid, out PlayerTransportLog logs))
+                                {
+                                    logs.add(trr);
+                                    tlogs[origin_pid.value] = logs;
+                                }
+                                else
+                                {
+                                    var ptl = new PlayerTransportLog();
+                                    ptl.init();
+                                    ptl.add(trr);
+                                    tlogs.Add(target_pid, ptl);
+                                }
+                                #endregion
+
+                                //var tr_origin = tr_dict[player_entity];
+                                new_record.type = 1;
+                                //tr_origin.Add(new_record);
+                                ecb.AppendToBuffer(player_entity, new_record);
+
+                                var tra_db = tra_dict[player_entity];
+                                if (tra_db.Length != (int)ItemType.Total)
+                                {
+                                    tra_db.Clear();
+                                    for(int i = 0; i < (int)ItemType.Total; ++i)
+                                    {
+                                        tra_db.Add(default);
+                                    }
+                                }
+                                var tra_tmp = tra_db[target_ri.item_type];
+                                tra_tmp.itemcount_guild += amount2transfer;
+                                tra_db[target_ri.item_type] = tra_tmp;
+                            }
+                        }
+                    }
+
+                    //var target_fir_db = fir_dict[ldstates.target];
+                    //FlightIncRef.remove(target_fir_db, entity);
+                    if (ri_dict.HasBuffer(ldstates.source))
+                    {
+
+                        //var source_for_db = for_dict[ldstates.source];
+                        //source_for_db.Add(new FlightOutgoingRef() { value = entity });
+
+                        //scmd.set_transport_behavior(pid.value, guid.value, TransportBehaviorTypes.Deposit, target_ri[0].item_count);
+                        //sc.Add(scmd);
+                        var fixed16 = new FixedLengthSync16();
+                        fixed16.command = FixedLengthSyncCommandTypes.Transport_Behavior;
+                        fixed16.pid = origin_pid.value;
+                        fixed16.guid = guid.value;
+                        fixed16.subtype0 = (byte)TransportBehaviorTypes.Deposit;
+                        fixed16.ushort0 = transport_ri.item_count;
+                        fixed16.ushort1 = target_ri.item_count;
+                        fixed16_list.Add(fixed16);
+
+                        fixed16.pid = pid_dict[ldstates.target].value;
+                        if (fixed16.pid != origin_pid.value)
+                            fixed16_list.Add(fixed16);
+                    }
+                    else
+                    {
+                        ecb.DestroyEntity(entity);
+                        guids2entities.Remove(guid.value);
+
+                        // the source is already removed
+                        //scmd.set_transport_behavior(pid.value, guid.value, TransportBehaviorTypes.Terminate, 0);
+                        //sc.Add(scmd);
+
+                        var fixed16 = new FixedLengthSync16();
+                        fixed16.command = FixedLengthSyncCommandTypes.Transport_Behavior;
+                        fixed16.pid = origin_pid.value;
+                        fixed16.guid = guid.value;
+                        fixed16.subtype0 = (byte)TransportBehaviorTypes.Terminate;
+                        fixed16.ushort1 = 0;
+                        fixed16_list.Add(fixed16);
+                    }
+                }
+            }
+            else if (ldstates.trip_type == 1)
+            {
+                // returning home
+                ldstates.elapsed++;
+                if (ldstates.elapsed >= ldstates.total)
+                {
+                    ecb.DestroyEntity(entity);
+                    guids2entities.Remove(guid.value);
+                    remove_entities.Add(entity);
+                    ecb.AppendToBuffer(ldstates.source, new FlightCooldown() { value = ASMConstants.flight_cooldown });
+
+                    if (fir_dict.HasBuffer(ldstates.target))
+                    {
+                        var target_fir_db = fir_dict[ldstates.target];
+                        FlightIncRef.remove(target_fir_db, entity);
+                    }
+
+                    var source_for_db = for_dict[ldstates.source];
+                    FlightOutgoingRef.remove(source_for_db, entity);
+
+                    var source_lt_ri_db = ri_dict[ldstates.source];
+                    var fl_cmd = new FixedLengthSync16();
+                    if (source_lt_ri_db.Length == 1 && transport_ri_db[0].item_type == source_lt_ri_db[0].item_type)
+                    {
+                        var source_lt_ri = source_lt_ri_db[0];
+                        //target_ri.item_count += ri_db[0].item_count;
+                        //target_ri_db[0] = target_ri;
+
+                        ushort amount2transfer = transport_ri_db[0].item_count;
+                        var target_can_take = math.max(0, rs_dict[ldstates.source].get_nonbase_limit() - source_lt_ri.item_count); // logistics tower
+                        amount2transfer = (ushort)math.min(target_can_take, amount2transfer);
+                        source_lt_ri.item_count += amount2transfer;
+                        source_lt_ri_db[0] = source_lt_ri;
+
+                        fl_cmd.ushort0 = source_lt_ri.item_type;
+                        fl_cmd.ushort1 = source_lt_ri.item_count;
+                    }
+                    else
+                    {
+                        // source l-tower has changed its recipe.
+
+                    }
+                    transport_ri_db.Clear();
+
+                    fl_cmd.guid = guid.value;
+                    fl_cmd.pid = origin_pid.value;
+                    fl_cmd.command = FixedLengthSyncCommandTypes.Transport_Behavior;
+                    fl_cmd.subtype0 = (byte)TransportBehaviorTypes.Home;
+
+                    fl_cmd.guid2 = guids_dict[ldstates.source].value;
+                    fixed16_list.Add(fl_cmd);
+
+                    if (pid_dict.HasComponent(ldstates.target))
+                    {
+                        fl_cmd.pid = pid_dict[ldstates.target].value;
+                        if (fl_cmd.pid != origin_pid.value)
+                            fixed16_list.Add(fl_cmd);
+                    }
+                }
+            }
+        }).Run();
+
+        for (int i = 0; i < remove_entities.Length; i++)
+        {
+            var ldstates = EntityManager.GetComponentData<LogisticsDispatchStates>(remove_entities[i]);
+
+            int source_pid = 0;
+            int target_pid = 0;
+            if (EntityManager.HasComponent<PlayerID_CD>(ldstates.source))
+            {
+                source_pid = EntityManager.GetComponentData<PlayerID_CD>(ldstates.source).value;
+                var player_entity = MapGridSystem.self.server_wc.GetPlayerEntityByUID(source_pid);
+                var tp_db = EntityManager.GetBuffer<TransporterRef>(player_entity);
+                TransporterRef.remove(tp_db, remove_entities[i]);
+            }
+            else
+            {
+                Debug.Log("<color=red>transport_updates_server: remove transport ldstates.source is invalid</color>");
+            }
+
+            if (EntityManager.HasComponent<PlayerID_CD>(ldstates.target))
+            {
+                target_pid = EntityManager.GetComponentData<PlayerID_CD>(ldstates.target).value;
+                if (source_pid != target_pid)
+                {
+                    var player_entity = MapGridSystem.self.server_wc.GetPlayerEntityByUID(target_pid);
+                    var tp_db = EntityManager.GetBuffer<TransporterRef>(player_entity);
+                    TransporterRef.remove(tp_db, remove_entities[i]);
+                }
+            }
+            else
+            {
+                Debug.Log("<color=red>transport_updates_server: remove transport ldstates.target is invalid</color>");
+            }
+        }
+        remove_entities.Dispose();
+
+        ecb.Playback(EntityManager);
+        ecb.Dispose();
+
+
+
+    }
+
+    public void transport_updates_client(SimulationGroup sg)
+    {
+        var dt = World.Time.DeltaTime;
+        var player_pid = ClientWorldMono.self.uid;
+        var ecb = new EntityCommandBuffer(Allocator.TempJob);
+        
+        var self_viewing = ClientWorldMono.self.is_viewing_self;
+        var trs_dict = GetComponentLookup<LocalTransform>();
+
+        var transport_drone = ResourceRefs.self.entity_meshes[(int)PrefabMesh2Index.transport_drone];
+        Entities.WithSharedComponentFilter(sg).ForEach((Entity entity, DynamicBuffer<MachineAnimationEntityRef> maer_db, DynamicBuffer<FlightCooldown> fcooldowns, in LogisticsStates lstates, in MeshGORef mesh) =>
+        {
+            bool visible = false;
+            if (trs_dict.HasComponent(mesh.visual_entity) == false) return;
+
+            var default_c0 = trs_dict[mesh.visual_entity];
+            if(fcooldowns.Length > 0 || lstates.transporter_count == 1)
+            {
+                visible = true;
+            }
+            
+            if(visible && maer_db.Length == 0)
+            {
+                var new_transport_entity = ecb.Instantiate(transport_drone);
+                //var new_ref = new MachineAnimationEntityRef() { value = new_transport_entity };
+                //maer_db.Add(new_ref);
+                ecb.AddComponent(new_transport_entity, new CB_Assignment() { owner_entity = entity });
+                ecb.SetComponent(new_transport_entity, TransportAnimationCurve.starting_c0(default_c0));
+                {
+                    //var tm = TransportAnimationCurve.starting_c0(default_c0);
+                    //Debug.DrawLine(tm.Position, tm.Position + tm.Forward(), Color.green, 15f);
+                }
+            }
+            else if (visible == false && maer_db.Length > 0)
+            {
+                for (int i = 0; i < maer_db.Length; ++i)
+                {
+                    ecb.DestroyEntity(maer_db[i].value);
+                }
+                maer_db.Clear();
+            }
+        }).Run();
+
+        ecb.Playback(EntityManager);
+        ecb.Dispose();
+
+        Entities.ForEach((Entity entity, ref LogTowerSignalPulse ltsp) =>
+        {
+            ltsp.value -= dt;
+        }).Run();
+
+        // foreaching on transport drones, signaling target ltower to flash.
+        var ltsp_dict = GetComponentLookup<LogTowerSignalPulse>();
+        var maer_dict = GetBufferLookup<MachineAnimationEntityRef>();
+        var mesh_dict = GetComponentLookup<MeshGORef>();
+        Entities.WithAll<ColliderRef>().ForEach((Entity entity, in LogisticsDispatchStates ldstates) =>
+        {
+            if(ldstates.trip_type == 0)
+            {
+                if(mesh_dict.HasComponent(ldstates.target))
+                {
+                    var tower_mesh = mesh_dict[ldstates.target].visual_entity;
+                    if (maer_dict.HasBuffer(tower_mesh))
+                    {
+                        var db2 = maer_dict[tower_mesh];
+                        if(db2.Length > 1)
+                        {
+                            var ltsp = ltsp_dict[db2[1].value];
+                            ltsp.value = 2f;
+                            ltsp_dict[db2[1].value] = ltsp;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (mesh_dict.HasComponent(ldstates.source))
+                {
+                    var tower_mesh = mesh_dict[ldstates.source].visual_entity;
+                    if (maer_dict.HasBuffer(tower_mesh))
+                    {
+                        var db2 = maer_dict[tower_mesh];
+                        if (db2.Length > 1)
+                        {
+                            var ltsp = ltsp_dict[db2[1].value];
+                            ltsp.value = 2f;
+                            ltsp_dict[db2[1].value] = ltsp;
+                        }
+                    }
+                }
+            }
+        }).Run();
+     
+
+        var maer_array = GetBufferLookup<MachineAnimationEntityRef>();
+        Entities.ForEach((Entity entity, in CB_Assignment assignment) =>
+        {
+            var tmp = maer_array[assignment.owner_entity];
+            tmp.Add(new MachineAnimationEntityRef() { value = entity });
+        }).Run();
+        Statics.RemoveComponentByType<CB_Assignment>(EntityManager);
+
+        ecb = new EntityCommandBuffer(Allocator.TempJob);
+        var c0_dict = GetComponentLookup<LocalTransform>();
+        Entities.WithSharedComponentFilter(sg).ForEach((Entity entity, DynamicBuffer<TransportAnimationCurve> curves, ref TransportAnimationStates tas, ref LogisticsDispatchStates ldstates, in MeshGORef meshref) =>
+        {
+            tas.elapsed += dt;
+            bool deposit_frame = false;
+            if(tas.elapsed >= tas.total && ldstates.trip_type == 0)
+            {
+                deposit_frame = true;
+            }
+            tas.elapsed = math.clamp(tas.elapsed, 0f, tas.total);
+
+            if (self_viewing == false) return;
+            // rotation lerp
+            const float rotation_period = 2f;
+            var rot_elapsed = math.clamp(tas.elapsed, 0f, rotation_period);
+            bool visible = false;
+            
+            for (int i = 0; i < curves.Length; ++i)
+            {
+                var curve = curves[i];
+
+                //if (tas.elapsed >= curve.phase_start && tas.elapsed <= curve.phase_start + curve.phase_duration && ldstates.trip_type == curve.trip)
+                {
+                    //var t = (tas.elapsed - curve.phase_start) / curve.phase_duration;
+                    //var position = SpaceViewCameraRail.BezierPoint_f3(curve.start, curve.c0, curve.c1, curve.end, t);
+                    if (curve.eval(tas.elapsed, ldstates.trip_type, out var position, out var target_rot, out var dir))
+                    {
+                        var visual = Entity.Null;
+                        var rot = target_rot;
+                        if (c0_dict.HasComponent(meshref.visual_entity) == false)
+                        {
+                            visual = ecb.Instantiate(transport_drone);
+                            ecb.AddComponent(visual, new CB_Assignment() { owner_entity = entity });
+                            if (curve.trip == 0)
+                            {
+                                //LocalTransform lt_c0 = c0_dict[ldstates.source];
+                                if (curve.phase_start < float.Epsilon)
+                                {
+                                    if (c0_dict.HasComponent(ldstates.source))
+                                    {
+                                        var lt_c0 = c0_dict[ldstates.source];
+                                        lt_c0 = TransportAnimationCurve.starting_c0(lt_c0);
+                                        rot = lt_c0.Rotation;
+                                    }
+                                }
+                                else
+                                {
+                                    
+                                    //if (c0_dict.HasComponent(ldstates.target))
+                                    //{
+                                    //    lt_c0 = c0_dict[ldstates.source];
+                                    //    lt_c0 = TransportAnimationCurve.starting_c0(lt_c0);
+
+                                    //}
+
+                                }
+                            }
+                            //var dir0 = math.mul(rot, new float3(0f, 0f, 1f));
+                            //Debug.DrawLine(position, position + dir0, Color.green, 5f);
+
+                            //dir0 = math.mul(target_rot, new float3(0f, 0f, 1f));
+                            //Debug.DrawLine(position, position + dir0, Color.red, 5f);
+                        }
+                        else
+                        {
+                            visual = meshref.visual_entity;
+                            var c0_tmp = c0_dict[visual];
+                            rot = c0_tmp.Rotation;
+                        }
+                        //if(c0_dict.HasComponent(ldstates.target))
+                        //{
+                        //    var c0_dict[ldstates.target]
+                        //}
+
+                        //Debug.DrawLine(position, position + tas.dir, Color.green);
+
+                        //quaternion target_rot = quaternion.LookRotation(tas.dir, new float3(0f, 1f, 0f));
+                        var frame_rot = Quaternion.RotateTowards(rot, target_rot, 360f / rotation_period * dt);//rot_elapsed / rotation_period);
+                        //var frame_rot = target_rot;
+
+                        ecb.SetComponent(visual, LocalTransform.FromPositionRotation(position, frame_rot));
+
+                        visible = true;
+                        break;
+                    }
+
+                    
+                }
+            }
+            if(deposit_frame)
+            {
+                tas.elapsed = 0f;
+                ldstates.trip_type = 1;
+                ldstates.elapsed = 0;
+            }
+            if(visible == false)
+            {
+                if (c0_dict.HasComponent(meshref.visual_entity))
+                {
+
+                    c0_dict[meshref.visual_entity] = LocalTransform.FromPositionRotation(new float3(0f, 99999f, 0f), quaternion.identity);
+                }
+            }
+        }).Run();
+        ecb.Playback(EntityManager);
+        ecb.Dispose();
+
+        var mesh_ref_array = GetComponentLookup<MeshGORef>();
+        Entities.ForEach((Entity entity, in CB_Assignment assignment) =>
+        {
+            mesh_ref_array[assignment.owner_entity] = new MeshGORef() { visual_entity = entity };
+        }).Run();
+        Statics.RemoveComponentByType<CB_Assignment>(EntityManager);
+    }
+    #endregion
+
+    #region Research
+    [BurstCompile]
+    public struct extractor_refresh_job : IJob
+    {
+        public NativeArray<Entity> targets;
+        public short cycle_duration; // ASMConstants.ExtractorEfficiency[idx1];
+        public short cycle_batch_count;
+        public ComponentLookup<ExtractorProductionStates> eps_dict;
+        public ComponentLookup<GalacticType> gt_dict;
+        public void Execute()
+        {
+            for (int i = 0; i < targets.Length; ++i)
+            {
+                var target = targets[i];
+                if (gt_dict.HasComponent(target) && eps_dict.HasComponent(target))
+                {
+                    var target_gtype = gt_dict[target].value;
+                    if (target_gtype == GTypes.Extractor)
+                    {
+                        var prod_states = eps_dict[target];
+                        prod_states.total = cycle_duration;
+                        prod_states.batch_count = (byte)cycle_batch_count;
+                        eps_dict[target] = prod_states;
+                    }
+                }
+            }
+        }
+    }
+
+    //[BurstDiscard]
+    public struct assembler_refresh_job : IJob
+    {
+        public NativeArray<Entity> targets;
+        public byte new_level;
+        //public ComponentLookup<ass> eps_dict;
+        public ComponentLookup<GalacticType> gt_dict;
+        public void Execute()
+        {
+            for (int i = 0; i < targets.Length; ++i)
+            {
+                var target = targets[i];
+                if (gt_dict.HasComponent(target)/* && eps_dict.HasComponent(target)*/)
+                {
+                    var target_gtype = gt_dict[target];
+                    if (target_gtype.value == GTypes.Assembler)
+                    {
+                        target_gtype.set_machine_level(new_level);
+                        gt_dict[target] = target_gtype;
+                        ServerMapTest.machine_recipe_data_reset(target);
+                    }
+                }
+            }
+        }
+    }
+    #endregion
+    #region season_feature
+
+    public static bool rocket_launch_nosc(ref AssemblerTimeLeft asm_timeleft, ref AssemblerInputInventory aii,
+            ref MachineOutputInventory output_inv,
+       ref CachedWorkingStates working_state)
+    {
+        bool ret = false;
+        if (asm_timeleft.value == 0)
+        {
+            if (aii.can_start() && output_inv.IsFull(ASMConstants.LauncherOutputInventoryItemLimit) == false)
+            {
+                //cws.value = 1;
+                aii.consume();
+                asm_timeleft.value = aii.recipe.max_time;
+                ret = true;
+            }
+            else
+            {
+                //cws.value = 0;
+            }
+        }
+        if (asm_timeleft.value <= 1)
+        {
+            if (aii.can_start())
+            {
+                aii.consume();
+                asm_timeleft.value = aii.recipe.max_time;
+                ret = true;
+            }
+            else
+            {
+                asm_timeleft.value = 0;
+            }
+        }
+        else
+        {
+            asm_timeleft.value--;
+        }
+        return ret;
+    }
+
+    #endregion
+
+    [BurstCompile]
+    public struct router_refresh_job_legacy : IJob // needs to be reimplemented for router upgrades
+    {
+        public NativeArray<Entity> targets;
+        public GTypes gtype;
+        public byte router_storage_tech_index;
+        public byte router_transport_tech_index;
+        public ComponentLookup<RouterStates> rs_dict;
+        public ComponentLookup<GalacticType> gt_dict;
+        public void Execute()
+        {
+            for (int i = 0; i < targets.Length; ++i)
+            {
+                var target = targets[i];
+                if (gt_dict.HasComponent(target) && rs_dict.HasComponent(target))
+                {
+                    var target_gtype = gt_dict[target].value;
+                    if (target_gtype == gtype)
+                    {
+                        var rs = rs_dict[target];
+                        if (rs.is_playerbase() == false)
+                        {
+                            rs.set_router_storage_level(router_storage_tech_index); // no need to maintain
+                            rs.set_transport_throughput_level(router_transport_tech_index); // no need to maintain
+                            rs_dict[target] = rs;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public struct find_machines_by_powergrid : IJob
+    {
+
+        public void Execute()
+        {
+        }
+    }
+    //TOFIX Do not use broadcast_grid to find extractor
+    public void extractor_refresh_from_research(WorldContext wc, Entity player_entity, TechnologyResearchStates trs)
+    {
+        //var guid2player = MapGridSystem.self.server_wc.uid2player_entity;
+        //var owner_pid = 
+        //Entities.WithNone<ColliderRef>().ForEach((Entity entity, ref ExtractorProductionStates prod_states, in PlayerID_CD pid) =>
+        //{
+        //    if (owner_pid == pid.value)
+        //    {
+        //        prod_states.total = ASMConstants.ExtractorEfficiency[idx1];
+        //    }
+        //}).Run();
+        var idx1 = trs.get_tech_level_4(Technologies.ExtractorEfficiency_1, Technologies.ExtractorEfficiency_2, 0, 0);
+        var pid = EntityManager.GetComponentData<PlayerID_CD>(player_entity).value;
+        if (wc.broadcast_grid.TryGetValue(pid, out UnsafeParallelMultiHashMap<int2, Entity> out_map))
+        {
+            var job = new extractor_refresh_job();
+            job.cycle_duration = ASMConstants.ExtractorCycleDuration[idx1]; // okay
+            job.cycle_batch_count = ASMConstants.ExtractorBatchCount[idx1];
+            job.eps_dict = GetComponentLookup<ExtractorProductionStates>();
+            job.gt_dict = GetComponentLookup<GalacticType>();
+            job.targets = out_map.GetValueArray(Allocator.TempJob);
+            job.Run();
+
+            TileToGridSystem.self.chip_calc_multiple(job.targets, wc);
+            job.targets.Dispose();
+        }
+    }
+
+    // legacy
+    public void router_refresh_from_research(WorldContext wc, Entity player_entity, GTypes gtype, TechnologyResearchStates trs)
+    {
+        //var guid2player = MapGridSystem.self.server_wc.uid2player_entity;
+        var router_storage_tech_index = trs.get_tech_level_4(Technologies.RouterStorage_1, Technologies.RouterStorage_2, 0, 0);
+        var router_transport_tech_index = trs.get_tech_level_4(Technologies.RouterTransport_1, Technologies.RouterTransport_2, 0, 0);
+        //Entities.WithNone<ColliderRef>().WithAll<RouterCollectTarget>().ForEach((Entity entity, ref RouterStates rs, in PlayerID_CD pid) =>
+        //{
+        //    //if (guid2player.TryGetValue(pid.value, out Entity extractor_owner) && extractor_owner == player_entity)
+        //    if (owner_pid == pid.value)
+        //    {
+        //        //if(rs.is_playerbase() == false)  WithAll<RouterCollectTarget>() exclujdes player base.
+        //        rs.set_router_storage_level(router_storage_tech_index);
+        //        //rs.set_transport_throughput_level(router_transport_tech_index);
+        //    }
+
+        //}).Run();
+
+        //var eqdesc = new EntityQueryDesc()
+        //{
+        //    All = new ComponentType[] { typeof(RouterStates), typeof(RouterCollectTarget) },
+        //    None = new ComponentType[] { typeof(ColliderRef) },
+        //};
+        //var target_query = EntityManager.CreateEntityQuery(eqdesc);
+        var pid = EntityManager.GetComponentData<PlayerID_CD>(player_entity).value;
+        if (wc.broadcast_grid.TryGetValue(pid, out UnsafeParallelMultiHashMap<int2, Entity> out_map))
+        {
+            var job = new router_refresh_job_legacy();
+            job.gtype = gtype;
+            job.router_storage_tech_index = router_storage_tech_index;
+            job.router_transport_tech_index = router_transport_tech_index;
+            job.rs_dict = GetComponentLookup<RouterStates>();
+            job.gt_dict = GetComponentLookup<GalacticType>();
+            job.targets = out_map.GetValueArray(Allocator.TempJob);
+            job.Run();
+
+            job.targets.Dispose();
+        }
+    }
+
+    protected override void OnCreate()
+    {
+        base.OnCreate();
+        Enabled = false; // not meant to run
+
+    }
+    protected override void OnUpdate()
+    {
+    }
+}
+
+public struct ClientBeltEvent : IComponentData
+{
+    public byte left_withdraw_at_end;
+    public byte left_insert_at_start;
+    public byte right_withdraw_at_end;
+    public byte right_insert_at_start;
+    public static bool has_event_at(byte event_data, int idx)
+    {
+        return ((event_data >> idx) & 0b1) > 0;
+    }
+    public void insert(int index, bool is_left)
+    {
+        //#if UNITY_EDITOR
+        //        var prev = insert_at_start;
+        //#endif
+        if (is_left)
+            left_insert_at_start = (byte)(left_insert_at_start | (1 << index));
+        else
+            right_insert_at_start = (byte)(right_insert_at_start | (1 << index));
+
+        //#if UNITY_EDITOR
+        //        if (prev == insert_at_start)
+        //        {
+        //            int sdf = 0;
+        //        }
+        //#endif
+    }
+
+    public void withdraw(int index, bool is_left)
+    {
+        //#if UNITY_EDITOR
+        //        var prev = withdraw_at_end;
+        //#endif
+        if (is_left)
+            left_withdraw_at_end = (byte)(left_withdraw_at_end | (1 << index));
+        else
+            right_withdraw_at_end = (byte)(right_withdraw_at_end | (1 << index));
+        //#if UNITY_EDITOR
+        //        if (prev == withdraw_at_end)
+        //        {
+        //            int sdf = 0;
+        //        }
+        //#endif
+    }
+
+
+    public void reset_all()
+    {
+        left_withdraw_at_end = left_insert_at_start = 0;
+        right_withdraw_at_end = right_insert_at_start = 0;
+    }
+}

@@ -1,0 +1,2227 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
+using UnityEngine;
+
+// contains to grid for assemblers and storage stations
+//[UpdateInGroup(typeof(FixedStepSimulationSystemGroup)), UpdateBefore(typeof(ServerCoreSystem))]
+[UpdateBefore(typeof(ServerCoreSystem))]
+public partial class TileToGridSystem : SystemBase
+{
+    public static TileToGridSystem self;
+    public NativeArray<int2> adjacent_hex_coords;
+    
+    public Entity occupier_prefab;
+    
+    protected override void OnCreate()
+    {
+        base.OnCreate();
+
+        self = this;
+
+
+        occupier_prefab = EntityManager.CreateEntity(new ComponentType[] {
+            typeof(LocalTransform),
+            typeof(DTCellOccupierStates),
+            typeof(PlayerID_CD),
+            typeof(Prefab)
+        });
+        var dtcos = new DTCellOccupierStates();
+        dtcos.init();
+        EntityManager.SetComponentData(occupier_prefab, dtcos);
+
+        adjacent_hex_coords = new NativeArray<int2>(new int2[] {
+        new int2(1, 0), // -> east
+        new int2(0, 1), // northeast
+        new int2(-1, 1), // northwest
+        new int2(-1, 0), // west
+        new int2(0, -1), // southwest
+        new int2(1, -1), // southeast
+
+        }, Allocator.Persistent);
+
+    }
+    // offset to straight direction index
+    public static int offset2dir_index(int2 offset)
+    {
+        if (offset.x < 0)
+        {
+            return (offset.y > 0) ? 2 : 3;
+        }
+        else if (offset.x == 0)
+        {
+            return (offset.y > 0) ? 1 : 4;
+        }
+        // x > 0
+        return (offset.y == 0) ? 0 : 5;
+    }
+    public static int hex_dir_mirror(int value)
+    {
+        return (value + 3) % 6;
+    }
+
+    public static int straight_offset2length(int2 offset)
+    {
+        offset = math.abs(offset);
+        return math.max(offset.x, offset.y);
+    }
+    public static bool straight_hex_check(int2 origin, int2 test_pos)
+    {
+        int2 diff = test_pos - origin;
+        for (int i = 0; i < 6; ++i)
+        {
+            int2 current = HexCoord.offsets(i);
+            if (current.x == 0)
+            {
+                if (diff.x == 0) return true;
+            }
+            if (current.y == 0)
+            {
+                if (diff.y == 0) return true;
+            }
+            if (diff.x + diff.y == 0)
+                return true;
+        }
+        return false;
+    }
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+
+        adjacent_hex_coords.Dispose();
+        //dupe_check.Dispose();
+    }
+
+    struct extractor_collect_target_job : IJob
+    {
+        public NativeHashSet<Entity> nhs_entities;
+        public ComponentLookup<MachineOutputInventory> moi_dict;
+        
+        public BufferLookup<ExtractorCoverTargetElement> extractor_targets_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public BufferLookup<ResourceNodeOutputStates> resources_dict;
+        public NativeHashMap<int3, Entity> grid;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        public void Execute()
+        {
+            var targets = nhs_entities.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < targets.Length; ++j)
+            {
+                var extractor_target = targets[j];
+                var inputs = extractor_targets_dict[extractor_target];
+                var moi = moi_dict[extractor_target];
+                
+                var c0 = c0_dict[extractor_target];
+                inputs.Clear();
+                int2 hex_coord = HexCoord.FromPosition(c0.Position);
+                //Debug.Log("extractor " + entity.ToString() + " test ");
+                //extractor_resource_test(entity, hex_coord, hexgrid_terrains, ref moi, inputs, resources_dict);
+                // get surrounding tiles.
+                for (int i = 0; i < 6; ++i)
+                {
+                    var hex = hex_coord + HexCoord.offsets(i);
+                    //extractor_resource_test(entity, hex, hexgrid_terrains, ref moi, inputs, resources_dict);
+                    if (grid.TryGetValue(new int3(hex.x, pid_dict[extractor_target].value, hex.y), out Entity adj_entity))
+                    {
+                        //Debug.Log("extractor " + entity.ToString() + " 1 " + adj_entity.ToString());
+                        // can it be an output for the extractor.
+                        if (resources_dict.HasBuffer(adj_entity))
+                        {
+                            //Debug.Log("extractor " + entity.ToString() + " almost " + adj_entity.ToString());
+                            var resource_states = resources_dict[adj_entity];
+                            if (resource_states.Length != 1) continue;
+                            //if ((int)resource_states[0].item_type == moi.item_type)
+                            if (moi.item_type == 0)
+                            {
+                                moi.item_type = (ushort)resource_states[0].item_type;
+                                inputs.Add(new ExtractorCoverTargetElement() { value = adj_entity });
+                            }
+                            else if (moi.item_type == (int)resource_states[0].item_type)
+                            {
+                                inputs.Add(new ExtractorCoverTargetElement() { value = adj_entity });
+                            }
+
+
+                            //Debug.Log("extractor " + entity.ToString() + " gets " + adj_entity.ToString());
+                        }
+                    }
+                }
+                moi_dict[extractor_target] = moi;
+            }
+        }
+    }
+    // only run after the normal resource node collection job.
+    struct extractor_collect_gzone_target_job : IJob
+    {
+        public NativeHashSet<Entity> nhs_entities;
+        public ComponentLookup<MachineOutputInventory> moi_dict;
+
+        public BufferLookup<ExtractorCoverTargetElement> extractor_targets_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public BufferLookup<ResourceNodeOutputStates> resources_dict;
+        //public NativeHashMap<int3, Entity> grid;
+        public NativeHashMap<int, Entity> pid2players;
+        public BufferLookup<GZoneOwnedRef> gzor_lookup;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        public ComponentLookup<GZoneStates> gzonestates_dict;
+        public void Execute()
+        {
+            var targets = nhs_entities.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < targets.Length; ++j)
+            {
+                var extractor_target = targets[j];
+                var inputs = extractor_targets_dict[extractor_target];
+                var moi = moi_dict[extractor_target];
+
+                var c0 = c0_dict[extractor_target];
+                int2 hex_coord = HexCoord.FromPosition(c0.Position);
+                var player_id = pid_dict[extractor_target].value;
+                if (pid2players.TryGetValue(player_id, out Entity player_entity) == false) continue;
+                if (gzor_lookup.HasBuffer(player_entity) == false) continue;
+                var pzr_na = gzor_lookup[player_entity].ToNativeArray(Allocator.Temp);
+                var gzone_idx = PlayerOwnedRegionTest.get_gzone_index_by_axial(hex_coord, pzr_na, c0_dict, gzonestates_dict);
+                if (gzone_idx < 0) continue;
+                var gzone_entity = pzr_na[gzone_idx].value;
+                if (resources_dict.HasBuffer(gzone_entity))
+                {
+                    //Debug.Log("extractor " + entity.ToString() + " almost " + adj_entity.ToString());
+                    var resource_states = resources_dict[gzone_entity];
+                    if (resource_states.Length != 1) continue;
+                    //if ((int)resource_states[0].item_type == moi.item_type)
+                    if (moi.item_type == 0)
+                    {
+                        moi.item_type = (ushort)resource_states[0].item_type;
+                        inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                        inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                        inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                        inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                        inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                        inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                    }
+                    //else if (moi.item_type == (int)resource_states[0].item_type)
+                    //{
+                    //    inputs.Add(new ExtractorCoverTargetElement() { value = gzone_entity });
+                    //}
+
+                    moi_dict[extractor_target] = moi;
+                    Debug.Log("extractor gets gzone " + gzone_entity.ToString() + ", itemtype: " + ((ItemType)moi.item_type).ToString());
+                }
+            }
+        }
+    }
+    public void extractor_resource_node_pass(WorldContext wc)
+    {
+        var job = new extractor_collect_target_job();
+        job.nhs_entities = wc.extractor2grid;
+        job.grid = wc.hexgrid_terrains;
+        job.extractor_targets_dict = GetBufferLookup<ExtractorCoverTargetElement>();
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+        job.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job.moi_dict = GetComponentLookup<MachineOutputInventory>();
+        job.resources_dict = GetBufferLookup<ResourceNodeOutputStates>();
+        job.Run();
+
+        var job2 = new extractor_collect_gzone_target_job();
+        job2.nhs_entities = wc.extractor2grid;
+        job2.extractor_targets_dict = GetBufferLookup<ExtractorCoverTargetElement>();
+        job2.c0_dict = GetComponentLookup<LocalTransform>();
+        job2.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job2.moi_dict = GetComponentLookup<MachineOutputInventory>();
+        job2.resources_dict = GetBufferLookup<ResourceNodeOutputStates>();
+        job2.pid2players = wc.uid2player_entity;
+        job2.gzonestates_dict = GetComponentLookup<GZoneStates>();
+        job2.gzor_lookup = GetBufferLookup<GZoneOwnedRef>();
+        job2.Run();
+
+        if (wc.SG.IsClient || wc.SG.IsPlanned)
+        {
+            GalacticRenderUpdateSystem.self.extractor_arms(false);
+            GalacticRenderUpdateSystem.self.extractor_animations_update_c0();
+        }
+    }
+
+    public static bool dttarget_test(ComponentLookup<DTCellOccupierStates> dtcos_dict,
+        ComponentLookup<ObstacleGroupTag> ob_dict,
+        ComponentLookup<ResourceNodeRemaining> rnr_dict, 
+        NativeHashMap<int3, Entity> machine_grid, 
+        NativeHashMap<int3, Entity> terrain_grid, 
+        int3 host_axial, int3 target_axial, bool right_first)
+    {
+        NativeList<int4> path_info = new NativeList<int4>(Allocator.Temp);
+        test_direct_transport.generate_hex_axials_dirs_along_beltpath(IVH.toint2(host_axial), IVH.toint2(target_axial), right_first, path_info);//, cmp_dirs);
+
+        for (int k = 0; k < path_info.Length - 1; ++k)
+        {
+            var test_axial = path_info[k].xy;
+            var path_dir = path_info[k].z;
+            var next_dir = path_info[k + 1].z;
+            if (obstructed(IVH.form_int3(test_axial, host_axial.y), path_dir, next_dir, machine_grid, terrain_grid, dtcos_dict, ob_dict, rnr_dict))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    public bool dttarget_test_wc(WorldContext wc, int3 host_axial, int3 target_axial, bool right_first)
+    {
+        //var c0 = EntityManager.GetComponentData<LocalTransform>(host).Position;
+        //var host_axial = HexCoord.FromPosition(c0);
+        var player_entity = wc.GetPlayerEntityByUID(host_axial.y);
+        if (EntityManager.HasBuffer<GZoneOwnedRef>(player_entity) == false) return false;
+        var active_gzones = EntityManager.GetBuffer<GZoneOwnedRef>(player_entity).ToNativeArray(Allocator.Temp);
+        var idx_host = GalacticRenderUpdateSystem.get_gzone_index_managed(host_axial.xz, active_gzones);
+        var idx_target = GalacticRenderUpdateSystem.get_gzone_index_managed(target_axial.xz, active_gzones);
+        if ((idx_host >= 0 && idx_host == idx_target) == false) return false;
+
+        var dtcos_dict = GetComponentLookup<DTCellOccupierStates>();
+        var ob_dict = GetComponentLookup<ObstacleGroupTag>();
+        var rnr_dict = GetComponentLookup<ResourceNodeRemaining>();
+
+        return dttarget_test(dtcos_dict, ob_dict, rnr_dict, wc.hexgrid_machines, wc.hexgrid_terrains, host_axial, target_axial, right_first);
+    }
+    static bool obstructed(int3 test_axial, int current_dir, int next_dir, NativeHashMap<int3, Entity> machine_grid, NativeHashMap<int3, Entity> terrain_grid, 
+        ComponentLookup<DTCellOccupierStates> dtcos_dict,
+        ComponentLookup<ObstacleGroupTag> ob_dict,
+        ComponentLookup<ResourceNodeRemaining> rnr_dict)
+    {
+        if (machine_grid.TryGetValue(test_axial, out Entity test_entity))
+        {
+            if (dtcos_dict.HasComponent(test_entity))
+            {
+                var dtcos = dtcos_dict[test_entity];
+                if (dtcos.is_dir_occupied(hex_dir_mirror(current_dir)) || dtcos.is_dir_occupied(next_dir))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                // a machine is in the way.
+                return true;
+            }
+        }
+        else if (terrain_grid.TryGetValue(test_axial, out Entity ob_entity) )
+        {
+            if(ob_dict.HasComponent(ob_entity))
+            {
+                var elev = ob_dict[ob_entity].value;
+                if(elev == (int)ObstacleElevationTypes.Pit || elev == (int)ObstacleElevationTypes.Void)
+                {
+                    return false;
+                }
+                else if (elev == (int)ObstacleElevationTypes.Hill)
+                {
+                    return true;
+                }
+            }
+            if (rnr_dict.HasComponent(ob_entity))
+                return true;
+        }
+        return false;
+    }
+    public static void dttarget_test_detailed(NativeList<int4> path_info, NativeHashMap<int3, Entity> machine_grid, NativeHashMap<int3, Entity> terrain_grid
+        , ComponentLookup<DTCellOccupierStates> dtcos_dict
+        , ComponentLookup<ObstacleGroupTag> ob_dict, ComponentLookup<ResourceNodeRemaining> rnr_dict, int pid)
+    {
+        
+        for (int k = 0; k < path_info.Length - 1; ++k)
+        {
+            var test_axial = path_info[k].xy;
+            var path_dir = path_info[k].z;
+            var next_dir = path_info[k + 1].z;
+            if (obstructed(IVH.form_int3(test_axial, pid), path_dir, next_dir, machine_grid, terrain_grid, dtcos_dict, ob_dict, rnr_dict))
+            {
+                var ppi = path_info[k];
+                ppi.w = 1;
+                path_info[k] = ppi;
+            }
+        }
+    }
+
+    struct dt2grid_remove_occupier : IJob
+    {
+        public int2 target_axial;
+        public int2 host_axial;
+        public int right_first;
+        public int pid;
+
+        public NativeHashMap<int3, Entity> gridcells;
+        public NativeHashMap<int, UnsafeParallelMultiHashMap<int2, Entity>> b_gridcells;
+        public ComponentLookup<DTCellOccupierStates> dtcos_dict;
+        public NativeHashSet<Entity> rebuild_visual_notify_list;
+        public EntityCommandBuffer ecb;
+        public Entity occupier_prefab;
+        public void Execute()
+        {
+            //var diff_axial = target_axial - host_axial;
+            //int dt_dir = offset2dir_index(diff_axial);
+            //int dt_length = straight_offset2length(diff_axial);
+
+            NativeList<int4> path_info = new NativeList<int4>(Allocator.Temp);
+            test_direct_transport.generate_hex_axials_dirs_along_beltpath(host_axial, target_axial, right_first == 1, path_info);
+
+
+            for (int k = 0; k < path_info.Length - 1; ++k)
+            {
+                //var test_axial = host_axial + HexCoord.offsets(dt_dir] * k;
+                var test_axial = path_info[k].xy;
+                var path_dir = path_info[k].z;
+                var out_dir = path_info[k + 1].z;
+                if (gridcells.TryGetValue(IVH.form_int3(test_axial, pid), out Entity test_entity))
+                {
+                    if (dtcos_dict.HasComponent(test_entity))
+                    {
+                        var dtcos = dtcos_dict[test_entity];
+
+                        //dtcos.set_entity(Entity.Null, hex_dir_mirror(path_dir), out_dir);
+                        dtcos.clear_entity(hex_dir_mirror(path_dir), out_dir);
+                        if (dtcos.is_empty())
+                        {
+                            var ren_key = MapGridSystem.position2bc_key(HexCoord.ToPosition(test_axial));
+                            ren_key.y = pid;
+                            MapGridSystem.remove_entity_bc_pure(ren_key, b_gridcells, test_entity);
+                            ecb.DestroyEntity(test_entity);
+                            gridcells.Remove(IVH.form_int3(test_axial, pid));
+                        }
+                        else
+                        {
+                            dtcos.add_existing_entities(rebuild_visual_notify_list);
+                            dtcos.refresh_ranks();
+                            dtcos_dict[test_entity] = dtcos;
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+    public void direct_transport_origin_clear_legacy(Entity from)
+    {
+        var from_mdtt_db = EntityManager.GetBuffer<MachineDirectTransportTarget>(from);
+        var from_mdtt_db_na = from_mdtt_db.ToNativeArray(Allocator.Temp);
+        from_mdtt_db.Clear();
+        for (int i = 0; i < from_mdtt_db_na.Length; ++i)
+        {
+            var from_mdtt = from_mdtt_db_na[i];
+            var mdto_db = EntityManager.GetBuffer<MachineDirectTransportOrigin>(from_mdtt.value);
+            for(int j = mdto_db.Length - 1; j >= 0; --j)
+            {
+                if (mdto_db[j].value.Equals(from))
+                {
+                    mdto_db.RemoveAt(j);
+                }
+            }
+            from_mdtt.dispose_unsafes();
+        }
+    }
+    public MachineDirectTransportTarget direct_transport_single_remove_and_adjust(Entity entity, int remove_index)
+    {
+        var mdtt_db = EntityManager.GetBuffer<MachineDirectTransportTarget>(entity);
+        MachineDirectTransportTarget ret = mdtt_db[remove_index];
+        
+        var target_mdto_db = EntityManager.GetBuffer<MachineDirectTransportOrigin>(ret.value);
+        for(int i = target_mdto_db.Length - 1; i >= 0; --i)
+        {
+            var target_mdto = target_mdto_db[i];
+            if(target_mdto.value.Equals(entity))
+            {
+                target_mdto_db.RemoveAt(i);
+            }
+        }
+       
+        return ret;
+    }
+
+    public void direct_transport_upstream_single_adjust(Entity entity, int index_in_upstream)
+    {
+        var upstream_mdtt_na = EntityManager.GetBuffer<MachineDirectTransportTarget>(entity).ToNativeArray(Allocator.Temp);
+        for (int j = index_in_upstream + 1; j < upstream_mdtt_na.Length; ++j)
+        {
+            // adjust their mdto indices.
+            var other_downstream = upstream_mdtt_na[j].value;
+            var other_downstream_mdto_db = EntityManager.GetBuffer<MachineDirectTransportOrigin>(other_downstream);
+            for (int k = 0; k < other_downstream_mdto_db.Length; ++k)
+            {
+                var tmp = other_downstream_mdto_db[k];
+                if (tmp.value.Equals(entity))
+                {
+                    tmp.index_in_original--;
+                    other_downstream_mdto_db[k] = tmp;
+                }
+            }
+        }
+    }
+
+    public void direct_transport_upstream_adjust(Entity entity)
+    {
+        if (Statics.em.HasBuffer<MachineDirectTransportOrigin>(entity) == false) return;
+        var mdto_db = EntityManager.GetBuffer<MachineDirectTransportOrigin>(entity).ToNativeArray(Allocator.Temp);
+        for (int i = 0; i < mdto_db.Length; ++i)
+        {
+            var upstream = mdto_db[i].value;
+            // get remove index
+            var upstream_mdtt_db = EntityManager.GetBuffer<MachineDirectTransportTarget>(upstream);
+            int index_in_upstream = -1;
+            for (int j = 0; j < upstream_mdtt_db.Length; ++j)
+            {
+                if (upstream_mdtt_db[j].value.Equals(entity))
+                {
+                    // remove this
+                    index_in_upstream = j;
+                    break;
+                }
+            }
+
+            if (index_in_upstream >= 0)
+            {
+
+                var upstream_mdtt_na = upstream_mdtt_db.ToNativeArray(Allocator.Temp);
+                for (int j = index_in_upstream + 1; j < upstream_mdtt_na.Length; ++j)
+                {
+                    // adjust their mdto indices.
+                    var other_downstream = upstream_mdtt_na[j].value;
+                    var other_downstream_mdto_db = EntityManager.GetBuffer<MachineDirectTransportOrigin>(other_downstream);
+                    for (int k = 0; k < other_downstream_mdto_db.Length; ++k)
+                    {
+                        var tmp = other_downstream_mdto_db[k];
+                        if (tmp.value.Equals(upstream))
+                        {
+                            tmp.index_in_original--;
+                            other_downstream_mdto_db[k] = tmp;
+                        }
+                    }
+                }
+                //upstream_mdtt_db.RemoveAt(index_in_upstream);
+            }
+
+
+        }
+    }
+
+    public void direct_transport_remove_occupier(WorldContext wc, int2 host_axial, int2 target_axial, int pid, bool _right_first)
+    {
+        var job0 = new dt2grid_remove_occupier();
+        job0.right_first = (_right_first) ? 1 : 0;
+        job0.host_axial = host_axial;
+        job0.target_axial = target_axial;
+        job0.gridcells = wc.hexgrid_machines;
+        job0.b_gridcells = wc.broadcast_grid;
+        job0.dtcos_dict = GetComponentLookup<DTCellOccupierStates>();
+        job0.pid = pid;
+        job0.ecb = new EntityCommandBuffer(Allocator.TempJob);
+        job0.occupier_prefab = occupier_prefab;
+
+        if (wc.SG.IsServer)
+        {
+            job0.rebuild_visual_notify_list = new NativeHashSet<Entity>(6, Allocator.TempJob);
+        }
+        else
+        {
+            job0.rebuild_visual_notify_list = wc.belt_visual_rebuild_list;
+        }
+
+        job0.Run();
+        job0.ecb.Playback(EntityManager);
+        job0.ecb.Dispose();
+
+        if (wc.SG.IsServer)
+        {
+            job0.rebuild_visual_notify_list.Dispose();
+        }
+    }
+
+    struct dt2grid_create_occupier : IJob
+    {
+        public Entity host;
+        public int2 target_axial;
+        public int2 host_axial;
+        public int right_first;
+        public long hash_in_host;
+        public int pid;
+        public SimulationGroup sg;
+
+        public NativeHashMap<int3, Entity> gridcells;
+        public ComponentLookup<DTCellOccupierStates> dtcos_dict;
+        public EntityCommandBuffer ecb;
+        public Entity occupier_prefab;
+        public NativeHashSet<Entity> rebuild_visual_notify_list;
+        public void Execute()
+        {
+            NativeList<int4> path_info = new NativeList<int4>(Allocator.Temp);
+            test_direct_transport.generate_hex_axials_dirs_along_beltpath(host_axial, target_axial, right_first == 1, path_info);
+            rebuild_visual_notify_list.Add(host);
+            for (int k = 0; k < path_info.Length - 1; ++k)
+            {
+                var test_axial = path_info[k].xy;
+                byte self_dir = (byte)path_info[k].z;
+                byte out_dir = (byte)path_info[k + 1].z;
+                if (gridcells.TryGetValue(IVH.form_int3(test_axial, pid), out Entity test_entity))
+                {
+                    if (dtcos_dict.HasComponent(test_entity))
+                    {
+                        var dtcos = dtcos_dict[test_entity];
+                        dtcos.add_existing_entities(rebuild_visual_notify_list);
+                        dtcos.set_entity(host, hex_dir_mirror(self_dir), out_dir, hash_in_host);
+                        dtcos.refresh_ranks();
+                        dtcos_dict[test_entity] = dtcos;
+
+
+                        //rebuild_visual_notify_list
+                    }
+                }
+                else
+                {
+                    Entity occupier = ecb.Instantiate(occupier_prefab);
+                    ecb.AddComponent(occupier, new GridMapAssignment() { value = IVH.form_int3(test_axial, pid) });
+                    var dtcos = new DTCellOccupierStates();
+                    //dtcos.init();
+                    dtcos.set_entity(host, hex_dir_mirror(self_dir), out_dir, hash_in_host);
+                    dtcos.refresh_ranks();
+                    ecb.SetComponent(occupier, dtcos);
+                    ecb.SetComponent(occupier, new PlayerID_CD() { value = pid });
+                    ecb.SetComponent(occupier, LocalTransform.FromPosition(HexCoord.ToPosition(test_axial)));
+
+                    ecb.AddSharedComponent(occupier, sg);
+                }
+            }
+        }
+    }
+   
+    public void direct_transport2grid(WorldContext wc, Entity host, int2 host_axial, int2 target_axial, bool _right_first, long _hash_in_host, int pid)
+    {
+        var job0 = new dt2grid_create_occupier();
+        job0.hash_in_host = _hash_in_host;
+        job0.host = host;
+        job0.pid = pid;
+        job0.sg = wc.SG;
+        job0.host_axial = host_axial;
+        job0.target_axial = target_axial;
+        job0.gridcells = wc.hexgrid_machines;
+        job0.dtcos_dict = GetComponentLookup<DTCellOccupierStates>();
+        job0.ecb = new EntityCommandBuffer(Allocator.TempJob);
+        job0.right_first = (_right_first) ? 1 : 0;
+        job0.occupier_prefab = occupier_prefab;
+        if (wc.SG.IsServer)
+        {
+            job0.rebuild_visual_notify_list = new NativeHashSet<Entity>(6, Allocator.TempJob);
+        }
+        else
+        {
+            job0.rebuild_visual_notify_list = wc.belt_visual_rebuild_list;
+        }
+        job0.Run();
+        job0.ecb.Playback(EntityManager);
+        job0.ecb.Dispose();
+        if (wc.SG.IsServer)
+        {
+            job0.rebuild_visual_notify_list.Dispose();
+        }
+        grid_map_assignment_pass(wc);
+    }
+
+    public void grid_map_assignment_pass(WorldContext wc)
+    {
+        var grid = wc.hexgrid_machines;
+        var b_grid = wc.broadcast_grid;
+        Entities.ForEach((Entity entity, in GridMapAssignment gma, in PlayerID_CD pid) =>
+        {
+            grid.TryAdd(gma.value, entity);
+            var key = MapGridSystem.position2bc_key(HexCoord.ToPosition(gma.value.xz));
+            key.y = pid.value;
+            MapGridSystem.add_entity_bc_pure(key, b_grid, entity);
+        }).Run();
+        Statics.RemoveComponentByType<GridMapAssignment>(EntityManager);
+    }
+
+    // generate coords except center_axial.
+    public static void generate_axials_within_reach(int2 center_axial, int reach, NativeList<int2> ret)
+    {
+        var start_axial = center_axial + HexCoord.offsets(2) + HexCoord.offsets(3) * (reach - 1);
+        //ret.Add(start_axial);
+        for (int j = 0; j < reach; ++j)
+        {
+            var row_start = start_axial + HexCoord.offsets(1) * j;
+            //ret.Add(row_start);
+            int row_extent_adjustment = reach - j;
+            for (int i = 0; i < reach + row_extent_adjustment; ++i)
+            {
+                var test_axial = row_start + i * HexCoord.offsets(0);
+                var diff = test_axial - center_axial;
+                ret.Add(test_axial);
+                test_axial = center_axial - diff;
+                ret.Add(test_axial);
+            }
+        }
+        for (int j = 1; j <= reach; ++j)
+        {
+            var test_axial = center_axial + HexCoord.offsets(0) * j;
+            ret.Add(test_axial);
+            test_axial = center_axial - HexCoord.offsets(0) * j;
+            ret.Add(test_axial);
+        }
+    }
+    
+    public static bool is_requestable_by_base(ushort itemtype)
+    {
+        return itemtype == (ushort)ItemType.Matrix_Blue ||
+            itemtype == (ushort)ItemType.Matrix_Red ||
+            itemtype == (ushort)ItemType.Matrix_Yellow;
+    }
+    
+    [BurstCompile]
+    public struct get_reachable_routers : IJob
+    {
+        public float3 origin;
+        public int pid;
+        public NativeHashMap<int3, Entity> grid;
+        public ComponentLookup<RouterStates> rs_dict;
+        public BufferLookup<RouterCollectTarget> rc_dict;
+        public NativeList<Entity> targets2mark;
+        public void Execute()
+        {
+            NativeList<int2> test_axials = new NativeList<int2>(64, Allocator.Temp);
+            HexMulti.get_distance3offsets(origin, test_axials);
+            //generate_axials_within_reach(origin, ASMConstants.BalancerReach, test_axials);
+            for (int i = 0; i < test_axials.Length; ++i)
+            {
+                if (grid.TryGetValue(IVH.form_int3(test_axials[i], pid), out Entity machine))
+                {
+                    if (rs_dict.HasComponent(machine) && rc_dict.HasBuffer(machine))
+                    {
+                        var rs = rs_dict[machine];
+                        if (rs.is_playerbase() == false)
+                            targets2mark.Add(machine);
+                        //visit_adj_machines(moi_dict, rs_dict, targets, grid, test_axial, adj_offsets, visited);
+                    }
+                }
+            }
+        }
+    }
+    [BurstCompile]
+    public struct get_reachable_powerstations : IJob
+    {
+        public float3 origin;
+        public int pid;
+        public NativeHashMap<int3, Entity> grid;
+        public BufferLookup<PowerConnectorAdj> pct_dict;
+        public NativeList<Entity> powerstations;
+        public void Execute()
+        {
+            NativeList<int2> test_axials = new NativeList<int2>(64, Allocator.Temp);
+            HexMulti.get_distance2offsets(origin, test_axials);
+            //generate_axials_within_reach(origin, PowerSystemJobs.PowerConnector2MachineRange + 1, test_axials);
+            for (int i = 0; i < test_axials.Length; ++i)
+            {
+                if (grid.TryGetValue(IVH.form_int3(test_axials[i], pid), out Entity machine))
+                {
+                    if (pct_dict.HasBuffer(machine))
+                    {
+                        powerstations.Add(machine);
+                    }
+                }
+            }
+        }
+    }
+   
+    [BurstCompile]
+    public struct get_adjacent_generators : IJob
+    {
+        public NativeHashSet<Entity> subjects;
+        public NativeHashMap<int3, Entity> grid;
+        public BufferLookup<RTGAdjacentRef> rgs_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        const float threshold = 2.22f;
+        public void Execute()
+        {
+            var subjs = subjects.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < subjs.Length; ++j)
+            {
+                var subject = subjs[j];
+                var pid = pid_dict[subject].value;
+                NativeHashSet<Entity> refresh_list = new NativeHashSet<Entity>(8, Allocator.Temp);
+                var origin = c0_dict[subject].Position;
+
+                count_nearby(origin, subject, refresh_list, grid, pid, c0_dict, rgs_dict);
+
+                var self_db = rgs_dict[subject];
+                self_db.Clear();
+                var refresh_tmp = refresh_list.ToNativeArray(Allocator.Temp);
+                self_db.AddRange(refresh_tmp.Reinterpret<RTGAdjacentRef>());
+
+                for (int i = 0; i < refresh_tmp.Length; ++i)
+                {
+                    var target = refresh_tmp[i];
+                    var target_position = c0_dict[target].Position;
+                    NativeHashSet<Entity> adj_list = new NativeHashSet<Entity>(8, Allocator.Temp);
+                    count_nearby(target_position, target, adj_list, grid, pid, c0_dict, rgs_dict);
+                    var db = rgs_dict[target];
+                    db.Clear();
+                    db.AddRange(adj_list.ToNativeArray(Allocator.Temp).Reinterpret<RTGAdjacentRef>());
+                }
+            }
+        }
+        public static void count_nearby(float3 basepos, Entity except, NativeHashSet<Entity> refresh_list, NativeHashMap<int3, Entity> grid, int pid, ComponentLookup<LocalTransform> c0_dict, BufferLookup<RTGAdjacentRef> tag_dict)
+        {
+            var origin = HexCoord.FromPosition(basepos);
+            NativeList<int2> test_axials = new NativeList<int2>(64, Allocator.Temp);
+            generate_axials_within_reach(origin, 3, test_axials);
+            for (int i = 0; i < test_axials.Length; ++i)
+            {
+                if (grid.TryGetValue(IVH.form_int3(test_axials[i], pid), out Entity machine))
+                {
+                    if (c0_dict.HasComponent(machine) && tag_dict.HasBuffer(machine) && except.Equals(machine) == false)
+                    {
+                        var target_position = c0_dict[machine].Position;
+                        float distance = math.distance(basepos, target_position);
+                        if (distance < threshold)
+                        {
+                            refresh_list.Add(machine);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    [BurstCompile]
+    public struct peer2grid_job : IJob
+    {
+        public NativeHashSet<Entity> subjects;
+        public NativeHashMap<int3, Entity> grid;
+        public BufferLookup<MachineDirectTransportTarget> mdtt_dict; // readonly
+        public BufferLookup<MachineDirectTransportOrigin> mdto_dict; // readonly
+
+        public BufferLookup<PeerCollectTarget> pct_dict;
+        public BufferLookup<PeerDeliverTarget> pdt_dict;
+
+        public ComponentLookup<LocalTransform> c0_dict;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        //public ComponentLookup<AssemblerInputInventory> aii_dict;
+        public ComponentLookup<MachineOutputInventory> moi_dict;
+        public EntityCommandBuffer ecb;
+        void single(Entity subject)
+        {
+            if (moi_dict.HasComponent(subject) == false) return;
+            var pid = pid_dict[subject].value;
+            NativeList<Entity> refresh_list = new NativeList<Entity>(8, Allocator.Temp);
+            var origin = c0_dict[subject].Position;
+            cell3_adjacencies(origin, subject, refresh_list, grid, pid, c0_dict);
+
+
+            // exclude those having different recipes.
+            for (int i = refresh_list.Length - 1; i >= 0; --i)
+            {
+                var target = refresh_list[i];
+                if (moi_dict.HasComponent(target) == false || mdto_dict.HasBuffer(target) == false)
+                {
+                    refresh_list.RemoveAt(i);
+                    continue;
+                }
+                var self_aii = moi_dict[subject];
+                var target_aii = moi_dict[target];
+                if (self_aii.item_type != target_aii.item_type)
+                {
+                    refresh_list.RemoveAt(i);
+                    continue;
+                }
+            }
+
+            var self_db = mdtt_dict[subject];
+            if (self_db.Length == 0)
+            {
+                ecb.RemoveComponent<PeerCollectTarget>(subject);
+            }
+            else
+            {
+                var pct_db = ecb.AddBuffer<PeerCollectTarget>(subject);
+                pct_db.Clear();
+
+                for (int i = 0; i < refresh_list.Length; ++i)
+                {
+                    var target = refresh_list[i];
+                    var target_mdtt = mdtt_dict[target];
+                    int has_at_least_one_outgoing = 0;
+                    for(int j = 0; j < target_mdtt.Length; ++j)
+                    {
+                        if (target_mdtt[j].value.Equals(Entity.Null))
+                        {
+                            has_at_least_one_outgoing++;
+                            break;
+                        }
+                    }
+                    // make sure it has no outgoing dt.
+                    if (has_at_least_one_outgoing == 0)
+                    {
+                        pct_db.Add(new PeerCollectTarget() { value = target });
+                    }
+                    //// fix target as well
+                    //if(pct_dict.HasBuffer(target))
+                    //{
+                    //    var target_pct_db = pct_dict[target];
+                    //    for(int k = 0; k < target_pct_db.Length; ++k)
+                    //    {
+                    //        var target_pct = target_pct_db[k];
+                    //        if (target_pct.value.Equals(subject))
+                    //        {
+                    //            target_pct_db.RemoveAt(k);
+                    //            break;
+                    //        }
+                    //    }
+                    //}
+                }
+            }
+
+            NativeList<PeerDeliverTarget> pdt_tmp = new NativeList<PeerDeliverTarget>(4, Allocator.Temp);
+            for (int i = 0; i < refresh_list.Length; ++i)
+            {
+                var target = refresh_list[i];
+                var target_mdtt = mdto_dict[target];
+                if (target_mdtt.Length == 0)
+                {
+                    pdt_tmp.Add(new PeerDeliverTarget() { value = target });
+                }
+            }
+            var has_incoming = false;
+            if(mdto_dict.HasBuffer(subject) && mdto_dict[subject].Length  > 0)
+            {
+                has_incoming = true;
+            }
+            if (pdt_tmp.Length != 0 && has_incoming)
+            {
+                var pct_db = ecb.AddBuffer<PeerDeliverTarget>(subject);
+                pct_db.Clear();
+                pct_db.AddRange(pdt_tmp.AsArray());
+            }
+            else
+            {
+                ecb.RemoveComponent<PeerDeliverTarget>(subject);
+            }
+        }
+        public void Execute()
+        {
+            var subjects = this.subjects.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < subjects.Length; ++j)
+            {
+                var subject = subjects[j];
+                var pid = pid_dict[subject].value;
+                NativeList<Entity> refresh_list = new NativeList<Entity>(8, Allocator.Temp);
+                var origin = c0_dict[subject].Position;
+                cell3_adjacencies(origin, Entity.Null, refresh_list, grid, pid, c0_dict);
+
+
+                // exclude those having different recipes.
+                for(int i = 0; i < refresh_list.Length; ++i)
+                {
+                    var target = refresh_list[i];
+                    single(target);
+                    
+                }
+
+            }
+        }
+        public static void cell3_adjacencies(float3 basepos, Entity except, NativeList<Entity> refresh_list, NativeHashMap<int3, Entity> grid, int pid, ComponentLookup<LocalTransform> c0_dict)
+        {
+            const float threshold = 2.22f;
+            NativeHashSet<Entity> targets_hset = new NativeHashSet<Entity>(4, Allocator.Temp);
+            var origin = HexCoord.FromPosition(basepos);
+            NativeList<int2> test_axials = new NativeList<int2>(64, Allocator.Temp);
+            generate_axials_within_reach(origin, 3, test_axials);
+            for (int i = 0; i < test_axials.Length; ++i)
+            {
+                if (grid.TryGetValue(IVH.form_int3(test_axials[i], pid), out Entity machine))
+                {
+                    if (c0_dict.HasComponent(machine) && except.Equals(machine) == false)
+                    {
+                        var target_position = c0_dict[machine].Position;
+                        float distance = math.distance(basepos, target_position);
+                        if (distance < threshold)
+                        {
+                            if (targets_hset.Add(machine))
+                            {
+                                refresh_list.Add(machine);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    //[BurstCompile]
+    //public struct mdttrc_refresh_job : IJob
+    //{
+    //    public NativeHashSet<Entity> subjects;
+    //    public NativeHashMap<int3, Entity> grid;
+    //    public BufferLookup<MachineDirectTransportTarget> mdtt_dict;
+    //    public BufferLookup<MachineDirectTransportOrigin> mdto_dict;
+    //    public ComponentLookup<LocalTransform> c0_dict;
+    //    public ComponentLookup<PlayerID_CD> pid_dict;
+    //    public ComponentLookup<DTCellOccupierStates> dtcos_dict;
+
+    //    public void Execute()
+    //    {
+    //        var subjs = subjects.ToNativeArray(Allocator.Temp);
+    //        for (int j = 0; j < subjs.Length; ++j)
+    //        {
+    //            var subject = subjs[j];
+    //            var pid = pid_dict[subject].value;
+    //            var origin = c0_dict[subject].Position;
+    //            var results = ServerMapTest.jdtr_collection.shared(subject, origin, grid, pid, mdtt_dict, dtcos_dict);
+    //            var mdttrc = mdto_dict[subject];
+    //            mdttrc.Clear();
+    //            for(int i = 0; i < results.Length; ++i)
+    //            {
+    //                mdttrc.Add(new MachineDirectTransportOrigin() { value = results[i].entity, index_in_original = results[i].index });
+    //            }
+    //        }
+    //    }
+        
+    //}
+
+    [BurstCompile]
+    public struct deref_adjacent_generators : IJob
+    {
+        public Entity subject;
+        public int pid;
+        public NativeHashMap<int3, Entity> grid;
+        public BufferLookup<RTGAdjacentRef> rgs_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public void Execute()
+        {
+            NativeHashSet<Entity> refresh_list = new NativeHashSet<Entity>(8, Allocator.Temp);
+            var origin = c0_dict[subject].Position;
+            get_adjacent_generators.count_nearby(origin, subject, refresh_list, grid, pid, c0_dict, rgs_dict);
+
+            var refresh_tmp = refresh_list.ToNativeArray(Allocator.Temp);
+
+            for (int i = 0; i < refresh_tmp.Length; ++i)
+            {
+                var target = refresh_tmp[i];
+                var db = rgs_dict[target];
+                for(int j = 0; j < db.Length; ++j)
+                {
+                    if(db[j].value.Equals(subject))
+                    {
+                        db.RemoveAt(j);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    public void reachable_router_add_SRL(float3 origin, int pid, WorldContext wc)
+    {
+        var grr = new get_reachable_routers();
+        grr.origin = origin;
+        grr.pid = pid;
+        //grr.aii_dict = GetComponentLookup<AssemblerInputInventory>();
+        grr.rs_dict = GetComponentLookup<RouterStates>();
+        grr.rc_dict = GetBufferLookup<RouterCollectTarget>();
+        grr.targets2mark = new NativeList<Entity>(Allocator.TempJob);
+        grr.grid = wc.hexgrid_machines;
+        grr.Run();
+        for(int i = 0; i < grr.targets2mark.Length; ++i)
+        {
+            wc.router2grid.Add(grr.targets2mark[i]);
+        }
+        //EntityManager.AddComponent<StructureRequireLinking>(grr.targets2mark);
+        grr.targets2mark.Dispose();
+    }
+    // ususally for connector building and removal
+    public void reachable_powerstation_add_SRL(float3 origin, int pid, WorldContext wc)
+    {
+        var grr = new get_reachable_powerstations();
+        grr.origin = origin;
+        grr.pid = pid;
+        grr.pct_dict = GetBufferLookup<PowerConnectorAdj>();
+        grr.powerstations = new NativeList<Entity>(Allocator.TempJob);
+        grr.grid = wc.hexgrid_machines;
+        grr.Run();
+
+        for (int i = 0; i < grr.powerstations.Length; ++i)
+        {
+            wc.pwrstn2grid.Add(grr.powerstations[i]);
+        }
+        //EntityManager.AddComponent<StructureRequireLinking>(grr.targets2mark);
+        grr.powerstations.Dispose();
+    }
+
+
+    public const int MaxRouterV3Depth = 3;
+    public const int MaxRouterV3LinkCount = 10;
+    struct router2grid_job : IJob
+    {
+        
+        public ComponentLookup<ASMEntityGUID> guid_dict_dbg;
+
+        public NativeHashSet<Entity> nhs_entities;
+        public ComponentLookup<DiscreteEnergyStates> des_dict;
+        public ComponentLookup<LauncherInputInventory> lii_dict;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        public ComponentLookup<AssemblerInputInventory> aii_dict;
+        public ComponentLookup<MachineOutputInventory> moi_dict;
+        public BufferLookup<RouterCollectTarget> io_collect_targets_dict;
+        public BufferLookup<RouterDistributeTarget> io_dist_targets_dict;
+        public BufferLookup<RouterInventory> ri_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public NativeHashMap<int3, Entity> grid;
+
+        public void Execute()
+        {
+
+            var targets = nhs_entities.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < targets.Length; ++j)
+            {
+                var target = targets[j];
+                var pid = pid_dict[target].value;
+                //if(guid_dict_dbg[target].value == 4934)
+                //{
+                //    int sdf = 0;
+                //}
+
+                //if(io_dist_targets_dict.HasComponent(target) == false)
+                //{
+                //    Debug.Log(DebugEntity.Entity2Str(target) + " has no io_dist_targets_dict");
+                //}
+                var io_dist_targets = io_dist_targets_dict[target];
+                var io_collect_targets = io_collect_targets_dict[target];
+                var c0 = c0_dict[target];
+                io_dist_targets.Clear();
+                io_collect_targets.Clear();
+                int2 axial = HexCoord.FromPosition(c0.Position);
+                var tmp_entity_list = new NativeList<Entity>(4, Allocator.Temp);
+                var ri = ri_dict[target];
+                for (int i = 0; i < ri.Length; ++i)
+                {
+                    var target_item = ri[i].item_type;
+
+                    RouterTargetFunctions.moi_visit_machines_gawr(target_item, moi_dict, tmp_entity_list, grid, axial, pid);
+                }
+                io_collect_targets.AddRange(tmp_entity_list.AsArray().Reinterpret<RouterCollectTarget>());
+
+                tmp_entity_list.Clear();
+                // distribute mode
+                for (int i = 0; i < ri.Length; ++i)
+                {
+                    var target_item = ri[i].item_type;
+                    if (DemoDefs.is_fuel((ItemType)target_item))
+                    {
+                        RouterTargetFunctions.aii_visit_machines_fuels_gawr(target_item, aii_dict, des_dict, tmp_entity_list, grid, axial, pid);
+                    }
+                    else
+                    {
+                        RouterTargetFunctions.aii_visit_machines_gawr(target_item, aii_dict, lii_dict, tmp_entity_list, grid, axial, pid);
+                    }
+                }
+                io_dist_targets.AddRange(tmp_entity_list.AsArray().Reinterpret<RouterDistributeTarget>());
+            }
+        }
+    }
+    [BurstCompile]
+    struct accl2grid_job : IJob
+    {
+
+        public ComponentLookup<ASMEntityGUID> guid_dict_dbg;
+
+        public NativeHashSet<Entity> nhs_entities;
+        public ComponentLookup<DiscreteEnergyStates> des_dict;
+        public ComponentLookup<AssemblerInputInventory> aii_dict;
+        public ComponentLookup<MachineOutputInventory> moi_dict;
+        public ComponentLookup<LauncherInputInventory> lii_dict;
+        public NativeArray<int2> adj_offsets;
+        public BufferLookup<RouterCollectTarget> io_collect_targets_dict;
+        public BufferLookup<RouterDistributeTarget> io_dist_targets_dict;
+        public BufferLookup<RouterInventory> ri_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        public NativeHashMap<int3, Entity> grid;
+
+        public void Execute()
+        {
+
+            var targets = nhs_entities.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < targets.Length; ++j)
+            {
+                var target = targets[j];
+                var pid = pid_dict[target].value;
+
+                var io_dist_targets = io_dist_targets_dict[target];
+                var io_collect_targets = io_collect_targets_dict[target];
+                var c0 = c0_dict[target];
+                io_dist_targets.Clear();
+                io_collect_targets.Clear();
+                int2 axial = HexCoord.FromPosition(c0.Position);
+                var tmp_entity_list = new NativeList<Entity>(4, Allocator.Temp);
+                var ri = ri_dict[target];
+                for (int i = 0; i < ri.Length; ++i)
+                {
+                    var target_item = ri[i].item_type;
+
+                    RouterTargetFunctions.moi_visit_machines_gawr(target_item, moi_dict, tmp_entity_list, grid, axial, pid);
+                }
+                io_collect_targets.AddRange(tmp_entity_list.AsArray().Reinterpret<RouterCollectTarget>());
+
+                tmp_entity_list.Clear();
+                // distribute mode
+                for (int i = 0; i < ri.Length; ++i)
+                {
+                    var target_item = ri[i].item_type;
+                    if (DemoDefs.is_fuel((ItemType)target_item))
+                    {
+                        RouterTargetFunctions.aii_visit_machines_fuels_gawr(target_item, aii_dict, des_dict, tmp_entity_list, grid, axial, pid);
+                    }
+                    else
+                    {
+                        RouterTargetFunctions.aii_visit_machines_gawr(target_item, aii_dict, lii_dict, tmp_entity_list, grid, axial, pid);
+                    }
+                }
+                io_dist_targets.AddRange(tmp_entity_list.AsArray().Reinterpret<RouterDistributeTarget>());
+            }
+        }
+    }
+    
+
+    struct router2grid_job_menu_traversal : IJob
+    {
+
+        public ComponentLookup<ASMEntityGUID> guid_dict_dbg;
+
+        public NativeHashSet<Entity> nhs_entities;
+
+        public ComponentLookup<DiscreteEnergyStates> des_dict;
+        public ComponentLookup<AssemblerInputInventory> aii_dict;
+        public ComponentLookup<MachineOutputInventory> moi_dict;
+        public BufferLookup<RouterCollectTarget> io_collect_targets_dict;
+        public BufferLookup<RouterDistributeTarget> io_dist_targets_dict;
+        public BufferLookup<RouterInventory> ri_dict;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public ComponentLookup<PlayerID_CD> pid_dict;
+        public NativeHashMap<int3, Entity> grid;
+
+        public void Execute()
+        {
+
+            var targets = nhs_entities.ToNativeArray(Allocator.Temp);
+            for (int j = 0; j < targets.Length; ++j)
+            {
+                var target = targets[j];
+                var pid = pid_dict[target].value;
+                //if (target.Index == 1214 || target.Index == 63965)
+                //{
+                //    int sdf = 0;
+                //}
+                //if(guid_dict_dbg[target].value == 4934)
+                //{
+                //    int sdf = 0;
+                //}
+
+                if (io_dist_targets_dict.HasBuffer(target) == false)
+                {
+                    Debug.Log(DebugEntity.Entity2Str(target) + " has no io_dist_targets_dict");
+                }
+                var io_dist_targets = io_dist_targets_dict[target];
+                var io_collect_targets = io_collect_targets_dict[target];
+                var c0 = c0_dict[target];
+                io_dist_targets.Clear();
+                io_collect_targets.Clear();
+                int2 axial = HexCoord.FromPosition(c0.Position);
+                var tmp_entity_list = new NativeList<Entity>(Allocator.Temp);
+                var ri = ri_dict[target];
+                for (int i = 0; i < ri.Length; ++i)
+                {
+                    var target_item = ri[i].item_type;
+                    RouterTargetFunctions_MenuTraversal.moi_visit_adj_machines_bfs(target_item, moi_dict, tmp_entity_list, grid, axial, pid, MaxRouterV3Depth);
+                }
+                io_collect_targets.AddRange(tmp_entity_list.AsArray().Reinterpret<RouterCollectTarget>());
+
+                // distribute mode
+                for (int i = 0; i < ri.Length; ++i)
+                {
+                    var target_item = ri[i].item_type;
+                    if (DemoDefs.is_fuel((ItemType)target_item))
+                    {
+                        RouterTargetFunctions_MenuTraversal.aii_visit_adj_machines_fuels(target_item, aii_dict, des_dict, io_dist_targets, grid, axial, pid, MaxRouterV3Depth);
+                    }
+                    else
+                    {
+                        RouterTargetFunctions_MenuTraversal.aii_visit_adj_machines_bfs(target_item, aii_dict, io_dist_targets, grid, axial, pid, MaxRouterV3Depth);
+                    }
+                }
+            }
+        }
+    }
+
+    struct remove_destroyed_entities_job : IJob
+    {
+        public NativeHashSet<Entity> targets;
+        public ComponentLookup<LocalTransform> c0_dict;
+        public void Execute()
+        {
+            var array = targets.ToNativeArray(Allocator.Temp);
+            for(int i = 0; i < array.Length; i ++)
+            {
+                if (c0_dict.HasComponent(array[i]) == false)
+                {
+                    targets.Remove(array[i]);
+                }
+            }
+        }
+    }
+
+    public void router2grid_v3(WorldContext wc)
+    {
+        NativeHashSet<Entity> targets = wc.router2grid;
+
+        if (wc.SG.IsPlanned)
+        {
+            var rde_job = new remove_destroyed_entities_job();
+            rde_job.targets = targets;
+            rde_job.c0_dict = GetComponentLookup<LocalTransform>();
+            rde_job.Run();
+        }
+
+        var job = new router2grid_job();
+        job.guid_dict_dbg = GetComponentLookup<ASMEntityGUID>();
+        job.nhs_entities = targets;
+        job.des_dict = GetComponentLookup<DiscreteEnergyStates>();
+        job.aii_dict = GetComponentLookup<AssemblerInputInventory>();
+        job.moi_dict = GetComponentLookup<MachineOutputInventory>();
+        job.lii_dict = GetComponentLookup<LauncherInputInventory>();
+        job.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job.grid = wc.hexgrid_machines;
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+        job.io_dist_targets_dict = GetBufferLookup<RouterDistributeTarget>();
+        job.io_collect_targets_dict = GetBufferLookup<RouterCollectTarget>();
+        job.ri_dict = GetBufferLookup<RouterInventory>();
+
+        job.Run();
+
+        var targets_na = targets.ToNativeArray(Allocator.TempJob);
+        //EntityManager.AddComponent<RouterRebuildLinks>(targets_na);
+        //Statics.GetSystem<GalacticRenderUpdateSystem>().router_rebuild_path_links();
+        //EntityManager.RemoveComponent<RouterRebuildLinks>(targets_na);
+        targets_na.Dispose();
+        targets.Clear();
+    }
+    public void connector_gather_adj(Entity target, WorldContext wc)
+    {
+        var gather_adj_job = new PowerSystemJobs.pow_conn_gather_adj_conn_job();
+        gather_adj_job.subject = target;
+        gather_adj_job.pct_dict = GetBufferLookup<PowerConnectorAdj>();
+        gather_adj_job.c0_dict = GetComponentLookup<LocalTransform>();
+        gather_adj_job.guid_dict = GetComponentLookup<ASMEntityGUID>();
+        gather_adj_job.grid = wc.hexgrid_machines;
+        gather_adj_job.pid = EntityManager.GetComponentData<PlayerID_CD>(target).value;
+        gather_adj_job.Run();
+    }
+    public void generator2grid(WorldContext wc)
+    {
+        if (wc.SG.IsPlanned)
+        {
+            var rde_job = new remove_destroyed_entities_job();
+            rde_job.targets = wc.generator2grid;
+            rde_job.c0_dict = GetComponentLookup<LocalTransform>();
+            rde_job.Run();
+        }
+
+        var job = new get_adjacent_generators();
+        job.grid = wc.hexgrid_machines;
+        job.subjects = wc.generator2grid;
+        job.rgs_dict = GetBufferLookup<RTGAdjacentRef>();
+        job.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+
+        job.Run();
+    }
+
+
+    public void peer2grid(WorldContext wc)
+    {
+
+        var job = new peer2grid_job();
+        job.grid = wc.hexgrid_machines;
+        job.subjects = wc.peer2grid;
+
+        job.mdtt_dict = GetBufferLookup<MachineDirectTransportTarget>();
+        job.mdto_dict = GetBufferLookup<MachineDirectTransportOrigin>();
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+        job.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job.moi_dict = GetComponentLookup<MachineOutputInventory>();
+        job.ecb = new EntityCommandBuffer(Allocator.TempJob);
+
+        job.Run();
+        job.ecb.Playback(EntityManager);
+        job.ecb.Dispose();
+
+    }
+    //public void mdto_refresh(WorldContext wc)
+    //{
+
+    //    var job = new mdttrc_refresh_job();
+    //    job.subjects = wc.mdto_refresh_list;
+    //    job.grid = wc.hexgrid_machines;
+
+    //    job.mdtt_dict = GetBufferLookup<MachineDirectTransportTarget>();
+    //    job.mdto_dict = GetBufferLookup<MachineDirectTransportOrigin>();
+    //    job.c0_dict = GetComponentLookup<LocalTransform>();
+    //    job.pid_dict = GetComponentLookup<PlayerID_CD>();
+    //    job.dtcos_dict = GetComponentLookup<DTCellOccupierStates>();
+
+    //    job.Run();
+
+    //}
+
+    public void generator_degrid(Entity subject, WorldContext wc)
+    {
+
+        var job = new deref_adjacent_generators();
+        job.grid = wc.hexgrid_machines;
+        job.subject = subject;
+        job.pid = EntityManager.GetComponentData<PlayerID_CD>(subject).value;
+        job.rgs_dict = GetBufferLookup<RTGAdjacentRef>();
+
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+
+        job.Run();
+    }
+
+    public void machine_add2powergrids_job(NativeArray<Entity> machines, WorldContext wc)
+    {
+        var job = new PowerSystemJobs.machine_add2powergrids_job();
+        job.flagged_changes = wc.dirty_power_network_ids;
+        job.machines = machines;
+        job.guids_dict = GetComponentLookup<ASMEntityGUID>();
+        job.power_expectation_machines = wc.power_expectation_machine;
+        job.pgr_dict = GetComponentLookup<PowerGridRef>();
+        job.pcr_dict = GetComponentLookup<PowerConnectorRef>();
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+        job.pgs_dict = GetComponentLookup<PowerGeneratorStates>();
+        job.grid = wc.hexgrid_machines;
+        job.power_grid_scd = wc.power_grid_scd;
+        job.pca_dict = GetBufferLookup<PowerConnectorAdj>();
+        job.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job.ecb = new EntityCommandBuffer(Allocator.TempJob);
+        job.Run();
+        job.ecb.Playback(EntityManager);
+        job.ecb.Dispose();
+
+    }
+
+    public void pwrstn2grid(WorldContext wc)
+    {
+        NativeHashSet<Entity> targets = wc.pwrstn2grid;
+
+        if (wc.SG.IsPlanned)
+        {
+            var rde_job = new remove_destroyed_entities_job();
+            rde_job.targets = targets;
+            rde_job.c0_dict = GetComponentLookup<LocalTransform>();
+            rde_job.Run();
+        }
+
+        // power network processes
+        var flagged = new NativeList<Entity>(8, Allocator.TempJob);
+        foreach (var connector_target in targets)
+        {
+            var merge_job = new PowerSystemJobs.pow_conn2grid_merge_job();
+            //merge_job.connector_entities = targets;
+            merge_job.target = connector_target;
+            merge_job.pid = EntityManager.GetComponentData<PlayerID_CD>(connector_target).value;
+            merge_job.pg_dict = GetComponentLookup<PowerGridRef>();
+            merge_job.pct_dict = GetBufferLookup<PowerConnectorAdj>();
+            merge_job.c0_dict = GetComponentLookup<LocalTransform>();
+            merge_job.grid = wc.hexgrid_machines;
+            merge_job.merge_ids = new NativeList<uint>(4, Allocator.TempJob);
+            merge_job.Run();
+            var ids2merge = merge_job.merge_ids;
+            
+            if (ids2merge.Length >= 2)
+            {
+                StringBuilder sbuilder = new StringBuilder();
+                sbuilder.Append("power network merged ");
+                for (int i = 1; i < ids2merge.Length; ++i)
+                {
+                    sbuilder.AppendFormat("{0} ", ids2merge[i]);
+
+                    Statics.GetSystem<PowerUpdateSystem>().join_networks(ids2merge[0], ids2merge[i], wc);
+                    if (wc.power_expectation_machine.TryGetValue(ids2merge[0], out UnsafeHashSet<uint> machine_list))
+                    {
+                        if (wc.power_expectation_machine.TryGetValue(ids2merge[i], out UnsafeHashSet<uint> machine_list2merge))
+                        {
+                            var tmp = machine_list2merge.ToNativeArray(Allocator.Temp);
+                            for (int j = 0; j < tmp.Length; ++j)
+                            {
+                                machine_list.Add(tmp[j]);
+                                /// unity.collections.unsafe bug?
+                            }
+                            wc.power_expectation_machine[ids2merge[0]] = machine_list;
+                            machine_list2merge.Dispose();
+                            wc.power_expectation_machine.Remove(ids2merge[i]);
+                            wc.power_network_flag_change(ids2merge[i]);
+                            wc.power_network_flag_change(ids2merge[0]);
+                        }
+                    }
+                    else
+                    {
+                        if (wc.power_expectation_machine.TryGetValue(ids2merge[i], out UnsafeHashSet<uint> machine_list2merge))
+                        {
+                            //machine_list = new UnsafeHashSet<uint>(16, Allocator.Persistent);
+                            //var tmp = machine_list2merge.ToNativeArray(Allocator.Temp);
+                            //for (int j = 0; j < tmp.Length; ++j)
+                            //{
+                            //    machine_list.Add(tmp[j]);
+                            //}
+                            //wc.power_expectation_machine.Add(ids2merge[0], machine_list);
+                            //machine_list2merge.Dispose();
+                            wc.power_expectation_machine.Add(ids2merge[0], machine_list2merge);
+                            wc.power_expectation_machine.Remove(ids2merge[i]);
+
+                            wc.power_network_flag_change(ids2merge[i]);
+                            wc.power_network_flag_change(ids2merge[0]);
+                        }
+                    }
+                }
+                sbuilder.Append(" into " + ids2merge[0]);
+                Debug.Log(sbuilder);
+
+            }
+            merge_job.merge_ids.Dispose();
+
+            var bc_job = new PowerSystemJobs.machine_pow_conn_ref_broadcast_job();
+
+            bc_job.target = connector_target;
+            bc_job.flagged = flagged;
+            bc_job.centerpos = EntityManager.GetComponentData<LocalTransform>(connector_target).Position;
+            bc_job.pcr_dict = GetComponentLookup<PowerConnectorRef>();
+            bc_job.grid = wc.hexgrid_machines;
+            bc_job.pid = EntityManager.GetComponentData<PlayerID_CD>(connector_target).value;
+            bc_job.Run();
+        }
+
+        list_remove_duplicate_with_hashset(flagged);
+        machine_add2powergrids_job(flagged.AsArray(), wc);
+        flagged.Dispose();
+
+        targets.Clear();
+    }
+    // native queue wrapper for burst
+    public static void NativeEnqueue<T>(NativeList<T> nlist, T new_val) where T : unmanaged
+    {
+        nlist.Add(new_val);
+    }
+    // native queue wrapper for burst
+    public static T NativeDequeue<T>(NativeList<T> nlist) where T : unmanaged
+    {
+        var ret = nlist[0];
+        nlist.RemoveAt(0);
+        return ret;
+    }
+   
+    #region NOTUSED
+    // router to grid, collect targets
+    public static void aii_visit_adj_machines_dfs_notused(
+        ushort target_item, ComponentLookup<AssemblerInputInventory> aii_dict,
+        DynamicBuffer<RouterDistributeTarget> targets, NativeHashMap<int2, Entity> grid,
+        int2 current, NativeArray<int2> adj_offsets, NativeList<int2> visited, int depth)
+    {
+        NativeList<int2> targets2visit = new NativeList<int2>(Allocator.Temp);
+        for (int i = 0; i < 6; ++i)
+        {
+            int2 test_axial = current + adj_offsets[i];
+            if (visited.IndexOf(test_axial) != -1) continue;
+
+            if (grid.TryGetValue(test_axial, out Entity machine))
+            {
+                if (aii_dict.HasComponent(machine))
+                {
+                    var test_aii = aii_dict[machine];
+
+                    if (test_aii.contains_source(target_item))
+                    {
+                        visited.Add(test_axial);
+                        targets.Add(new RouterDistributeTarget() { value = machine });
+                        targets2visit.Add(test_axial);
+                    }
+                }
+            }
+            if (visited.Length >= MaxRouterV3LinkCount) break;
+        }
+        if (depth == 0) return;
+        depth--;
+        for (int i = 0; i < targets2visit.Length; ++i)
+        {
+            aii_visit_adj_machines_dfs_notused(target_item, aii_dict, targets, grid, targets2visit[i], adj_offsets, visited, depth);
+        }
+    }
+    #endregion
+    
+
+    // used by refresh_machine_mpsc_from_routers， not used.
+    //public static void aii_visit_adj_machines_level_bfs(ushort target_item, ComponentLookup<AssemblerInputInventory> aii_dict,
+    //    NativeHashMap<int2, Entity> grid, int2 base_pos, NativeArray<int2> adj_offsets,
+    //    int max_depth, ComponentLookup<MachinePlatformStatesCached> mpsc_dict)
+    //{
+
+    //    NativeHashSet<int2> visited = new NativeHashSet<int2>(8, Allocator.Temp);
+    //    NativeHashMap<int2, int> axial_depth = new NativeHashMap<int2, int>(8, Allocator.Temp);
+    //    NativeList<int2> queue = new NativeList<int2>(Allocator.Temp);
+    //    NativeEnqueue(queue, base_pos);
+    //    axial_depth.Add(base_pos, 0);
+
+    //    for (int j = 0; j < 100 && queue.Length > 0; ++j)
+    //    {
+    //        var current = NativeDequeue(queue);
+    //        var current_depth = axial_depth[current];
+    //        if (current_depth == max_depth) continue;
+    //        for (int i = 0; i < 6; ++i)
+    //        {
+    //            int2 test_axial = current + adj_offsets[i];
+    //            if (visited.Contains(test_axial)) continue;
+    //            visited.Add(test_axial);
+
+    //            if (grid.TryGetValue(test_axial, out Entity machine))
+    //            {
+    //                if (aii_dict.HasComponent(machine))
+    //                {
+    //                    var test_aii = aii_dict[machine];
+
+    //                    if (test_aii.contains_source(target_item))
+    //                    {
+    //                        var tmp = mpsc_dict[machine];
+    //                        tmp.value = tmp.value | 0b1;
+    //                        mpsc_dict[machine] = tmp;
+
+    //                        NativeEnqueue(queue, test_axial);
+    //                        axial_depth.Add(test_axial, current_depth + 1);
+    //                        //if (targets.Length >= MaxRouterV3LinkCount)
+    //                        //{
+    //                        //    return;
+    //                        //}
+    //                    }
+    //                }
+
+
+    //            }
+    //        }
+    //    }
+
+    //}
+
+    // used by refresh_machine_mpsc_from_routers, not used
+    //public static void moi_visit_adj_machines_level_bfs(ushort target_item,
+    //    ComponentLookup<MachineOutputInventory> moi_dict,
+    //    NativeHashMap<int2, Entity> grid, int2 base_pos, NativeArray<int2> adj_offsets, int max_depth, ComponentLookup<MachinePlatformStatesCached> mpsc_dict)
+    //{
+
+    //    NativeHashSet<int2> visited = new NativeHashSet<int2>(8, Allocator.Temp);
+    //    NativeHashMap<int2, int> axial_depth = new NativeHashMap<int2, int>(8, Allocator.Temp);
+    //    NativeList<int2> queue = new NativeList<int2>(Allocator.Temp);
+    //    NativeEnqueue(queue, base_pos);
+    //    axial_depth.Add(base_pos, 0);
+
+    //    for (int j = 0; j < 100 && queue.Length > 0; ++j)
+    //    {
+    //        var current = NativeDequeue(queue);
+    //        var current_depth = axial_depth[current];
+    //        if (current_depth == max_depth) continue;
+    //        for (int i = 0; i < 6; ++i)
+    //        {
+    //            int2 test_axial = current + adj_offsets[i];
+    //            if (visited.Contains(test_axial)) continue;
+    //            visited.Add(test_axial);
+
+    //            if (grid.TryGetValue(test_axial, out Entity machine))
+    //            {
+    //                if (moi_dict.HasComponent(machine))
+    //                {
+    //                    var test_moi = moi_dict[machine];
+    //                    if (test_moi.item_type == target_item)
+    //                    {
+    //                        var tmp = mpsc_dict[machine];
+    //                        tmp.value = tmp.value | 0b10;
+    //                        mpsc_dict[machine] = tmp;
+
+    //                        NativeEnqueue(queue, test_axial);
+    //                        axial_depth.Add(test_axial, current_depth + 1);
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //}
+    public struct add2map_job:IJob
+    {
+        public NativeArray<Entity> entities;
+        public NativeHashMap<int3, Entity> map;
+        public ComponentLookup<LocalTransform> c0_dict;
+        //public ComponentLookup<PlayerID_CD> pid_dict;
+        public int pid;
+        public void Execute()
+        {
+            for(int i = 0; i < entities.Length; ++i)
+            {
+                var e = entities[i];
+                var key = HexCoord.FromPosition(c0_dict[e].Position);
+                //if(pid_dict.HasComponent(e) == false)
+                //{
+                //    Debug.Log(DebugEntity.Entity2Str(e) + " has no pid.");
+                //    continue;
+                //}
+                //var pid = pid_dict[e].value;
+                map.TryAdd(IVH.form_int3(key, pid), e);
+            }
+        }
+    }
+
+
+    public void to_terrain_map(NativeArray<Entity> entities, NativeHashMap<int3, Entity> map, int pid)
+    {
+        var job = new add2map_job();
+        job.map = map;
+        job.pid = pid;
+        job.entities = entities;
+        //job.pid_dict = GetComponentLookup<PlayerID_CD>();
+        job.c0_dict = GetComponentLookup<LocalTransform>();
+        job.Run();
+    }
+    /*
+    public struct add2guid_job : IJob
+    {
+        public NativeArray<Entity> entities;
+        public NativeHashMap<uint, Entity> map;
+        public ComponentLookup<ASMEntityGUID> guid_dict;
+        public void Execute()
+        {
+            for (int i = 0; i < entities.Length; ++i)
+            {
+                var e = entities[i];
+                if (guid_dict.HasComponent(e))
+                    map.TryAdd(guid_dict[e].value, e);
+            }
+        }
+    }
+    public void to_guid_entities(NativeArray<Entity> entities, NativeHashMap<uint, Entity> map)
+    {
+        var job = new add2guid_job();
+        job.map = map;
+        job.entities = entities;
+        job.guid_dict = GetComponentLookup<ASMEntityGUID>();
+        job.Run();
+    }
+    */
+    public static void add_machine2hex_grid(Entity entity, GTypes gtype, float3 position, int pid, WorldContext wc)
+    {
+        if (check_gtype2hex_grid(gtype))
+        {
+            int3 key = MapGridSystem.position2bc_key(position);
+            key.y = pid;
+
+            MapGridSystem.add_entity2bc_grids_wc(position, pid, entity, gtype, wc);
+        }
+        add_entity2hex_grids(entity, gtype, position, pid, wc.hexgrid_machines); // entity2chunk_grid, Add2ChunkGridCmd
+    }
+
+    public void entity2chunk_grid(WorldContext wc)
+    {
+        /* lod logic
+       //if (add2chunkgrid_cmd_query.CalculateEntityCount() == 0) return;
+       var machine_grid = wc.hexgrid_machines;
+       //var terrain_grid = MapGridSystem.self.server_wc.hexgrid_terrains;
+       var broadcast_grid = wc.broadcast_grid;
+       //NativeHashSet<int3> dupe_check = new NativeHashSet<int3>(1024, Allocator.TempJob);
+       //dupe_check.Clear();
+       //var _dupe_check = dupe_check;
+       // loaded entities rely on this to get their grid cell states setup.
+       */
+        Entities.WithoutBurst()
+            .WithAll<Add2ChunkGridCmd>().ForEach((Entity entity, in LocalTransform c0, in GalacticType gtype, in PlayerID_CD pid) =>
+        {
+            add_machine2hex_grid(entity, gtype.value, c0.Position, pid.value, wc);
+            /* lod logic
+            if (check_gtype2hex_grid(gtype.value))
+            {
+                int3 key = MapGridSystem.position2bc_key(c0.Position);
+                key.y = pid.value;
+
+
+                MapGridSystem.add_entity_bc_pure(key, broadcast_grid, entity);
+                //broadcast_grid.Add(key, entity);
+                //MapGridSystem.self.add_entity2bc_grids(c0.Position, entity);
+            }
+            add_entity2hex_grids(entity, gtype.value, c0.Position, pid.value, machine_grid); // entity2chunk_grid, Add2ChunkGridCmd
+            //Debug.Log("Add2ChunkGridCmd " + gtype.value.ToString());
+            */
+            //var tmp = MapGridSystem.position2bc_key(c0.Position);
+            //dupe_check.Add(tmp);
+
+        }).Run();
+        //EntityManager.RemoveComponent<Add2ChunkGridCmd>(add2chunkgrid_cmd_query);
+        Statics.RemoveComponentByType<Add2ChunkGridCmd>(EntityManager);
+        //if (dupe_check.Count > 0)
+        //{
+        //    //Debug.LogWarning("Add2ChunkGridCmd count " + dupe_check.Count());
+        //    var keys = dupe_check.ToNativeArray(Allocator.Temp);
+        //    for (int i = 0; i < keys.Length; ++i)
+        //    {
+        //        MapGridSystem.self.server_wc.gv_increment(keys[i]);
+        //    }
+        //}
+        //dupe_check.Dispose();
+    }
+    public static bool IsGtypeFromMachine(GTypes gtype)
+    {
+        return gtype == GTypes.Assembler || gtype == GTypes.Refinery ||
+            gtype == GTypes.Extractor || gtype == GTypes.Router ||
+            gtype == GTypes.Launcher || gtype == GTypes.Box ||
+            gtype == GTypes.PowerStation || gtype == GTypes.SolarPanel ||
+            gtype == GTypes.Generator || gtype == GTypes.CRS || gtype == GTypes.HashMachine;
+    }
+
+    public static bool check_gtype2hex_grid(GTypes gtype)
+    {
+        return gtype == GTypes.PlayerBase || IsGtypeFromMachine(gtype);
+    }
+
+    public static void add_entity2hex_grids(Entity entity, GTypes gtype, float3 c0, int pid,
+        NativeHashMap<int3, Entity> machine_grid//, NativeHashMap<int3, Entity> terrain_grid
+        )
+    {
+        var keys = new NativeList<int2>(3, Allocator.Temp);
+        Interactions_GalaxyBS.HexMultiFromPosition(gtype, c0, keys);
+
+        if (check_gtype2hex_grid(gtype))
+        {
+            for (int i = 0; i < keys.Length; i++)
+            {
+                if (machine_grid.TryAdd(IVH.form_int3(keys[i], pid), entity) == false)
+                {
+                    //Debug.Log("duplicated key " + key.ToString() + ", " + DebugEntity.Entity2Str(entity) + " existing " + DebugEntity.Entity2Str(machine_grid[key]));
+                }
+            }
+        }
+    }
+
+    //public static void add_entity2hex_grids_wc(Entity entity, GTypes gtype, float3 c0, int pid, WorldContext wc)
+    //{
+    //    add_entity2hex_grids(entity, gtype, c0, pid, wc.hexgrid_machines);
+    //}
+
+    public static void remove_entity_from_hex_grids(EntityManager em, Entity entity,
+        NativeHashMap<int3, Entity> machine_grid, NativeHashMap<int3, Entity> terrain_grid,
+        NativeHashMap<int, UnsafeParallelMultiHashMap<int2, Entity>> broadcast_grid)
+    {
+        var c0 = em.GetComponentData<LocalTransform>(entity);
+        var gtype = em.GetComponentData<GalacticType>(entity).value;
+        var pid = em.GetComponentData<PlayerID_CD>(entity).value;
+        var keys = new NativeList<int2>(3, Allocator.Temp);
+
+        // when the target to remove is a job, ideally it should not try to remove it from the hexgrids.
+        // because jobs are never added to them to begin with.
+        // currently it relies on cmp.Equals to prevent any non-jobs from being removed.
+
+        Interactions_GalaxyBS.HexMultiFromPosition(gtype, c0.Position, keys);
+        for (int i = 0; i < keys.Length; i++)
+        {
+            if (machine_grid.TryGetValue(IVH.form_int3(keys[i], pid), out Entity cmp))
+            {
+                if (cmp.Equals(entity))
+                {
+                    machine_grid.Remove(IVH.form_int3(keys[i], pid));
+                }
+            }
+            if (terrain_grid.TryGetValue(IVH.form_int3(keys[i], pid), out cmp))
+            {
+                if (cmp.Equals(entity))
+                {
+                    terrain_grid.Remove(IVH.form_int3(keys[i], pid));
+                }
+            }
+            var rem_key = MapGridSystem.position2bc_key(HexCoord.ToPosition(keys[i]));
+            rem_key.y = pid;
+            MapGridSystem.remove_entity_bc_pure(rem_key, broadcast_grid, entity);
+        }
+    }
+
+    protected override void OnUpdate()
+    {
+        entity2chunk_grid(MapGridSystem.self.server_wc);
+
+        //entity2chunk_grid(MapGridSystem.self.client_wc);
+
+        all_machines2grid(MapGridSystem.self.server_wc);
+
+        all_machines2grid(MapGridSystem.self.client_wc);
+
+        all_machines2grid(MapGridSystem.self.planned_wc);
+
+        client_occupier_create_list(MapGridSystem.self.client_wc);
+        client_occupier_create_list(MapGridSystem.self.planned_wc);
+    }
+    
+    void all_machines2grid(WorldContext wc)
+    {
+        if(wc.extractor2grid.Count > 0)
+            extractor_resource_node_pass(wc);
+
+        //if (wc.peer2grid.Count > 0)
+        //    peer2grid(wc);
+
+        if (wc.router2grid.Count > 0)
+            router2grid_v3(wc);
+
+        if (wc.pwrstn2grid.Count > 0)
+            pwrstn2grid(wc);
+
+        if (wc.generator2grid.Count > 0)
+            generator2grid(wc);
+
+        if (wc.power_user2grid.Count > 0)
+        {
+            if (wc.SG.IsPlanned)
+            {
+                var rde_job = new remove_destroyed_entities_job();
+                rde_job.targets = wc.power_user2grid;
+                rde_job.c0_dict = GetComponentLookup<LocalTransform>();
+                rde_job.Run();
+            }
+            var user2grid_array = wc.power_user2grid.ToNativeArray(Allocator.TempJob);
+            machine_add2powergrids_job(user2grid_array, wc);
+            user2grid_array.Dispose();
+            wc.power_user2grid.Clear();
+        }
+        wc.clear_togrid();
+    }
+
+    // when the client logs in, it recreates all occupiers.
+    void client_occupier_create_list(WorldContext wc)
+    {
+        if (wc.occupier_create_list.Count == 0) return;
+
+        //NativeHashSet<Entity> belt_rebuild_list = new NativeHashSet<Entity>(8, Allocator.TempJob); // leak
+        var create_list = wc.occupier_create_list.ToNativeArray(Allocator.Temp);
+        for(int i = 0; i < create_list.Length; i ++)
+        {
+            var e = create_list[i];
+            if (EntityManager.HasBuffer<MachineDirectTransportTarget>(e) == false) continue;
+            var mdtt_array = EntityManager.GetBuffer<MachineDirectTransportTarget>(e).ToNativeArray(Allocator.Temp);
+
+            for(int j = 0; j < mdtt_array.Length; j ++)
+            {
+                var mdtt = mdtt_array[j];
+                if (mdtt.value == Entity.Null) continue;
+                direct_transport2grid(wc, e, mdtt.from_hex, mdtt.target_hex, mdtt.right_first == 1, mdtt.hash_target_hex(), ClientWorldMono.self.viewing_uid);
+            }
+        }
+        //for (int i = 0; i < create_list.Length; i++)
+        //{
+        //    belt_rebuild_list.Add(create_list[i]);
+        //}
+        wc.occupier_create_list.Clear();
+        //var detect_null_list = belt_rebuild_list.ToNativeArray(Allocator.Temp);
+        //for(int i = 0; i < detect_null_list.Length; ++i)
+        //{
+        //    if(EntityManager.HasComponent<GalacticType>(detect_null_list[i]) == false)
+        //    {
+        //        belt_rebuild_list.Remove(detect_null_list[i]);
+        //    }
+        //}
+
+        GalacticRenderUpdateSystem.self.dt_rebuild_hexbelt(wc);
+        
+    }
+    public static void list_remove_duplicate_with_hashset<T>(NativeList<T> list) where T:unmanaged, IEquatable<T>
+    {
+        NativeHashSet<T> hashset = new NativeHashSet<T>(list.Length, Allocator.Temp);
+        NativeList<T> new_list = new NativeList<T>(list.Length, Allocator.Temp);
+        for (int i = 0; i < list.Length; ++i)
+        {
+            if (hashset.Add(list[i]))
+            {
+                new_list.Add(list[i]);
+            }
+        }
+        list.Clear();
+        list.AddRange(new_list.AsArray());
+    }
+}
+
+public struct DTCellOccupierStatesDebug : IComponentData
+{
+    public Entity host_entities_0;
+    public Entity host_entities_1;
+    public Entity host_entities_2;
+    public Entity host_entities_3;
+    public Entity host_entities_4;
+    public Entity host_entities_5;
+    public byte dir_hash_0;
+    public byte dir_hash_1;
+    public byte dir_hash_2;
+    public byte dir_hash_3;
+    public byte dir_hash_4;
+    public byte dir_hash_5;
+
+    public long hashes_in_host0;
+    public long hashes_in_host1;
+    public long hashes_in_host2;
+    public long hashes_in_host3;
+    public long hashes_in_host4;
+    public long hashes_in_host5;
+
+
+    public byte rank_0;
+    public byte rank_1;
+    public byte rank_2;
+    public byte rank_3;
+    public byte rank_4;
+    public byte rank_5;
+}
+// this is required on server due to the server needs to run checks to determine belt path's validity.
+unsafe public partial struct DTCellOccupierStates : IComponentData, IDBGCMP_cd<DTCellOccupierStates>, DB_Extra, DB_Extra_Bursted
+{
+    public const int MaxOverlaps = 6;
+    public fixed long host_entities[MaxOverlaps];
+    public fixed byte direction_hashes[MaxOverlaps];
+    public fixed byte cached_ranks[MaxOverlaps];
+    public fixed long hashes_in_host[MaxOverlaps];
+    public void init()
+    {
+        hashes_in_host[0] = hashes_in_host[1] = hashes_in_host[2] = long.MaxValue;
+        hashes_in_host[3] = hashes_in_host[4] = hashes_in_host[5] = long.MaxValue;
+    }
+
+    public void toManaged(List<long> entities, List<byte> hashes, List<byte> ranks)
+    {
+        for (int i = 0; i < MaxOverlaps; ++i)
+        {
+            entities.Add(host_entities[i]);
+            hashes.Add(direction_hashes[i]);
+        }
+
+        for (int i = 0; i < MaxOverlaps; ++i)
+        {
+            ranks.Add(cached_ranks[i]);
+        }
+
+
+    }
+    public void get_host_and_index(int idx, out Entity host, out long index_in_host)
+    {
+        host = BalancerTargets_Sorted.long2Entity(host_entities[idx]);
+        index_in_host = hashes_in_host[idx];
+    }
+    public void add_existing_entities(NativeHashSet<Entity> list)
+    {
+        for(int i = 0; i < MaxOverlaps; ++i)
+        {
+            if(host_entities[i] != 0)
+            {
+                list.Add(BalancerTargets_Sorted.long2Entity(host_entities[i]));
+            }
+        }
+    }
+    public int get_height(int dir_in, int dir_out)
+    {
+        var hash = (byte)test_dtcos.dir_inout_hash(dir_in, dir_out);
+        for(int i = 0; i < MaxOverlaps; ++i)
+        {
+            if(hash == direction_hashes[i])
+            {
+                
+                return cached_ranks[i];
+            }
+        }
+        return 255;
+    }
+    public void set_entity(Entity e, int dir_in, int dir_out, long hash_in_host = long.MaxValue)
+    {
+        var hash = (byte)test_dtcos.dir_inout_hash(dir_in, dir_out);
+
+        direction_hashes[dir_in] = direction_hashes[dir_out] = hash;
+
+        host_entities[dir_out] = host_entities[dir_in] = BalancerTargets_Sorted.Entity2long(e);
+
+        hashes_in_host[dir_in] = hashes_in_host[dir_out] = hash_in_host;
+    }
+
+    public void clear_entity(int dir_in, int dir_out)
+    {
+        //var hash = (byte)test_dtcos.dir_inout_hash(dir_in, dir_out);
+
+        direction_hashes[dir_in] = direction_hashes[dir_out] = 0;
+
+        host_entities[dir_out] = host_entities[dir_in] = 0;
+
+        hashes_in_host[dir_in] = hashes_in_host[dir_out] = long.MaxValue;
+    }
+    public bool is_dir_occupied(int dir)
+    {
+        return host_entities[dir] != 0;
+    }
+
+    public bool is_empty()
+    {
+        for(int i = 0; i < MaxOverlaps; ++i)
+        {
+            if (host_entities[i] != 0)
+                return false;
+        }
+        return true;
+    }
+    struct rank_pair : IComparer<rank_pair>
+    {
+        public long entitylong;
+        public int index;
+        public int hash;
+        public int Compare(rank_pair a, rank_pair b)
+        {
+            if (a.hash == b.hash)
+            {
+                return 0;
+            }
+            if (a.hash < b.hash)
+                return 1;
+            return -1;
+        }
+    }
+    public void refresh_ranks()
+    {
+        NativeList<rank_pair> pairs = new NativeList<rank_pair>(Allocator.Temp);
+        NativeHashSet<long> entity_hs = new NativeHashSet<long>(3, Allocator.Temp);
+        for (int i = 0; i < MaxOverlaps; ++i)
+        {
+            if(host_entities[i] != 0 && entity_hs.Add(direction_hashes[i]))
+            //if (host_entities[i] != 0)
+                pairs.Add(new rank_pair() { entitylong = host_entities[i], index = i, hash = direction_hashes[i] });
+        }
+        pairs.Sort(new rank_pair());
+        for (int i = 0; i < MaxOverlaps; ++i)
+        {
+            cached_ranks[i] = 255;
+        }
+        for (int i = 0; i < pairs.Length; ++i)
+        {
+            cached_ranks[(byte)pairs[i].index] = (byte)i;
+        }
+
+    }
+
+    public void cmp(ComponentLookup<DTCellOccupierStates> cd_dict, Entity client_entity, Entity server_entity, NativeList<DiffRecord> records)
+    {
+        var client_dtcos = cd_dict[client_entity];
+        var server_dtcos = cd_dict[server_entity];
+        for(int i = 0; i < MaxOverlaps; ++i)
+        {
+            if(client_dtcos.cached_ranks[i] != server_dtcos.cached_ranks[i])
+            {
+                records.Add(new DiffRecord() { type = cmp_types.DTCOS_rank_mismatch, entity0 = client_entity, entity1 = server_entity, param0 = i });
+
+            }
+
+            if (client_dtcos.direction_hashes[i] != server_dtcos.direction_hashes[i])
+            {
+                records.Add(new DiffRecord() { type = cmp_types.DTCOS_hash_mismatch, entity0 = client_entity, entity1 = server_entity, param0 = i });
+            }
+        }
+    }
+
+    public void Serialize(SerializedBuffer _sb)
+    {
+        unsafe
+        {
+            for (int j = 0; j < MaxOverlaps; j++)
+            {
+                var e = BalancerTargets_Sorted.long2Entity(host_entities[j]);
+                uint e_guid = 0;
+                if (Statics.em.HasComponent<ASMEntityGUID>(e))
+                    e_guid = Statics.em.GetComponentData<ASMEntityGUID>(e).value;
+
+                _sb.serializeUInt(e_guid);
+            }
+        }
+    }
+
+    public void Deserialize(NativeHashMap<uint, Entity> entity_dict, byte[] buffer, ref int offset)
+    {
+        unsafe
+        {
+            for (int j = 0; j < MaxOverlaps; j++)
+            {
+                uint guid = 0;
+                SerializedBuffer.deserializeToUInt(buffer, ref offset, ref guid);
+                if (entity_dict.TryGetValue(guid, out Entity ref_e))
+                {
+                    host_entities[j] = BalancerTargets_Sorted.Entity2long(ref_e);
+                }
+                else
+                {
+                    host_entities[j] = 0;
+                }
+            }
+        }
+    }
+
+    public void Serialize(NativeList<byte> buffer, ComponentLookup<ASMEntityGUID> lookup)
+    {
+        unsafe
+        {
+            for (int j = 0; j < MaxOverlaps; j++)
+            {
+                var e = BalancerTargets_Sorted.long2Entity(host_entities[j]);
+                uint e_guid = 0;
+                if (lookup.HasComponent(e))
+                    e_guid = lookup[e].value;
+
+                Bursted.ns_generic(buffer, e_guid);
+            }
+        }
+    }
+
+    public void Deserialize(NativeHashMap<uint, Entity> entity_dict, UnsafeList<byte> buffer, ref int offset)
+    {
+        unsafe
+        {
+            for (int j = 0; j < MaxOverlaps; j++)
+            {
+                uint guid = 0;
+                Bursted.ud_struct(buffer, out guid, ref offset);
+                if (entity_dict.TryGetValue(guid, out Entity ref_e))
+                {
+                    host_entities[j] = BalancerTargets_Sorted.Entity2long(ref_e);
+                }
+                else
+                {
+                    host_entities[j] = 0;
+                }
+            }
+        }
+    }
+}
+public struct GridMapAssignment : IComponentData
+{
+    public int3 value;
+}
+public struct entitylocator : IComponentData
+{
+
+}
+
+[InternalBufferCapacity(4)]
+public struct PeerCollectTarget : IBufferElementData
+{
+    public Entity value;
+}
+
+[InternalBufferCapacity(4)]
+public struct PeerDeliverTarget : IBufferElementData
+{
+    public Entity value;
+}
