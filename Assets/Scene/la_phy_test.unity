@@ -1995,7 +1995,7 @@ GameObject:
   - component: {fileID: 1264550315}
   - component: {fileID: 1264550314}
   m_Layer: 0
-  m_Name: friendly
+  m_Name: friendly turret
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2689,7 +2689,7 @@ GameObject:
   - component: {fileID: 1663736745}
   - component: {fileID: 1663736744}
   m_Layer: 0
-  m_Name: hostile
+  m_Name: hostile turret
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

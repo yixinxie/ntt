@@ -19,7 +19,7 @@ public class WeaponAuthoring : MonoBehaviour
     public StorageCell storage;
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireSphere(transform.localPosition, weapon.radius);
+        //Gizmos.DrawWireSphere(transform.localPosition, weapon.radius);
     }
     public class Bakery : Baker<WeaponAuthoring>
     {
