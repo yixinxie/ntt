@@ -606,5 +606,6 @@ public enum GTypes : byte
     Generator,
     CRS,  // to be renamed to LDLogisticsStation, 'long-distance logistics station'
     Transporter,
+    CommandCenter,
     Total
 }

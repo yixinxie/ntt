@@ -110,7 +110,6 @@ public class TileExtractorAuthoring : MonoBehaviour
             }
             //SetComponent(entity, new TypeCached() { structure_type = StructureType.Extractor});
             SetComponent(entity, new GalacticType() { value = GTypes.Extractor });
-            SetComponent(entity, new PlayerID_CD() { value = authoring.def_player_id });
 
             AddPowerConsumerCD(this, entity);
             SetComponent(entity, new ProductionModifier() { idle_consumption = 5, full_consumption = 10 });

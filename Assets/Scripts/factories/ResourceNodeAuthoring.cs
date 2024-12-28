@@ -20,10 +20,7 @@ public class TileResourceNodeAuthoring : MonoBehaviour
             typeof(ResourceNodeOutputStates),
             typeof(ResourceNodeRemaining),
             typeof(GalacticType),
-            typeof(ASMEntityGUID),
-            typeof(ParentTileZoneRef),
             typeof(SimulationGroup), // this probably should not be set to Planned
-            typeof(PlayerID_CD), // not necessary
         }
         ));
 
@@ -40,29 +37,13 @@ public class TileResourceNodeAuthoring : MonoBehaviour
             for (int i = 0; i < atb.Length; ++i)
                 AppendToBuffer(entity, atb[i]);
 
-            if (authoring.is_client)
-            {
-                AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
-                typeof(MeshGORef),
-                typeof(ColliderRef),
-                //typeof(MachineItemGizmos),
-                }
-                ));
-                SetSharedComponent(entity, SimulationGroup.Client());
-                
+            AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
+            typeof(MeshGORef),
+            typeof(ColliderRef),
+            //typeof(MachineItemGizmos),
             }
-            else
-            {
-                //AddComponent(entity, new ComponentTypes(new ComponentType[]{
-                //typeof(ExtractorCoverTargetElement),
-                //}
-                //));
-                SetSharedComponent(entity, SimulationGroup.Server());
-            }
+            ));
+            SetSharedComponent(entity, SimulationGroup.Client());
         }
     }
-}
-public struct ParentTileZoneRef:IComponentData
-{
-    public Entity value;
 }

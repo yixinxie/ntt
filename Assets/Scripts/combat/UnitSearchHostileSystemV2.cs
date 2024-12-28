@@ -21,6 +21,7 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
     protected override void OnCreate()
     {
         base.OnCreate();
+        Enabled = false;
     }
     protected override void OnDestroy()
     {
@@ -60,71 +61,72 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
         switch (current_weapon.weapon_type)
         {
             case WeaponTypes.Cannon:
-                pdi.Filter.CollidesWith = team.HostileTeamMask() | StructureInteractions.Layer_vehicle;
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_raycast;
-                break;
-            case WeaponTypes.Repair_Multi:
-                pdi.Filter.CollidesWith = team.FriendlyTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
-                is_multi_targeting = true;
-                break;
-            case WeaponTypes.Repair:
-                pdi.Filter.CollidesWith = team.FriendlyTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_obstacle;
-                break;
-            case WeaponTypes.Laser_Defensive:
                 pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_projectile | StructureInteractions.Layer_character;
+                pdi.Filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan;
                 break;
-            case WeaponTypes.Projectile:
+            case WeaponTypes.CC_Passive_Scan:
                 pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+                pdi.Filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan;
                 break;
-            case WeaponTypes.Projectile_Multi:
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
-                is_multi_targeting = true;
-                break;
-            case WeaponTypes.Cannon_Vehicle:
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
-                require_los_check = true;
-                break;
-            case WeaponTypes.Cannon_Platform:
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_character;
-                break;
-            //case WeaponTypes.Cannon_Multi:
+
+            //case WeaponTypes.Repair_Multi:
+            //    pdi.Filter.CollidesWith = team.FriendlyTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+            //    is_multi_targeting = true;
+            //    break;
+            //case WeaponTypes.Repair:
+            //    pdi.Filter.CollidesWith = team.FriendlyTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_obstacle;
+            //    break;
+            //case WeaponTypes.Projectile:
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+            //    break;
+            //case WeaponTypes.Projectile_Multi:
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+            //    is_multi_targeting = true;
+            //    break;
+            //case WeaponTypes.Cannon_Vehicle:
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+            //    require_los_check = true;
+            //    break;
+            //case WeaponTypes.Cannon_Platform:
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_character;
+            //    break;
+            ////case WeaponTypes.Cannon_Multi:
+            ////    is_multi_targeting = true;
+            ////    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            ////    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+            ////    break;
+
+            //case WeaponTypes.Laser_Offensive:
+            //case WeaponTypes.Laser_Offensive_Cont:
+            //    //case WeaponTypes.Spawn_Hatchling:
+            //    //case WeaponTypes.Spawn_Fighter:
+            //    //is_multi_targeting = true;
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_character;
+            //    require_los_check = true;
+            //    break;
+
+            //case WeaponTypes.Spawn_Swarm:
             //    is_multi_targeting = true;
             //    pdi.Filter.CollidesWith = team.HostileTeamMask();
             //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
             //    break;
-
-            case WeaponTypes.Laser_Offensive:
-            case WeaponTypes.Laser_Offensive_Cont:
-                //case WeaponTypes.Spawn_Hatchling:
-                //case WeaponTypes.Spawn_Fighter:
-                //is_multi_targeting = true;
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_character;
-                require_los_check = true;
-                break;
-
-            case WeaponTypes.Spawn_Swarm:
-                is_multi_targeting = true;
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
-                break;
-            case WeaponTypes.Spawn_Fighter_Defensive:
-                is_multi_targeting = true;
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_character;
-                break;
-            case WeaponTypes.Laser_Offensive_Charged:
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
-                require_los_check = true;
-                break;
+            //case WeaponTypes.Spawn_Fighter_Defensive:
+            //    is_multi_targeting = true;
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_character;
+            //    break;
+            //case WeaponTypes.Laser_Offensive_Charged:
+            //    pdi.Filter.CollidesWith = team.HostileTeamMask();
+            //    pdi.Filter.BelongsTo = StructureInteractions.Layer_vehicle;
+            //    require_los_check = true;
+            //    break;
         }
 
 
@@ -372,7 +374,7 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
                     if (IsTargetInCone(c0_array[target.value].Position, c0, weapons[i]) == false)
                     {
                         // target out of range.
-                        Debug.Log(entity.ToString() + " detargets.");
+                        //Debug.Log(entity.ToString() + " detargets.");
                         targets[i] = default;
                         should_get_targets = true;
                     }
@@ -381,7 +383,7 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
                 {
                     if(GetTargets_ICD(physics, weapons[i], out CombatTarget _target, c0_array, c0, team, entity))
                     {
-                        Debug.Log(entity.ToString() + " gains target " + _target.value);
+                        //Debug.Log(entity.ToString() + " gains target " + _target.value);
                         //target.value = _target;
                         targets[i] = _target;
                     }
@@ -392,6 +394,40 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
                 }
             }
             
+        }).Run();
+
+
+        //NativeList<> 
+        // passive cc detect pass
+        Entities//.WithAll<InCombat>()
+        .ForEach((Entity entity, ref CmdCntrModes ccstates,
+        in LocalTransform c0, in CombatTeam team) =>
+        {
+
+            if (ccstates.mode == CmdCntrModeTypes.Passive && c0_array.HasComponent(ccstates.invader) == false)
+            {
+                var cc_wi = new WeaponInfoV2();
+                cc_wi.radius = 150f;
+                cc_wi.weapon_type = WeaponTypes.CC_Passive_Scan;
+                var clt = CachedTurretTransform.from_localtransform(c0);
+                if (GetTargets_ICD(physics, cc_wi, out CombatTarget _target, c0_array, clt, team, entity))
+                {
+                    //Debug.Log("cc gains target " + _target.value);
+                    //target.value = _target;
+                    ccstates.invader = _target.value;
+                    //var refs = sstate.EntityManager.GetBuffer<CmdCntrUnitRef>(entity).ToNativeArray(Allocator.Temp);
+                    //for(int i = 0; i < refs.Length; ++i)
+                    //{
+                    //    dispatch_cc_unit(ref sstate, refs[i].value, _target.value);
+                    //}
+                    
+                }
+                else
+                {
+                    ccstates.invader = default;
+                }
+            }
+
         }).Run();
 
         //Entities.WithAll<InCombat>()
@@ -449,6 +485,15 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
 
         ////turrets(physics);
         //bio_search_platform();
+    }
+    static void dispatch_cc_unit(ref SystemState sstate, Entity entity, Entity target)
+    {
+        var target_position = sstate.EntityManager.GetComponentData<LocalTransform>(target).Position;
+        var unit_position = sstate.EntityManager.GetComponentData<LocalTransform>(entity).Position;
+        var dp = sstate.EntityManager.GetComponentData<DesiredPosition>(entity);
+        dp.init_finish_line_vec(unit_position);
+        dp.target = target;
+        sstate.EntityManager.SetComponentData(entity, dp);
     }
    
    
@@ -553,123 +598,4 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
     //    ecb.Dispose();
     //}
 
-}
-[InternalBufferCapacity(4), System.Serializable]
-public struct WeaponInfoV2 : IBufferElementData
-{
-    public WeaponTypes weapon_type;
-    public ushort ammo_type;
-
-    //public StructureType projectile_type;
-    public float radius;
-    public half attack_radians;
-    //public byte burst_index; // changing
-    public half attack_time_left;
-    public half attack_duration;
-
-    public half weapon_cooldown_left; // 0 means ready to fire, 
-    public half weapon_cooldown_total;
-
-    public half base_damage;
-
-    public byte damamge_type;
-    //public uint param0;
-}
-
-[InternalBufferCapacity(4)]
-unsafe public struct CombatTargets:IBufferElementData
-{
-    public const int MaxCount = 4;
-    unsafe public fixed int indices[MaxCount];
-    unsafe public fixed int versions[MaxCount];
-    public int count;
-    public Entity value_at(int idx)
-    {
-        return new Entity() { Index = indices[idx], Version = versions[idx] };
-    }
-    public void set_null(int idx)
-    {
-        if (count > 0)
-        {
-            count--;
-            for (int i = idx; i < MaxCount - 1; ++i)
-            {
-                indices[i] = indices[i + 1];
-                versions[i] = versions[i + 1];
-            }
-        }
-    }
-    public void assign_at(Entity entity, int idx)
-    {
-        indices[idx] = entity.Index;
-        versions[idx] = entity.Version;
-    }
-    public void append(Entity entity)
-    {
-        if(count < 4)
-        {
-            assign_at(entity, count);
-            count++;
-        }
-
-    }
-    
-}
-
-
-//unsafe public struct CombatTargets_ICD : IComponentData
-//{
-//    public const int MaxCount = 4;
-//    unsafe public fixed int indices[4];
-//    unsafe public fixed int versions[4];
-//    public int count;
-//    public Entity value_at(int idx)
-//    {
-//        return new Entity() { Index = indices[idx], Version = versions[idx] };
-//    }
-//    public CombatTargets AsCombatTargets()
-//    {
-//        CombatTargets ret = new CombatTargets();
-//        for (int i = 0; i < count; ++i)
-//        {
-//            ret.append(value_at(0));
-//        }
-//        return ret;
-//    }
-//    public void set_null(int idx)
-//    {
-//        if (count > 0)
-//        {
-//            count--;
-//            for (int i = idx; i < MaxCount - 1; ++i)
-//            {
-//                indices[i] = indices[i + 1];
-//                versions[i] = versions[i + 1];
-//            }
-//        }
-//    }
-//    public void assign_at(Entity entity, int idx)
-//    {
-//        indices[idx] = entity.Index;
-//        versions[idx] = entity.Version;
-//    }
-//    public void append(Entity entity)
-//    {
-//        if (count < 4)
-//        {
-//            assign_at(entity, count);
-//            count++;
-//        }
-
-//    }
-
-//}
-[InternalBufferCapacity(4)]
-public struct CombatTarget : IBufferElementData
-{
-    public Entity value;
-}
-public struct DroneTargetPosition : IComponentData 
-{
-    public float3 value;
 }

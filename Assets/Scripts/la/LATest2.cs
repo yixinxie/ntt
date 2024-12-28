@@ -622,18 +622,28 @@ public struct MovementInfo : IComponentData
 
 public class StructureInteractions
 {
+
+    // on entity's collider collision filter setup:
+    // 'belong to' should be left empty as it is set automatically according to the combat team value.
+    // 'collide with' should be indicative of the type of the entity, such as
+    // ground vehicle,
+    // aerial vehicle,
+    // structure scan.
+    // local avoidance is done by casting 'cw': uint.maxValue and 'bt': ground_vehicle_scan
     public const uint Layer_raycast = (uint)1 << 31;
-    public const uint Layer_structure = (uint)1 << 30;
+    public const uint Layer_structure_scan = (uint)1 << 30;
 
-    public const uint Layer_vehicle = (uint)1 << 29;
-    public const uint Layer_resource_deposit = (uint)1 << 28;
+    public const uint Layer_ground_vehicle_scan = (uint)1 << 29;
+    public const uint Layer_aerial_scan = (uint)1 << 28;
 
-    public const uint Layer_obstacle = (uint)1 << 27;
-    //public const uint Layer_ring = (uint)1 << 26;
+    public const uint Layer_resource_deposit = (uint)1 << 26;
     public const uint Layer_ground = (uint)1 << 25;
-    public const uint Layer_character = (uint)1 << 24;
-    //public const uint Layer_object_picking = (uint)1 << 23;
-    public const uint Layer_ui = (uint)1 << 22;
-    public const uint Layer_projectile = (uint)1 << 21;
-    public const uint Layer_galactic = (uint)1 << 20;
+
+    public const uint Layer_obstacle = (uint)1 << 24;
+    //public const uint Layer_ring = (uint)1 << 26;
+    //public const uint Layer_character = (uint)1 << 24;
+    ////public const uint Layer_object_picking = (uint)1 << 23;
+    //public const uint Layer_ui = (uint)1 << 22;
+    //public const uint Layer_projectile = (uint)1 << 21;
+    //public const uint Layer_galactic = (uint)1 << 20;
 }

@@ -30,49 +30,26 @@ public class TileAssemblerAuthoring : MonoBehaviour
         em.AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
             
             typeof(GalacticType),
-            typeof(ASMEntityGUID),
-            typeof(PlayerID_CD),
+            //typeof(ASMEntityGUID),
+            //typeof(PlayerID_CD),
             typeof(SimulationGroup),
-            //typeof(MachineTransferAnimStates),
-            //typeof(MachineDirectTransportAnimStates), // not used
-            //typeof(ChipConfig), // logistics station, router, box should not have this.
-            //typeof(BonusEffectsV2),
-            //typeof(OutputAlternate),
         }
         ));
         
-        if (is_client)
-        {
-            em.SetSharedComponent(entity, SimulationGroup.Client());
-            em.AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
-                //typeof(MachineGizmosHeader_Diagnostic),
-                //typeof(MachineGizmosHeader_ItemIcon),
-                typeof(ColliderRef),
-                typeof(MachinePlatformStatesCached),
-                //typeof(MeshGORef),
-                //typeof(AnimationInterpolation),
-                //typeof(MachineTransferAnimTimes),
-                //typeof(MachineItemGizmos),
-                //typeof(AssemblerSubSecondTimer),
-                //typeof(CardEffectVisual),
-            }
-            ));
-
+        em.SetSharedComponent(entity, SimulationGroup.Client());
+        em.AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
+            //typeof(MachineGizmosHeader_Diagnostic),
+            //typeof(MachineGizmosHeader_ItemIcon),
+            typeof(ColliderRef),
+            typeof(MeshGORef),
+            //typeof(MeshGORef),
+            //typeof(AnimationInterpolation),
+            //typeof(MachineTransferAnimTimes),
+            //typeof(MachineItemGizmos),
+            //typeof(AssemblerSubSecondTimer),
+            //typeof(CardEffectVisual),
         }
-        else
-        {
-            em.SetSharedComponent(entity, SimulationGroup.Server());
-            em.AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
-
-            
-            
-            //typeof(MachineOutputEntity),
-            typeof(MachineWorkingStateHistory), // should not be on towers, playerbases or extractors.
-            }
-            ));
-            
-        }
-        
+        ));
     }
     public class Bakery : Baker<TileAssemblerAuthoring>
     {

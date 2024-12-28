@@ -180,8 +180,8 @@ public partial class LocalAvoidanceSystem : SystemBase
                 PointDistanceInput inp = new PointDistanceInput();
                 inp.Position = c1.Position;
                 inp.MaxDistance = radiusOfInterest_Multiplier * radius.value;
-                inp.Filter.BelongsTo = StructureInteractions.Layer_raycast;
-                inp.Filter.CollidesWith = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_obstacle;
+                inp.Filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan | StructureInteractions.Layer_obstacle;
+                inp.Filter.CollidesWith = uint.MaxValue;
                 inp.Filter.GroupIndex = 0;
 
                 NativeList<DistanceHit> hitsArray = new NativeList<DistanceHit>(Allocator.Temp);

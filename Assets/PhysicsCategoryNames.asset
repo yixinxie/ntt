@@ -37,11 +37,11 @@ MonoBehaviour:
   - 
   - 
   - 
-  - 
-  - ground
-  - 
   - obstacle
+  - ground
   - resource
-  - vehicle
-  - structure
+  - 
+  - aerial_scan
+  - ground_vehicle_scan
+  - structure_scan
   - raycast

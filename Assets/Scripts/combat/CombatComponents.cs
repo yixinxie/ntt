@@ -93,7 +93,10 @@ public struct UnitStats : IComponentData
 public enum WeaponTypes:byte
 {
 
-    Laser_Defensive,// platform laser
+    CC_Passive_Scan, // command center passive scan
+    Cannon,
+
+
     Laser_Offensive,
     Laser_Offensive_Cont,// ³æÈºÐ¡·É»ú¹¥»÷ÀØÉä
     Cannon_Multi, // cannon targets vehicles, channeled
@@ -103,7 +106,6 @@ public enum WeaponTypes:byte
     Spawn_Hatchling, // not used.
     Spawn_Swarm,
     Cannon_Vehicle,
-    Cannon,
     Projectile,
     Projectile_Platform, // platform missile, platform weapon to flying drone enemies
     Repair, // channeled

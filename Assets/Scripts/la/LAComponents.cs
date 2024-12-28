@@ -13,6 +13,7 @@ struct ExternalInfluence : IComponentData {
 }
 
 public struct DesiredPosition : IComponentData {
+    public Entity target;
     public float3 value;
     public float3 finish_line_right;
     //public float goal_scale;
