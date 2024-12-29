@@ -22,7 +22,10 @@ public partial struct UnitSearchHostileSystem : ISystem
     void OnCreate(ref SystemState sstate)
     {
         c0_array = sstate.GetComponentLookup<LocalTransform>();
+        var s_e = sstate.EntityManager.CreateEntity();
+        sstate.EntityManager.AddComponentData(s_e, new ASMSysStates());
         //sstate.EntityManager.<ASMSysStates>(SystemAPI.GetSingletonEntity<ASMSysStates>());
+        
     }
     void OnDestroy(ref SystemState sstate)
     {
@@ -220,6 +223,9 @@ public partial struct UnitSearchHostileSystem : ISystem
     }
     void OnUpdate(ref SystemState sstate)
     {
+        var ass = SystemAPI.GetSingletonRW<ASMSysStates>();
+        ass.ValueRW.elapsed += Time.deltaTime;
+        
         sstate.CompleteDependency();
         c0_array.Update(ref sstate);
         // turrets
@@ -396,5 +402,5 @@ public struct DroneTargetPosition : IComponentData
 }
 public struct ASMSysStates : IComponentData
 {
-
+    public float elapsed;
 }

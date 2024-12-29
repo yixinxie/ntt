@@ -160,7 +160,8 @@ public partial class LocalAvoidanceSystem : SystemBase
                 bc.goal_factor = goal_factor;
             }).Run();
         }
-        float dt = World.Time.DeltaTime;
+        //float dt = World.Time.DeltaTime;
+        float dt = 0.008f;
         //physics = Statics.GetPhysics();
         //Entities.ForEach((ref TranslationCopy c1, in Translation c0) =>
         //{
@@ -321,30 +322,33 @@ public partial class LocalAvoidanceSystem : SystemBase
                         occupancies[occupied_dir_index] = 1;
                     }
                 }
-
-                float surface2surface = adj_entities[i].distance - self_radius.value;
-                surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
-
-                if (surface2surface < self_radius.value)
+                else
                 {
-                    var d = math.distance(self_pos, adjpos);
-                    if (d > float.Epsilon)
-                    {
-                        var repel_dir = (self_pos - adjpos) / d;
-                        float repel_force = 1f / surface2surface;
-                        var sep_tmp = repel_dir * repel_force;
 
-                        //Debug.DrawLine(self_pos, self_pos + sep_tmp, Color.red, 0.016f, false);
-                        separation += sep_tmp;
+                    float surface2surface = adj_entities[i].distance - self_radius.value;
+                    surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
+
+                    if (surface2surface < self_radius.value)
+                    {
+                        var d = math.distance(self_pos, adjpos);
+                        if (d > float.Epsilon)
+                        {
+                            var repel_dir = (self_pos - adjpos) / d;
+                            float repel_force = 1f / surface2surface;
+                            var sep_tmp = repel_dir * repel_force;
+
+                            //Debug.DrawLine(self_pos, self_pos + sep_tmp, Color.red, 0.016f, false);
+                            separation += sep_tmp;
+                        }
+
                     }
 
-                }
-
-                if (adjVelocities.HasComponent(adj_entity))
-                {
-                    adj_velocity_sum += adjVelocities[adj_entity].value;
-                    adj_position_sum += adjpos;
-                    adj_count++;
+                    if (adjVelocities.HasComponent(adj_entity))
+                    {
+                        adj_velocity_sum += adjVelocities[adj_entity].value;
+                        adj_position_sum += adjpos;
+                        adj_count++;
+                    }
                 }
             }
             if (block_checked == false && mi.blocked_state != 0)
