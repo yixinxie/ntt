@@ -13,6 +13,7 @@ public class LAOccuTest : MonoBehaviour
     public MovementInfo mi_after;
     public Entity target;
     public bool copy;
+    public int frame_counter;
     private void Awake()
     {
         self = this;
@@ -25,6 +26,7 @@ public class LAOccuTest : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        frame_counter = World.DefaultGameObjectInjectionWorld.GetExistingSystemManaged<LocalAvoidanceSystem>().frame_counter;
         var em = World.DefaultGameObjectInjectionWorld.EntityManager;
         if (copy)
         {

@@ -7,10 +7,7 @@ using UnityEngine;
 struct LastFrameVelocity : IComponentData {
     public float3 value;
 }
-struct ExternalInfluence : IComponentData {
-    public float3 value;
-    public float distance2goal;
-}
+
 
 public struct DesiredPosition : IComponentData {
     public Entity target;
@@ -66,7 +63,3 @@ public struct LAAdjacentEntity : IBufferElementData
 //    public float angular_speed; // in radians
 //    public float speed;
 //}
-struct LA_Radius : IComponentData
-{
-    public float value;
-}

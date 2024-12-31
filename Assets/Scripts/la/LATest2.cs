@@ -610,6 +610,7 @@ public enum MovementStates:byte
 [System.Serializable]
 public struct MovementInfo : IComponentData
 {
+    public float self_radius;
     public float acceleration;
     public float deceleration;
     public float speed; // top speed
@@ -618,6 +619,11 @@ public struct MovementInfo : IComponentData
     public MovementStates move_state;
     public byte blocked_state; // 0 not blocked, 1 , 2
 
+    public float3 external_influence;
+    public float distance2goal;
+#if UNITY_EDITOR
+    public byte debug_index;
+#endif
 }
 
 public class StructureInteractions

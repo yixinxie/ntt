@@ -12,7 +12,9 @@ public class LAOverlapAuthoring : MonoBehaviour
     public float la_radius = 15f;
     public bool skip_goal_position;
     public bool pushable;
+    public byte debug_index;
     public bool use_pathfinding = true;
+
     private void OnDrawGizmos()
     {
         //if(movetarget!=null)
@@ -27,14 +29,15 @@ public class LAOverlapAuthoring : MonoBehaviour
             AddLAComponentsStatic(this, entity);
             SetComponent(entity, new BoidsCoeffs() { avoid_factor = 0.1f, goal_factor = 0.1f, cohesion_factor = 0.1f, speedavg_factor = 0.1f,goal_factor_max = 0.2f });
 
-            SetComponent(entity, new LA_Radius() { value = authoring.la_radius });
-
             var mi = new MovementInfo()
             {
                 speed = authoring.movement_speed,
                 angular_speed = Mathf.Deg2Rad * authoring.turn_speed_degrees,
                 move_state = (authoring.pushable) ? MovementStates.Pushable : MovementStates.HoldPosition,
-                blocked_state = 0
+                blocked_state = 0,
+                self_radius = authoring.la_radius,
+                debug_index = authoring.debug_index
+
             };
             if (authoring.movetarget != null)
             {
@@ -63,9 +66,6 @@ public class LAOverlapAuthoring : MonoBehaviour
                     typeof(LAAdjacentEntity),
                     typeof(DesiredPosition),
                     typeof(MovementInfo),
-                    typeof(LA_Radius),
-
-                    typeof(ExternalInfluence),
                     typeof(LastFrameVelocity),
                     typeof(FrameDisplacement),
                     typeof(BoidsCoeffs),
@@ -90,14 +90,12 @@ public class LAOverlapAuthoring : MonoBehaviour
     {
         dstManager.AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
                     typeof(LAAdjacentEntity),
-                    typeof(ExternalInfluence),
                     typeof(LastFrameVelocity),
                     //typeof(FrameDisplacement),
                     //typeof(LocalAvoidance),
 
                     //typeof(DesiredPosition),
                     typeof(MovementInfo),
-                    typeof(LA_Radius),
                     typeof(BoidsCoeffs),
                 }));
         if (use_pathfinding)
