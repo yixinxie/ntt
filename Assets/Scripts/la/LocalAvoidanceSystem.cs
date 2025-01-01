@@ -1,6 +1,7 @@
 ﻿//#define USE_MULTIPASS
 
 //using System.Numerics;
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -10,6 +11,7 @@ using Unity.Physics;
 using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Profiling;
 //using static Unity.Mathematics.math;
 
@@ -162,9 +164,32 @@ public partial class LocalAvoidanceSystem : SystemBase
         Ret2Goal,
 
     }
-    public struct codepath_states
+    public struct codepath_states:IEquatable<codepath_states>
     {
         public CodePathTypes type;
+        public bool Equals(codepath_states other)
+        {
+            return type == other.type;
+        }
+    }
+    void branches(byte debug_index, CodePathTypes _type, NativeList<codepath_states> prev_codepaths, NativeList<codepath_states> curret_cps)
+    {
+        if (debug_index == 1)
+        {
+            var cps = new codepath_states() { type = _type };
+            var ptr = curret_cps.Length;
+            if (ptr < prev_codepaths.Length && prev_codepaths[ptr].Equals(cps) == false)
+            {
+                // debug state changes
+                int sdf = 0;
+            }
+            //_codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition0 });
+            curret_cps.Add(cps);
+            if(curret_cps.Length > prev_codepaths.Length)
+            {
+                int sdf = 0;
+            }
+        }
     }
     protected override void OnUpdate()
     {
@@ -239,8 +264,12 @@ public partial class LocalAvoidanceSystem : SystemBase
         //    return;
         //}
         var fc = frame_counter;
-        codepaths.Clear();
         var _codepaths = codepaths;
+        if(frame_counter == 53)
+        {
+            int sdf = 0;
+        }
+        NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
         Entities.WithoutBurst()
         .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, in DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
         {
@@ -291,21 +320,20 @@ public partial class LocalAvoidanceSystem : SystemBase
                 var adj_mi = adj_mi_lookup[adj_entity];
                 if (adj_mi.move_state == MovementStates.HoldPosition)
                 {
-                    if (mi.debug_index == 1)
-                        _codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition0 });
+                    
+                    branches(mi.debug_index, CodePathTypes.HoldPosition0, _codepaths, curret_cps);
                     if (goal_axial.Equals(adj_axial) && HexCoord.hex_distance(0, adj_axial) == 1)
                     {
-                        if (mi.debug_index == 1)
-                            _codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition1 });
+                        branches(mi.debug_index, CodePathTypes.HoldPosition1, _codepaths, curret_cps);
                         if (block_checked == false)
                         {
-                            if (mi.debug_index == 1)
-                                _codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition2 });
+                            block_checked = true;
+
+                            branches(mi.debug_index, CodePathTypes.HoldPosition2, _codepaths, curret_cps);
                             float sign = 0f;
                             if (mi.blocked_state == 0)
                             {
-                                if (mi.debug_index == 1)
-                                    _codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition3_0 });
+                                branches(mi.debug_index, CodePathTypes.HoldPosition3_0, _codepaths, curret_cps);
                                 //if (mi.move_state == MovementStates.Pushable)
                                 //{
                                 //    int sdf = 0;
@@ -321,8 +349,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                             }
                             else
                             {
-                                if (mi.debug_index == 1)
-                                    _codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition3_1 });
+                                branches(mi.debug_index, CodePathTypes.HoldPosition3_1, _codepaths, curret_cps);
                                 //if (mi.move_state == MovementStates.Pushable)
                                 //{
                                 //    int sdf = 0;
@@ -334,22 +361,20 @@ public partial class LocalAvoidanceSystem : SystemBase
 
                             }
 
-                            block_checked = true;
+                            
                         }
 
                     }
-                    if (HexCoord.hex_distance(0, adj_axial) < 3)
+                    if (HexCoord.hex_distance(0, adj_axial) == 1)
                     {
-                        if (mi.debug_index == 1)
-                            _codepaths.Add(new codepath_states() { type = CodePathTypes.HexDistance3 });
+                        branches(mi.debug_index, CodePathTypes.HexDistance3, _codepaths, curret_cps);
                         var occupied_dir_index = HexCoord.offset2dir_index(adj_axial);
                         occupancies[occupied_dir_index] = 1;
                     }
                 }
                 else
                 {
-                    if (mi.debug_index == 1)
-                        _codepaths.Add(new codepath_states() { type = CodePathTypes.Pushable });
+                    branches(mi.debug_index, CodePathTypes.Pushable, _codepaths, curret_cps);
                     float surface2surface = adj_entities[i].distance - mi.self_radius;
                     surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
 
@@ -376,12 +401,8 @@ public partial class LocalAvoidanceSystem : SystemBase
             }
             if (block_checked == false && mi.blocked_state != 0)
             {
-                if (mi.debug_index == 1)
-                    _codepaths.Add(new codepath_states() { type = CodePathTypes.NonBlocking0 });
-                if (mi.move_state == MovementStates.Pushable)
-                {
-                    int sdf = 0;
-                }
+                branches(mi.debug_index, CodePathTypes.NonBlocking0, _codepaths, curret_cps);
+
                 // reverse rotate 60 degrees and check
                 float sign = (mi.blocked_state == 1) ? 1f : -1f;
                 quaternion q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(60f) * -sign);
@@ -390,15 +411,13 @@ public partial class LocalAvoidanceSystem : SystemBase
                 var test_dir_index = HexCoord.offset2dir_index(test_offset);
                 if (occupancies[test_dir_index] == 0)
                 {
-                    if (mi.debug_index == 1)
-                        _codepaths.Add(new codepath_states() { type = CodePathTypes.Relax });
+                    branches(mi.debug_index, CodePathTypes.Relax, _codepaths, curret_cps);
                     mi.current_desired_dir = test_dir;
                     var new_to_goal = math.normalize(desired.value - c0.Position);
                     var goal_dir_index = HexCoord.offset2dir_index(HexCoord.FromPosition(new_to_goal));
                     if (goal_dir_index == test_dir_index)
                     {
-                        if (mi.debug_index == 1)
-                            _codepaths.Add(new codepath_states() { type = CodePathTypes.Ret2Goal });
+                        branches(mi.debug_index, CodePathTypes.Ret2Goal, _codepaths, curret_cps);
                         mi.blocked_state = 0;
                         mi.current_desired_dir = new_to_goal;
                         Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.5f, false);
@@ -429,6 +448,9 @@ public partial class LocalAvoidanceSystem : SystemBase
             //CompleteDependency();
         }).Run();
         Profiler.EndSample();
+        codepaths.Clear();
+        codepaths.AddRange(curret_cps.AsArray());
+        curret_cps.Dispose();
 
         Profiler.BeginSample("LA2 - apply influence");
         Entities
