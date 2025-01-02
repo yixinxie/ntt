@@ -14,7 +14,7 @@ public class LAOccuTest : MonoBehaviour
     
     LocalAvoidanceSystem la_handle;
     [SerializeField]
-    public float[] occu_managed;
+    public byte[] occu_managed;
     [SerializeField]
     public float[] occu_floats_managed;
 
@@ -47,16 +47,11 @@ public class LAOccuTest : MonoBehaviour
         var self_lt = LocalTransform.FromPositionRotation(transform.position, transform.rotation);
         NativeList<LAAdjacentEntity> adjs = new NativeList<LAAdjacentEntity>(8, Allocator.Temp);
         la_handle.debug_laadj(default, adjs, self_lt, new MovementInfo() { self_radius = self_radius });
-        NativeArray<float> occu = new NativeArray<float>(6, Allocator.Temp);
-        //NativeArray<float> occu_floats = new NativeArray<float>(6, Allocator.Temp);
-        LocalAvoidanceSystem.horizon_eval_array(self_lt, adjs.AsArray(), la_handle.GetComponentLookup<LocalTransform>(), la_handle.GetComponentLookup<MovementInfo>(), occu, default);
+        NativeArray<byte> occu = new NativeArray<byte>(6, Allocator.Temp);
+        NativeArray<float> occu_floats = new NativeArray<float>(6, Allocator.Temp);
+        LocalAvoidanceSystem.horizon_eval_array(self_lt, adjs.AsArray(), la_handle.GetComponentLookup<LocalTransform>(), la_handle.GetComponentLookup<MovementInfo>(), occu, occu_floats);
         occu_managed = occu.ToArray();
-        //occu_managed = new half[occu.Length];
-        //for(int i = 0; i < occu.Length;i++)
-        //{
-        //    occu_managed[i] = occu[i];
-        //}
-        //occu_floats_managed = occu_floats.ToArray();
+        occu_floats_managed = occu_floats.ToArray();
         if (desired_location != null)
         {
             var dp = math.normalize(desired_location.position - transform.position);

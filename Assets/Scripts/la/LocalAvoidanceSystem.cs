@@ -46,12 +46,12 @@ public partial class LocalAvoidanceSystem : SystemBase
             test_dir -= 6;
         }
     }
-    public static bool detour_eval(int2 goal_axial, float3 goal_dir, ref MovementInfo mi, NativeArray<float> occupancies)
+    public static bool detour_eval(int2 goal_axial, float3 goal_dir, ref MovementInfo mi, NativeArray<byte> occupancies)
     {
         int goal_dir_index = HexCoord.offset2dir_index(goal_axial);
         if (mi.blocked_state == 0)
         {
-            if (occupancies[goal_dir_index] < 2f)
+            if (occupancies[goal_dir_index] < 2)
             {
                 // left right pick: 1: ccw,
                 // 2: cw
@@ -63,7 +63,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                 {
                     var test_dir = (goal_dir_index + i);
                     regularize_dir_index(ref test_dir);
-                    if (occupancies[test_dir] > 1f)
+                    if (occupancies[test_dir] > 1)
                     {
                         left_right_pick = 1;
                         dir_pick = test_dir;
@@ -71,7 +71,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                     }
                     test_dir = (goal_dir_index - i);
                     regularize_dir_index(ref test_dir);
-                    if (occupancies[test_dir] > 1f)
+                    if (occupancies[test_dir] > 1)
                     {
                         left_right_pick = 2;
                         dir_pick = test_dir;
@@ -89,10 +89,11 @@ public partial class LocalAvoidanceSystem : SystemBase
         }
         else
         {
-            if (occupancies[mi.detour_dir] < 2f)
+            var test_dir = mi.detour_dir;
+            var rot_dir = (mi.blocked_state == 1) ? 1 : -1;
+            if (occupancies[mi.detour_dir] < 2)
             {
-                var test_dir = mi.detour_dir;
-                var rot_dir = (mi.blocked_state == 1) ? 1 : -1;
+                
                 // detour
                 for(int i = 0; i < 2; ++i)
                 {
@@ -109,10 +110,9 @@ public partial class LocalAvoidanceSystem : SystemBase
             else 
             {
                 // check if we can turn this one dir towards the goal dir
-                var test_dir = mi.detour_dir;
-                var rot_dir = (mi.blocked_state == 1) ? 1 : -1;
-                // detour
-                for (int i = 1; i < 6; ++i)
+                
+                //for (int i = 1; i < 6; ++i)
+                int i = 1;
                 {
                     int this_dir = test_dir - rot_dir * i;
                     regularize_dir_index(ref this_dir);
@@ -120,7 +120,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                     {
                         mi.detour_dir = (byte)this_dir;
                         mi.refresh_dd(goal_dir);
-                        break;
+                        //break;
                     }
                 }
 
@@ -137,13 +137,13 @@ public partial class LocalAvoidanceSystem : SystemBase
     public static void horizon_eval_array(LocalTransform c0,
         NativeArray<LAAdjacentEntity> adj_entities,
         ComponentLookup<LocalTransform> adjPositions,
-        ComponentLookup<MovementInfo> adj_mi_lookup, NativeArray<float> occupancies, NativeArray<float> occu_floats)
+        ComponentLookup<MovementInfo> adj_mi_lookup, NativeArray<byte> occupancies, NativeArray<float> occu_floats)
     {
         float3 self_pos = c0.Position;
         for (int i = 0; i < occupancies.Length; ++i)
         {
-            occupancies[i] = float.MaxValue;
-            //occu_floats[i] = float.MaxValue;
+            occupancies[i] = byte.MaxValue;
+            occu_floats[i] = float.MaxValue;
         }
         for (int i = 0; i < adj_entities.Length; ++i)
         {
@@ -158,7 +158,7 @@ public partial class LocalAvoidanceSystem : SystemBase
     }
     public static void horizon_eval_single(float3 self_pos,
         //NativeArray<LAAdjacentEntity> adj_entities,
-        float3 adj_pos, MovementInfo adj_mi, NativeArray<float> occupancies, NativeArray<float> occu_floats)
+        float3 adj_pos, MovementInfo adj_mi, NativeArray<byte> occupancies, NativeArray<float> occu_floats)
     {
         if (adj_mi.move_state == MovementStates.HoldPosition)
         {
@@ -168,7 +168,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             {
                 to_adj /= distance;
                 var dir_index = HexCoord.offset2dir_index(HexCoord.FromPosition(to_adj));
-                float int_distance = distance;
+                byte int_distance = (byte)math.ceil(distance);
                 if (int_distance < occupancies[dir_index])
                 {
                     occupancies[dir_index] = int_distance;
@@ -298,6 +298,7 @@ public partial class LocalAvoidanceSystem : SystemBase
         var adjPositions = GetComponentLookup<LocalTransform>();
         var adjVelocities = GetComponentLookup<LastFrameVelocity>();
         var adj_mi_lookup = GetComponentLookup<MovementInfo>();
+        //return;
         //bool early = false;
         //if (early)
         //{
@@ -353,10 +354,10 @@ public partial class LocalAvoidanceSystem : SystemBase
             //NativeList<int2> blockade_list = new NativeList<int2>(Allocator.Temp);
             var self_axial = HexCoord.FromPosition(self_pos);
             var to_rounded_hcenter = HexCoord.ToPosition(self_axial) - self_pos;
-            NativeArray<float> occupancies = new NativeArray<float>(6, Allocator.Temp);
+            NativeArray<byte> occupancies = new NativeArray<byte>(6, Allocator.Temp);
             for (int i = 0; i < occupancies.Length; ++i)
             {
-                occupancies[i] = float.MaxValue;
+                occupancies[i] = byte.MaxValue;
                 //occu_floats[i] = float.MaxValue;
             }
             for (int i = 0; i < adj_entities.Length; ++i)
