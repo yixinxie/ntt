@@ -604,8 +604,10 @@ public class LATest2 : MonoBehaviour
 }
 public enum MovementStates:byte
 {
-    Pushable, // pushable
-    HoldPosition, // not pushable
+    Pushable, // pushable 0
+    Unnamed, // 1
+    HoldPosition, // not pushable, 10
+    Stuck, // 11
 }
 [System.Serializable]
 public struct MovementInfo : IComponentData
@@ -617,9 +619,14 @@ public struct MovementInfo : IComponentData
     public float angular_speed;
     public float3 current_desired_dir;
     public MovementStates move_state;
+    public bool is_stuckorhp()
+    {
+        return (byte)move_state > 1;
+    }
     public byte blocked_state; // 0 not blocked,
                                // 1 ccw,
                                // 2 cw
+                               
     public byte detour_dir;
 
     // only use this when blocked_state is non-zero

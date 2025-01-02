@@ -1534,10 +1534,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f28ffe3d6ede9d46b817329dbb23e76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  avoid_factor: 0.1
+  avoid_factor: 0.01
   cohesion_factor: 0
   speedavg_factor: 0
-  goal_factor: 0.3
+  goal_factor: 8
 --- !u!1 &1020417547
 GameObject:
   m_ObjectHideFlags: 0

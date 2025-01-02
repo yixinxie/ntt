@@ -160,7 +160,7 @@ public partial class LocalAvoidanceSystem : SystemBase
         //NativeArray<LAAdjacentEntity> adj_entities,
         float3 adj_pos, MovementInfo adj_mi, NativeArray<byte> occupancies, NativeArray<float> occu_floats)
     {
-        if (adj_mi.move_state == MovementStates.HoldPosition)
+        if (adj_mi.move_state >= MovementStates.HoldPosition)
         {
             var to_adj = adj_pos - self_pos;
             var distance = math.distance(0f, to_adj);
@@ -344,8 +344,8 @@ public partial class LocalAvoidanceSystem : SystemBase
             //influence.value /= distance2goal;
 
             //float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? mi.current_desired_dir / distance2goal : mi.current_desired_dir;
-            float3 goal_dir_normalized = mi.current_desired_dir;
-            var goal_axial = HexCoord.FromPosition(mi.current_desired_dir);
+            //float3 goal_dir_normalized = mi.current_desired_dir;
+            var goal_axial = HexCoord.FromPosition(dir2dp);
 
             float3 adj_position_sum = 0f;
             float3 separation = 0f;
@@ -380,7 +380,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                 adj_axial -= self_axial;
 
                 var adj_mi = adj_mi_lookup[adj_entity];
-                if (adj_mi.move_state == MovementStates.HoldPosition)
+                if (adj_mi.move_state >= MovementStates.HoldPosition)
                 {
                     horizon_eval_single(self_pos, adj_pos, adj_mi, occupancies, default);
                     
@@ -413,6 +413,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                 }
             }
             bool stuck = detour_eval(HexCoord.FromPosition(dir2dp), dir2dp, ref mi, occupancies);
+
           
             //Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
             if (adj_count > 0)
@@ -420,19 +421,30 @@ public partial class LocalAvoidanceSystem : SystemBase
                 adj_velocity_sum /= adj_count;
             }
             adj_position_sum = (adj_count > 1) ? adj_position_sum / adj_count : self_pos;
-            //Debug.DrawLine(self_pos, self_pos + separation * boids_coeffs.avoid_factor, Color.red, 0.016f, false);
+            Debug.DrawLine(self_pos, self_pos + separation * boids_coeffs.avoid_factor, Color.red, 0.016f, false);
             //Debug.DrawLine(self_pos, self_pos + (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor, Color.green, 0.016f, false);
             //Debug.DrawLine(self_pos, self_pos + (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor, Color.red, 0.016f, false);
-            //Debug.DrawLine(self_pos, self_pos + (goaldir) * boids_coeffs.goal_factor, Color.blue, 0.016f, false);
+            Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir * boids_coeffs.goal_factor, Color.blue, 0.016f, false);
             prev_velocity = prev_velocity +
                 separation * boids_coeffs.avoid_factor +
                 (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor +
                 (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor +
-                goal_dir_normalized * boids_coeffs.goal_factor;
+                mi.current_desired_dir * boids_coeffs.goal_factor;
             if (stuck == false)
             {
+                if(mi.move_state == MovementStates.Stuck)
+                {
+                    mi.move_state = MovementStates.Pushable;
+                }
                 mi.external_influence = prev_velocity;
                 mi.distance2goal = distance2goal;
+            }
+            else
+            {
+                if (mi.move_state == MovementStates.Pushable)
+                {
+                    mi.move_state = MovementStates.Stuck;
+                }
             }
             //externalInfluence.value.y = 0f;
             //externalInfluence.value = influence;
@@ -465,7 +477,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                 float3 forward = math.mul(c0.Rotation, new float3(0f, 0f, 1f)); // the actual direction the unit is facing.
                 float3 normalized_influence = 0f;
                 float speed_scale = 0f;
-                if (influence_magnitude > float.Epsilon && moveinfo.move_state != MovementStates.HoldPosition)
+                if (influence_magnitude > float.Epsilon && moveinfo.move_state < MovementStates.HoldPosition)
                 {
                     normalized_influence = moveinfo.external_influence / influence_magnitude;
                     float3 adjusted_facing = Vector3.RotateTowards(forward, normalized_influence, moveinfo.angular_speed * dt, 0f);
