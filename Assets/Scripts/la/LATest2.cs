@@ -617,7 +617,23 @@ public struct MovementInfo : IComponentData
     public float angular_speed;
     public float3 current_desired_dir;
     public MovementStates move_state;
-    public byte blocked_state; // 0 not blocked, 1 , 2
+    public byte blocked_state; // 0 not blocked,
+                               // 1 ccw,
+                               // 2 cw
+    public byte detour_dir;
+
+    // only use this when blocked_state is non-zero
+    public void refresh_dd(float3 goal_dir)
+    {
+        if (blocked_state == 0)
+        {
+            current_desired_dir = goal_dir;
+            return;
+        }
+        //var dir2rot = (int)(blocked_state - 1);
+        var q = quaternion.AxisAngle(new float3(0f, 1f, 0f), math.radians(-60f) * detour_dir);
+        current_desired_dir = math.mul(q, new float3(1f, 0f, 0f));
+    }
 
     public float3 external_influence;
     public float distance2goal;

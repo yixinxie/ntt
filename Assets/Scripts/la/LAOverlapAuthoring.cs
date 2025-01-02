@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Unity.Collections;
+using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -14,6 +15,7 @@ public class LAOverlapAuthoring : MonoBehaviour
     public bool pushable;
     public byte debug_index;
     public bool use_pathfinding = true;
+    public string dbgid;
 
     private void OnDrawGizmos()
     {
@@ -25,6 +27,14 @@ public class LAOverlapAuthoring : MonoBehaviour
         public override void Bake(LAOverlapAuthoring authoring)
         {
             var entity = GetEntity(TransformUsageFlags.Dynamic);
+
+            AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
+                    typeof(DBGId),
+                }));
+            if (string.IsNullOrEmpty(authoring.dbgid) == false)
+            {
+                SetComponent(entity, new DBGId() { str32 = new FixedString32Bytes(authoring.dbgid) });
+            }
 
             AddLAComponentsStatic(this, entity);
             SetComponent(entity, new BoidsCoeffs() { avoid_factor = 0.1f, goal_factor = 0.1f, cohesion_factor = 0.1f, speedavg_factor = 0.1f,goal_factor_max = 0.2f });
@@ -117,4 +127,8 @@ public struct BoidsCoeffs:IComponentData
     public float speedavg_factor;
     public float goal_factor;
     public float goal_factor_max;
+}
+public struct DBGId:IComponentData
+{
+    public FixedString32Bytes str32;
 }

@@ -343,6 +343,7 @@ MonoBehaviour:
   pushable: 1
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!114 &172735542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -772,6 +773,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &336205363
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -1072,6 +1074,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &389950847
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -1238,7 +1241,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &460277067
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1453,6 +1456,7 @@ MonoBehaviour:
   pushable: 1
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!4 &460277070
 Transform:
   m_ObjectHideFlags: 0
@@ -1518,7 +1522,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &650305330
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1733,6 +1737,7 @@ MonoBehaviour:
   pushable: 1
   debug_index: 1
   use_pathfinding: 1
+  dbgid: testtarget
 --- !u!4 &650305333
 Transform:
   m_ObjectHideFlags: 0
@@ -1982,6 +1987,7 @@ MonoBehaviour:
   pushable: 1
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!4 &666941571
 Transform:
   m_ObjectHideFlags: 0
@@ -2233,6 +2239,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &750342317
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -2531,6 +2538,7 @@ MonoBehaviour:
   pushable: 1
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!4 &904835584
 Transform:
   m_ObjectHideFlags: 0
@@ -2865,6 +2873,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &915699076
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -3165,6 +3174,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &1125898071
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -3505,6 +3515,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &1264550318
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -3861,6 +3872,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &1569234028
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -4242,6 +4254,7 @@ MonoBehaviour:
   pushable: 1
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!4 &1611746356
 Transform:
   m_ObjectHideFlags: 0
@@ -4533,6 +4546,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!33 &1663736748
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -4847,6 +4861,7 @@ MonoBehaviour:
   pushable: 0
   debug_index: 0
   use_pathfinding: 1
+  dbgid: 
 --- !u!114 &1973363091
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4999,6 +5014,6 @@ SceneRoots:
   - {fileID: 172735540}
   - {fileID: 1611746356}
   - {fileID: 904835584}
+  - {fileID: 666941571}
   - {fileID: 460277070}
   - {fileID: 650305333}
-  - {fileID: 666941571}
