@@ -46,8 +46,9 @@ public partial class LocalAvoidanceSystem : SystemBase
             test_dir -= 6;
         }
     }
-    public static bool detour_eval(int2 goal_axial, float3 goal_dir, ref MovementInfo mi, NativeArray<byte> occupancies)
+    public static bool detour_eval(int2 goal_axial, float3 goal_dir, ref MovementInfo mi, NativeArray<byte> occupancies, out bool recalc_destionation)
     {
+        recalc_destionation = false;
         int goal_dir_index = HexCoord.offset2dir_index(goal_axial);
         if (mi.blocked_state == 0)
         {
@@ -129,6 +130,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                     mi.blocked_state = 0;
                     mi.detour_dir = 255;
                     mi.refresh_dd(goal_dir);
+                    recalc_destionation = true;
                 }
             }
         }
@@ -285,6 +287,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             .WithAll<DesiredPosition>().ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, in LocalTransform c1, in MovementInfo mi) =>
             {
                 adj_entities.Clear();
+                if (mi.move_state == MovementStates.HoldPosition) return;
                 NativeList<LAAdjacentEntity> tmp = new NativeList<LAAdjacentEntity>(8, Allocator.Temp);
                 laadj(entity, tmp, c1, mi, _physics);
                 adj_entities.AddRange(tmp.AsArray());
@@ -327,8 +330,9 @@ public partial class LocalAvoidanceSystem : SystemBase
         }
         NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
         Entities.WithoutBurst()
-        .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, in DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0, in DBGId dbgid) =>
+        .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0, in DBGId dbgid) =>
         {
+            if (mi.move_state == MovementStates.HoldPosition) return;
             if (mi.debug_index == 1)
             {
                 int sdf = 0;
@@ -340,7 +344,10 @@ public partial class LocalAvoidanceSystem : SystemBase
             //influence.value = desired.value - self_pos;
             float3 dir2dp = desired.value - c0.Position;
             float distance2goal = math.distance(desired.value, c0.Position);
-            dir2dp /= distance2goal;
+            if (distance2goal > float.Epsilon)
+            {
+                dir2dp /= distance2goal;
+             }
             //influence.value /= distance2goal;
 
             //float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? mi.current_desired_dir / distance2goal : mi.current_desired_dir;
@@ -385,9 +392,9 @@ public partial class LocalAvoidanceSystem : SystemBase
                     horizon_eval_single(self_pos, adj_pos, adj_mi, occupancies, default);
                     
                 }
-                else
+                //else
                 {
-                    branches(mi.debug_index, CodePathTypes.Pushable, _codepaths, curret_cps);
+                    //branches(mi.debug_index, CodePathTypes.Pushable, _codepaths, curret_cps);
                     float surface2surface = adj_entities[i].distance - mi.self_radius;
                     surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
 
@@ -412,7 +419,11 @@ public partial class LocalAvoidanceSystem : SystemBase
                     }
                 }
             }
-            bool stuck = detour_eval(HexCoord.FromPosition(dir2dp), dir2dp, ref mi, occupancies);
+            bool stuck = detour_eval(HexCoord.FromPosition(dir2dp), dir2dp, ref mi, occupancies, out bool recalc_dest);
+            if(recalc_dest)
+            {
+                desired.init_finish_line_vec(self_pos);
+            }
 
           
             //Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
@@ -421,27 +432,37 @@ public partial class LocalAvoidanceSystem : SystemBase
                 adj_velocity_sum /= adj_count;
             }
             adj_position_sum = (adj_count > 1) ? adj_position_sum / adj_count : self_pos;
+
+            var sep_length = math.distance(separation, 0f);
+            if(sep_length > float.Epsilon)
+            {
+                var clampped = math.clamp(sep_length, 0f, 2f);
+                separation = separation / sep_length * clampped;
+            }
+
             Debug.DrawLine(self_pos, self_pos + separation * boids_coeffs.avoid_factor, Color.red, 0.016f, false);
             //Debug.DrawLine(self_pos, self_pos + (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor, Color.green, 0.016f, false);
             //Debug.DrawLine(self_pos, self_pos + (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor, Color.red, 0.016f, false);
             Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir * boids_coeffs.goal_factor, Color.blue, 0.016f, false);
+            float goal_inf = (mi.move_state == MovementStates.Moving) ? boids_coeffs.goal_factor : 0f;
             prev_velocity = prev_velocity +
                 separation * boids_coeffs.avoid_factor +
                 (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor +
                 (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor +
-                mi.current_desired_dir * boids_coeffs.goal_factor;
+                mi.current_desired_dir * goal_inf;
             if (stuck == false)
             {
                 if(mi.move_state == MovementStates.Stuck)
                 {
-                    mi.move_state = MovementStates.Pushable;
+                    mi.move_state = MovementStates.Moving;
                 }
                 mi.external_influence = prev_velocity;
                 mi.distance2goal = distance2goal;
             }
             else
             {
-                if (mi.move_state == MovementStates.Pushable)
+                mi.external_influence = 0f;
+                if (mi.move_state == MovementStates.Moving)
                 {
                     mi.move_state = MovementStates.Stuck;
                 }
@@ -465,7 +486,6 @@ public partial class LocalAvoidanceSystem : SystemBase
 
             ref LastFrameVelocity lfv,
             ref LocalTransform c0,
-            ref FrameDisplacement frame_disp,
             //, ref RotationChangeLimiter limiter
             in MovementInfo moveinfo,
             in DesiredPosition dp
@@ -494,23 +514,26 @@ public partial class LocalAvoidanceSystem : SystemBase
                 }
                 //float3 frame_velocity = adjusted_facing * moveinfo.movement_speed * speedScale * slow_coeff;
                 float3 frame_velocity = normalized_influence * moveinfo.speed * speed_scale;
-                frame_disp.value = frame_velocity * dt;
+                var frame_disp_value = frame_velocity * dt;
                 lfv.value = frame_velocity;
                 //facing.value = adjusted_facing;
+
+                var newval = c0.Position + frame_disp_value;
+                c0.Position = newval;
             }).Run();
         //}).ScheduleParallel();
         //CompleteDependency();
-        Entities
-            //.WithNone<DisabledDuration>()
-            .WithAll<DesiredPosition>()
-            //.WithAll<LocalAvoidance>()
-            .ForEach((ref LocalTransform localPosition, in FrameDisplacement disp) =>
-            {
-                var newval = localPosition.Position + disp.value;
-                localPosition.Position = newval;
+        //Entities
+        //    //.WithNone<DisabledDuration>()
+        //    .WithAll<DesiredPosition>()
+        //    //.WithAll<LocalAvoidance>()
+        //    .ForEach((ref LocalTransform localPosition, in FrameDisplacement disp) =>
+        //    {
+        //        var newval = localPosition.Position + disp.value;
+        //        localPosition.Position = newval;
 
-            }).ScheduleParallel();
-        CompleteDependency();
+        //    }).ScheduleParallel();
+        //CompleteDependency();
         Profiler.EndSample();
 
         // update goal coefficient
@@ -519,22 +542,27 @@ public partial class LocalAvoidanceSystem : SystemBase
         {
             float distance = math.distance(c0.Position, dp.value);
             float goal_coeff = distance / 10f;
-            if (goal_coeff > coeffs.goal_factor_max) goal_coeff = coeffs.goal_factor_max;
-            coeffs.goal_factor = goal_coeff;
+            coeffs.goal_factor = math.clamp(goal_coeff, 0f, coeffs.goal_factor_max);
 
         }).Run();
 
         //finishers.Clear();
         //var _finishers = finishers;
-        //Entities.WithNone<DroneTag>()
-        //.WithAll<LocalAvoidance>().ForEach((Entity entity, in Translation c0, in DesiredPosition dp) =>
-        //{
-        //    float distance = math.distance(c0.Value, dp.value);
-        //    if(distance < 0.3f)
-        //    {
-        //        _finishers.Add(entity);
-        //    }
-        //}).Run();
+        Entities.ForEach((Entity entity, ref LocalTransform c0, ref MovementInfo mi, ref LastFrameVelocity prev_vel, in DesiredPosition dp) =>
+        {
+            if (mi.move_state >= MovementStates.HoldPosition) return;
+            //float distance = math.distance(c0.Position, dp.value);
+            //if (distance < 0.3f)
+            //var distance = dp.distance_2_finish_line(c0.Position);
+            if(dp.distance_2_finish_line(c0.Position))
+            {
+                mi.move_state = MovementStates.Idle;
+                mi.blocked_state = 0;
+                mi.current_desired_dir = 0f;
+                prev_vel = default;
+                //_finishers.Add(entity);
+            }
+        }).Run();
         //if (finishers.Length > 0)
         //{
         //    EntityManager.RemoveComponent<DesiredPosition>(finishers.ToArray(Allocator.Temp));
@@ -543,28 +571,7 @@ public partial class LocalAvoidanceSystem : SystemBase
 
     }
 }
-public struct LAV2MovementStates : IComponentData
-{
-    public MovementStates move_state;
-    public float3 cached_last_dir;
-    public float3 previous_wall_center_dir;
-    public byte left1_right2_detour_dir;
-    public float3 tmp_goal_dir;
-    public float3 tmp_gap_dir;
-    public float3 tmp_repel_force;
-    public void idle()
-    {
-        left1_right2_detour_dir = 0;
-        move_state = MovementStates.Pushable;
-        cached_last_dir = Vector3.zero;
-    }
-    public void hold_position()
-    {
-        left1_right2_detour_dir = 0;
-        move_state = MovementStates.HoldPosition;
-        cached_last_dir = Vector3.zero;
-    }
-}
+
 
 [InternalBufferCapacity(8)]
 public struct LAV2QuantizedOccupancy : IBufferElementData

@@ -56,7 +56,7 @@ public class LAOccuTest : MonoBehaviour
         {
             var dp = math.normalize(desired_location.position - transform.position);
             mi_after = mi;
-            if (LocalAvoidanceSystem.detour_eval(HexCoord.FromPosition(dp), dp, ref mi_after, occu) == false)
+            if (LocalAvoidanceSystem.detour_eval(HexCoord.FromPosition(dp), dp, ref mi_after, occu, out var tmp) == false)
             {
                 if (mi_after.blocked_state != 0)
                 {

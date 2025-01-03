@@ -43,9 +43,6 @@ public struct DesiredPosition : IComponentData {
         //Vector3.Cross()
     }
 }
-struct FrameDisplacement : IComponentData {
-    public float3 value;
-}
 
 
 [InternalBufferCapacity(8)]

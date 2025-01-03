@@ -344,255 +344,255 @@ public class LATest2 : MonoBehaviour
 
     // while moving, the return value is 0.
     // while idle, the return value, indicating the push force, is normalized.
-    Vector3 obstacle_plotting_and_repels()
-    {
-        Vector3 repel_force = Vector3.zero;
-        if (movement_state == MovementStates.HoldPosition) return repel_force;
+    //Vector3 obstacle_plotting_and_repels()
+    //{
+    //    Vector3 repel_force = Vector3.zero;
+    //    if (movement_state == MovementStates.HoldPosition) return repel_force;
 
-        Vector3 self_position = transform.localPosition;
-        Vector3 search_center = self_position;// get_forward_raycast_origin();
-        UnityEngine.Collider[] cols = Physics.OverlapSphere(search_center, search_radius);
-        adj_count = 0;
+    //    Vector3 self_position = transform.localPosition;
+    //    Vector3 search_center = self_position;// get_forward_raycast_origin();
+    //    UnityEngine.Collider[] cols = Physics.OverlapSphere(search_center, search_radius);
+    //    adj_count = 0;
 
-        float closest_distance = float.MaxValue;
-        Vector3 closest_adj_vec = Vector3.zero;
-        if (movement_state == MovementStates.Pushable)
-        {
-            // the unit is in idle state and is subject to being pushed. calculate the push force by finding the closest colliding unit.
-            for (int i = 0; i < cols.Length; ++i)
-            {
-                if (cols[i] == self_col) continue;
-                var adj_la = cols[i].GetComponent<LATest2>();
-                if (adj_la == null) continue;
+    //    float closest_distance = float.MaxValue;
+    //    Vector3 closest_adj_vec = Vector3.zero;
+    //    if (movement_state == MovementStates.Pushable)
+    //    {
+    //        // the unit is in idle state and is subject to being pushed. calculate the push force by finding the closest colliding unit.
+    //        for (int i = 0; i < cols.Length; ++i)
+    //        {
+    //            if (cols[i] == self_col) continue;
+    //            var adj_la = cols[i].GetComponent<LATest2>();
+    //            if (adj_la == null) continue;
 
-                var diff = self_position - adj_la.transform.localPosition;
-                float distance2obstacle = diff.magnitude;
+    //            var diff = self_position - adj_la.transform.localPosition;
+    //            float distance2obstacle = diff.magnitude;
 
-                if (distance2obstacle >= min_distance)
-                {
-                    float distance_surface2surface = distance2obstacle - radius - adj_la.radius;
-                    if(distance_surface2surface < closest_distance)
-                    {
-                        closest_distance = distance_surface2surface;
-                        closest_adj_vec = diff;
-                    }
-                }
-                adj_count++;
-            }
+    //            if (distance2obstacle >= min_distance)
+    //            {
+    //                float distance_surface2surface = distance2obstacle - radius - adj_la.radius;
+    //                if(distance_surface2surface < closest_distance)
+    //                {
+    //                    closest_distance = distance_surface2surface;
+    //                    closest_adj_vec = diff;
+    //                }
+    //            }
+    //            adj_count++;
+    //        }
             
-            if (closest_distance < 0.1f)
-            {
-                repel_force = closest_adj_vec.normalized;
-            }
-            return repel_force;
-        }
-        for (int i = 0; i < cols.Length; ++i)
-        {
-            if (cols[i] == self_col) continue;
-            var adj_la = cols[i].GetComponent<LATest2>();
-            if (adj_la == null) continue;
+    //        if (closest_distance < 0.1f)
+    //        {
+    //            repel_force = closest_adj_vec.normalized;
+    //        }
+    //        return repel_force;
+    //    }
+    //    for (int i = 0; i < cols.Length; ++i)
+    //    {
+    //        if (cols[i] == self_col) continue;
+    //        var adj_la = cols[i].GetComponent<LATest2>();
+    //        if (adj_la == null) continue;
 
-            var diff = self_position - adj_la.transform.localPosition;
-            float distance2obstacle = diff.magnitude;
+    //        var diff = self_position - adj_la.transform.localPosition;
+    //        float distance2obstacle = diff.magnitude;
 
-            if (distance2obstacle >= min_distance)
-            {
-                float distance_surface2surface_unclamped = distance2obstacle - radius - adj_la.radius;
-                float distance_surface2surface = Mathf.Clamp(distance_surface2surface_unclamped, min_distance, uncomfort_zone);
-                if (adj_la.movement_state == MovementStates.HoldPosition)
-                {
+    //        if (distance2obstacle >= min_distance)
+    //        {
+    //            float distance_surface2surface_unclamped = distance2obstacle - radius - adj_la.radius;
+    //            float distance_surface2surface = Mathf.Clamp(distance_surface2surface_unclamped, min_distance, uncomfort_zone);
+    //            if (adj_la.movement_state == MovementStates.HoldPosition)
+    //            {
 
-                    occupation_quantize_3(adj_la.transform.localPosition - self_position, distance_surface2surface, quantized_occupations);
-                }
-                else if (adj_la.movement_state == MovementStates.Pushable)
-                {
-                    var similarity = Vector3.Dot(adj_la.cached_last_dir, cached_last_dir);
+    //                occupation_quantize_3(adj_la.transform.localPosition - self_position, distance_surface2surface, quantized_occupations);
+    //            }
+    //            else if (adj_la.movement_state == MovementStates.Pushable)
+    //            {
+    //                var similarity = Vector3.Dot(adj_la.cached_last_dir, cached_last_dir);
 
-                    if (similarity < 0.7f || distance_surface2surface_unclamped < 0.1f)
-                    {
-                        occupation_quantize_3(adj_la.transform.localPosition - self_position, distance_surface2surface, quantized_occupations);
-                    }
-                }
+    //                if (similarity < 0.7f || distance_surface2surface_unclamped < 0.1f)
+    //                {
+    //                    occupation_quantize_3(adj_la.transform.localPosition - self_position, distance_surface2surface, quantized_occupations);
+    //                }
+    //            }
 
 
-                //if (adj_la.movement_state != MovementStates.Idle)
-                //{
-                //    // consider the repel effect.
-                //    if (distance_surface2surface_unclamped < closest_distance)
-                //    {
-                //        closest_distance = distance_surface2surface_unclamped;
-                //        closest_adj_vec = diff;
-                //    }
-                //}
+    //            //if (adj_la.movement_state != MovementStates.Idle)
+    //            //{
+    //            //    // consider the repel effect.
+    //            //    if (distance_surface2surface_unclamped < closest_distance)
+    //            //    {
+    //            //        closest_distance = distance_surface2surface_unclamped;
+    //            //        closest_adj_vec = diff;
+    //            //    }
+    //            //}
 
-                //if (adj_la.movement_state != MovementStates.Idle)
-                //{
-                //    // consider the repel effect.
-                //    float force_mag = math.remap(min_distance, uncomfort_zone, max_repel_force, 0f, distance_surface2surface);
-                //    repel_force += diff / distance2obstacle * force_mag;
-                //}
+    //            //if (adj_la.movement_state != MovementStates.Idle)
+    //            //{
+    //            //    // consider the repel effect.
+    //            //    float force_mag = math.remap(min_distance, uncomfort_zone, max_repel_force, 0f, distance_surface2surface);
+    //            //    repel_force += diff / distance2obstacle * force_mag;
+    //            //}
 
-            }
+    //        }
 
-            adj_count++;
-        }
-        //if (closest_distance < uncomfort_zone)
-        //{
-        //    //repel_force = closest_adj_vec;
-        //    closest_distance = Mathf.Clamp(closest_distance, min_distance, uncomfort_zone);
-        //    float force_mag = math.remap(min_distance, uncomfort_zone, max_repel_force, 0f, closest_distance);
-        //    //Vector3 repel_dir = diff / distance2obstacle;
-        //    repel_force = closest_adj_vec.normalized * force_mag;
+    //        adj_count++;
+    //    }
+    //    //if (closest_distance < uncomfort_zone)
+    //    //{
+    //    //    //repel_force = closest_adj_vec;
+    //    //    closest_distance = Mathf.Clamp(closest_distance, min_distance, uncomfort_zone);
+    //    //    float force_mag = math.remap(min_distance, uncomfort_zone, max_repel_force, 0f, closest_distance);
+    //    //    //Vector3 repel_dir = diff / distance2obstacle;
+    //    //    repel_force = closest_adj_vec.normalized * force_mag;
 
-        //}
+    //    //}
 
-        return repel_force;
-    }
+    //    return repel_force;
+    //}
     public int frame_index;
     public int frame_cmp;
     void FixedUpdate()
     {
-        frame_index++;
-        for (int i = 0; i < MaxQuantization; ++i)
-        {
-            quantized_occupations[i] = float.MaxValue;
-        }
+        //frame_index++;
+        //for (int i = 0; i < MaxQuantization; ++i)
+        //{
+        //    quantized_occupations[i] = float.MaxValue;
+        //}
 
 
-        Vector3 self_position = transform.localPosition;
-        if (move_target != null)
-        {
-            goal_dir = move_target.localPosition - self_position;
-            goal_dir.Normalize();
-            //Debug.DrawLine(self_position, move_target.localPosition, Color.blue);
-            //if (Vector3.Distance(transform.localPosition, move_target.localPosition) < 0.3f)
-            if (dp.distance_2_finish_line(transform.localPosition))
-            {
-                simulate = false;
-                left1_right2_detour_dir = 0;
-                movement_state = MovementStates.Pushable;
-                cached_last_dir = Vector3.zero;
-            }
-        }
+        //Vector3 self_position = transform.localPosition;
+        //if (move_target != null)
+        //{
+        //    goal_dir = move_target.localPosition - self_position;
+        //    goal_dir.Normalize();
+        //    //Debug.DrawLine(self_position, move_target.localPosition, Color.blue);
+        //    //if (Vector3.Distance(transform.localPosition, move_target.localPosition) < 0.3f)
+        //    if (dp.distance_2_finish_line(transform.localPosition))
+        //    {
+        //        simulate = false;
+        //        left1_right2_detour_dir = 0;
+        //        movement_state = MovementStates.Pushable;
+        //        cached_last_dir = Vector3.zero;
+        //    }
+        //}
 
-        Vector3 idle_repel_force = obstacle_plotting_and_repels();
+        //Vector3 idle_repel_force = obstacle_plotting_and_repels();
 
-        Vector3 gap_dir = Vector3.zero;
-        if (movement_state == MovementStates.Pushable)
-        {
-            // check if it is in detour mode
-            if (left1_right2_detour_dir == 0)
-            {
-                // not in detour
-                if (is_dir_empty(goal_dir))
-                {
-                    gap_dir = goal_dir;
-                    previous_wall_center_dir = Vector3.zero;
+        //Vector3 gap_dir = Vector3.zero;
+        //if (movement_state == MovementStates.Pushable)
+        //{
+        //    // check if it is in detour mode
+        //    if (left1_right2_detour_dir == 0)
+        //    {
+        //        // not in detour
+        //        if (is_dir_empty(goal_dir))
+        //        {
+        //            gap_dir = goal_dir;
+        //            previous_wall_center_dir = Vector3.zero;
 
-                }
-                else
-                {
-                    // get into detour mode
-                    gap_dir = search_gap_quantized(goal_dir, ref left1_right2_detour_dir);
-                    var wall_rot = Quaternion.identity;
-                    if (left1_right2_detour_dir == 1)
-                    {
-                        // the result came from left.
-                        wall_rot = Quaternion.AngleAxis(45f, Vector3.up);
-                    }
-                    else if (left1_right2_detour_dir == 2)
-                    {
-                        wall_rot = Quaternion.AngleAxis(-45f, Vector3.up);
-                    }
-                    previous_wall_center_dir = wall_rot * gap_dir;
-                }
-            }
-            else
-            {
-                // in detour
-                gap_dir = search_gap_quantized_dir(previous_wall_center_dir, left1_right2_detour_dir);
-                var wall_rot = Quaternion.identity;
+        //        }
+        //        else
+        //        {
+        //            // get into detour mode
+        //            gap_dir = search_gap_quantized(goal_dir, ref left1_right2_detour_dir);
+        //            var wall_rot = Quaternion.identity;
+        //            if (left1_right2_detour_dir == 1)
+        //            {
+        //                // the result came from left.
+        //                wall_rot = Quaternion.AngleAxis(45f, Vector3.up);
+        //            }
+        //            else if (left1_right2_detour_dir == 2)
+        //            {
+        //                wall_rot = Quaternion.AngleAxis(-45f, Vector3.up);
+        //            }
+        //            previous_wall_center_dir = wall_rot * gap_dir;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        // in detour
+        //        gap_dir = search_gap_quantized_dir(previous_wall_center_dir, left1_right2_detour_dir);
+        //        var wall_rot = Quaternion.identity;
 
-                if (left1_right2_detour_dir == 1)
-                {
-                    // the result came from left.
-                    wall_rot = Quaternion.AngleAxis(45f, Vector3.up);
-                }
-                else if (left1_right2_detour_dir == 2)
-                {
-                    wall_rot = Quaternion.AngleAxis(-45f, Vector3.up);
-                }
-                previous_wall_center_dir = wall_rot * gap_dir;
-                //previous_detour_dir = gap_dir;
+        //        if (left1_right2_detour_dir == 1)
+        //        {
+        //            // the result came from left.
+        //            wall_rot = Quaternion.AngleAxis(45f, Vector3.up);
+        //        }
+        //        else if (left1_right2_detour_dir == 2)
+        //        {
+        //            wall_rot = Quaternion.AngleAxis(-45f, Vector3.up);
+        //        }
+        //        previous_wall_center_dir = wall_rot * gap_dir;
+        //        //previous_detour_dir = gap_dir;
 
-                int goal_dir_index = occupation_quantize_single(goal_dir);
-                int this_dir_index = occupation_quantize_single(gap_dir);
-                if (this_dir_index == goal_dir_index)
-                {
-                    left1_right2_detour_dir = 0;
-                    //Debug.Log("exit detour");
-                    //Debug.Break();
-                    //simulate = false;
-                }
-            }
-        }
+        //        int goal_dir_index = occupation_quantize_single(goal_dir);
+        //        int this_dir_index = occupation_quantize_single(gap_dir);
+        //        if (this_dir_index == goal_dir_index)
+        //        {
+        //            left1_right2_detour_dir = 0;
+        //            //Debug.Log("exit detour");
+        //            //Debug.Break();
+        //            //simulate = false;
+        //        }
+        //    }
+        //}
 
-        if (frame_cmp > 0)
-        {
-            Debug.DrawLine(self_position, self_position + (Vector3)idle_repel_force.normalized * 2f, Color.red, 0.016f, false);
-            //Debug.DrawLine(self_position, self_position + (Vector3)previous_wall_center_dir, Color.magenta, 0.016f, false);
-            Debug.DrawLine(self_position, self_position + (Vector3)gap_dir * 3f, Color.cyan, 0.016f, false);
-        }
+        //if (frame_cmp > 0)
+        //{
+        //    Debug.DrawLine(self_position, self_position + (Vector3)idle_repel_force.normalized * 2f, Color.red, 0.016f, false);
+        //    //Debug.DrawLine(self_position, self_position + (Vector3)previous_wall_center_dir, Color.magenta, 0.016f, false);
+        //    Debug.DrawLine(self_position, self_position + (Vector3)gap_dir * 3f, Color.cyan, 0.016f, false);
+        //}
 
-        if(simulate)
-        {
-            simulate = false;
-            movement_state = MovementStates.Pushable;
-            left1_right2_detour_dir = 0;
+        //if(simulate)
+        //{
+        //    simulate = false;
+        //    movement_state = MovementStates.Pushable;
+        //    left1_right2_detour_dir = 0;
 
-            dp = default;
-            dp.value = move_target.localPosition;
-            dp.init_finish_line_vec(transform.localPosition);
-            cached_last_dir = Vector3.zero;
-        }
-        if (movement_state != MovementStates.HoldPosition)
-        {
-            var dt = Time.deltaTime;
-            if(movement_state == MovementStates.Pushable)
-            {
-                gap_dir = idle_repel_force;
-            }
-            else
-            {
-                if (left1_right2_detour_dir != 0 && gap_dir.magnitude > min_distance)
-                {
-                    gap_dir += previous_wall_center_dir * 0.2f;
-                }
-                //if (gap_dir.magnitude < min_distance)left1_right2_detour_dir = 0;
-            }
-            if (gap_dir.magnitude > min_distance)
-            {
-                gap_dir.Normalize();
-                Quaternion gap_rot = Quaternion.LookRotation(gap_dir, Vector3.up);
-                var this_frame_rot = Quaternion.RotateTowards(transform.localRotation, gap_rot, angular_velocity * dt);
-                if (movement_state == MovementStates.Pushable)
-                {
-                    // push vector
-                    transform.localPosition += gap_dir * velocity * dt;
-                }
-                else
-                {
-                    var this_frame_forward = this_frame_rot * Vector3.forward;
-                    var cosine = Vector3.Dot(this_frame_forward, gap_rot * Vector3.forward);
-                    cosine = Mathf.Clamp(cosine, 0f, 1f);
-                    var velocity_constrained = velocity * cosine;
-                    transform.localPosition += this_frame_forward * velocity_constrained * dt;
+        //    dp = default;
+        //    dp.value = move_target.localPosition;
+        //    dp.init_finish_line_vec(transform.localPosition);
+        //    cached_last_dir = Vector3.zero;
+        //}
+        //if (movement_state != MovementStates.HoldPosition)
+        //{
+        //    var dt = Time.deltaTime;
+        //    if(movement_state == MovementStates.Pushable)
+        //    {
+        //        gap_dir = idle_repel_force;
+        //    }
+        //    else
+        //    {
+        //        if (left1_right2_detour_dir != 0 && gap_dir.magnitude > min_distance)
+        //        {
+        //            gap_dir += previous_wall_center_dir * 0.2f;
+        //        }
+        //        //if (gap_dir.magnitude < min_distance)left1_right2_detour_dir = 0;
+        //    }
+        //    if (gap_dir.magnitude > min_distance)
+        //    {
+        //        gap_dir.Normalize();
+        //        Quaternion gap_rot = Quaternion.LookRotation(gap_dir, Vector3.up);
+        //        var this_frame_rot = Quaternion.RotateTowards(transform.localRotation, gap_rot, angular_velocity * dt);
+        //        if (movement_state == MovementStates.Pushable)
+        //        {
+        //            // push vector
+        //            transform.localPosition += gap_dir * velocity * dt;
+        //        }
+        //        else
+        //        {
+        //            var this_frame_forward = this_frame_rot * Vector3.forward;
+        //            var cosine = Vector3.Dot(this_frame_forward, gap_rot * Vector3.forward);
+        //            cosine = Mathf.Clamp(cosine, 0f, 1f);
+        //            var velocity_constrained = velocity * cosine;
+        //            transform.localPosition += this_frame_forward * velocity_constrained * dt;
 
-                    cached_last_dir = this_frame_forward;
-                }
-                transform.localRotation = this_frame_rot;
-            }
-        }
+        //            cached_last_dir = this_frame_forward;
+        //        }
+        //        transform.localRotation = this_frame_rot;
+        //    }
+        //}
 
     }
 
@@ -604,8 +604,8 @@ public class LATest2 : MonoBehaviour
 }
 public enum MovementStates:byte
 {
-    Pushable, // pushable 0
-    Unnamed, // 1
+    Idle, // 0, stationary, pushable
+    Moving, // 1, in motion, also pushable
     HoldPosition, // not pushable, 10
     Stuck, // 11
 }

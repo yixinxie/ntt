@@ -43,7 +43,7 @@ public class LAOverlapAuthoring : MonoBehaviour
             {
                 speed = authoring.movement_speed,
                 angular_speed = Mathf.Deg2Rad * authoring.turn_speed_degrees,
-                move_state = (authoring.pushable) ? MovementStates.Pushable : MovementStates.HoldPosition,
+                move_state = (authoring.pushable) ? MovementStates.Moving : MovementStates.HoldPosition,
                 blocked_state = 0,
                 self_radius = authoring.la_radius,
                 debug_index = authoring.debug_index
@@ -77,7 +77,6 @@ public class LAOverlapAuthoring : MonoBehaviour
                     typeof(DesiredPosition),
                     typeof(MovementInfo),
                     typeof(LastFrameVelocity),
-                    typeof(FrameDisplacement),
                     typeof(BoidsCoeffs),
                 }));
     }
@@ -126,7 +125,7 @@ public struct BoidsCoeffs:IComponentData
     public float cohesion_factor;
     public float speedavg_factor;
     public float goal_factor;
-    public float goal_factor_max;
+    public float goal_factor_max; // not used
 }
 public struct DBGId:IComponentData
 {
