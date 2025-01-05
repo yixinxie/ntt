@@ -332,17 +332,19 @@ public partial class LocalAvoidanceSystem : SystemBase
         Entities.WithoutBurst()
         .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0, in DBGId dbgid) =>
         {
+            mi.external_influence = 0f;
             if (mi.move_state == MovementStates.HoldPosition) return;
-            if (mi.debug_index == 1)
+            if (mi.debug_index == 3)
             {
                 int sdf = 0;
             }
             float3 self_pos = c0.Position;
-            float3 prev_velocity = adjVelocities[entity].value;
+            float3 prev_velocity = 0f;// adjVelocities[entity].value;
 
 
             //influence.value = desired.value - self_pos;
             float3 dir2dp = desired.value - c0.Position;
+
             float distance2goal = math.distance(desired.value, c0.Position);
             if (distance2goal > float.Epsilon)
             {
@@ -550,12 +552,13 @@ public partial class LocalAvoidanceSystem : SystemBase
         //var _finishers = finishers;
         Entities.ForEach((Entity entity, ref LocalTransform c0, ref MovementInfo mi, ref LastFrameVelocity prev_vel, in DesiredPosition dp) =>
         {
-            if (mi.move_state >= MovementStates.HoldPosition) return;
+            if (mi.move_state != MovementStates.Moving) return;
             //float distance = math.distance(c0.Position, dp.value);
             //if (distance < 0.3f)
             //var distance = dp.distance_2_finish_line(c0.Position);
             if(dp.distance_2_finish_line(c0.Position))
             {
+                //Debug.Log(entity.ToString() + " reached");
                 mi.move_state = MovementStates.Idle;
                 mi.blocked_state = 0;
                 mi.current_desired_dir = 0f;

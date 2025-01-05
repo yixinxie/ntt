@@ -33,12 +33,12 @@ public struct DesiredPosition : IComponentData {
     {
         var from_goal = current_position - value;
         var distance = math.distance(0f, from_goal);
-        if(distance < float.Epsilon)
+        if(distance < 0.3f)
         {
             return true;
         }
         from_goal /= distance;
-        return Vector3.Cross(from_goal, finish_line_right).z > 0f;
+        return Vector3.Cross(finish_line_right, from_goal).z < 0f;
 
         //Vector3.Cross()
     }
