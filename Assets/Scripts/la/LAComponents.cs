@@ -27,7 +27,7 @@ public struct DesiredPosition : IComponentData {
     {
         float3 goal_vec = value - start_pos;
         goal_vec = math.normalize(goal_vec);
-        finish_line_right = Vector3.Cross(Vector3.forward, goal_vec).normalized;
+        finish_line_right = Vector3.Cross(Vector3.up, goal_vec).normalized;
     }
     public bool distance_2_finish_line(float3 current_position)
     {

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using Unity.Entities;
+using Unity.Physics;
 using UnityEngine;
-using static UnityEditor.ObjectChangeEventStream;
 
 public class DebugStats : MonoBehaviour
 {
@@ -18,10 +18,28 @@ public class DebugStats : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        sbuilder.Clear();
         var handle = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<LocalAvoidanceSystem>();
+        var phy = handle.GetSingleton<PhysicsWorldSingleton>();
+        var rcinput = new RaycastInput();
+
+        var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        rcinput.Start = ray.origin;
+        rcinput.End = ray.direction * 100f;
+        var rcfilter = new CollisionFilter();
+        rcfilter.CollidesWith = uint.MaxValue;
+        rcfilter.BelongsTo = uint.MaxValue;
+        rcinput.Filter = rcfilter;
+
+        sbuilder.Clear();
         sbuilder.AppendFormat("frames:{0}", handle.frame_counter);
         sbuilder.AppendLine();
+
+        if(phy.CastRay(rcinput, out var rchit))
+        {
+            var entityname = World.DefaultGameObjectInjectionWorld.EntityManager.GetName(rchit.Entity);
+            sbuilder.AppendLine(entityname);
+
+        }
         for (int i = 0; i < handle.codepaths.Length; i++)
         {
             var cp = handle.codepaths[i];
