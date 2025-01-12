@@ -277,8 +277,8 @@ public partial class LocalAvoidanceSystem : SystemBase
                 bc.goal_factor = goal_factor;
             }).Run();
         }
-        float dt = World.Time.DeltaTime;
-        //float dt = 0.008f;
+        //float dt = World.Time.DeltaTime;
+        float dt = 0.016f;
         Profiler.BeginSample("LA2 - overlap query");
         var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         //var _physics = Statics.GetPhysics();

@@ -2069,7 +2069,7 @@ MonoBehaviour:
   la_radius: 0.5
   skip_goal_position: 0
   pushable: 1
-  debug_index: 2
+  debug_index: 0
   use_pathfinding: 1
   dbgid: 22a
 --- !u!4 &666941571
@@ -2921,7 +2921,7 @@ MonoBehaviour:
   la_radius: 0.5
   skip_goal_position: 0
   pushable: 1
-  debug_index: 3
+  debug_index: 0
   use_pathfinding: 1
   dbgid: 
 --- !u!4 &904835584
@@ -5239,7 +5239,7 @@ MonoBehaviour:
   la_radius: 0.5
   skip_goal_position: 0
   pushable: 1
-  debug_index: 0
+  debug_index: 3
   use_pathfinding: 1
   dbgid: 
 --- !u!4 &1611746356
