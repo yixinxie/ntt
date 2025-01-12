@@ -277,8 +277,8 @@ public partial class LocalAvoidanceSystem : SystemBase
                 bc.goal_factor = goal_factor;
             }).Run();
         }
-        //float dt = World.Time.DeltaTime;
-        float dt = 0.008f;
+        float dt = World.Time.DeltaTime;
+        //float dt = 0.008f;
         Profiler.BeginSample("LA2 - overlap query");
         var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         //var _physics = Statics.GetPhysics();
@@ -333,140 +333,171 @@ public partial class LocalAvoidanceSystem : SystemBase
         .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0, in DBGId dbgid) =>
         {
             mi.external_influence = 0f;
-            if (mi.move_state == MovementStates.HoldPosition) return;
-            if (mi.debug_index == 3)
-            {
-                int sdf = 0;
-            }
-            float3 self_pos = c0.Position;
-            float3 prev_velocity = 0f;// adjVelocities[entity].value;
-
-
-            //influence.value = desired.value - self_pos;
-            float3 dir2dp = desired.value - c0.Position;
-
-            float distance2goal = math.distance(desired.value, c0.Position);
-            if (distance2goal > float.Epsilon)
-            {
-                dir2dp /= distance2goal;
-             }
-            //influence.value /= distance2goal;
-
-            //float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? mi.current_desired_dir / distance2goal : mi.current_desired_dir;
-            //float3 goal_dir_normalized = mi.current_desired_dir;
-            var goal_axial = HexCoord.FromPosition(dir2dp);
-
-            float3 adj_position_sum = 0f;
-            float3 separation = 0f;
-            float3 adj_velocity_sum = 0f; // alignment
             int adj_count = 0;
-            //NativeList<int2> blockade_list = new NativeList<int2>(Allocator.Temp);
-            var self_axial = HexCoord.FromPosition(self_pos);
-            var to_rounded_hcenter = HexCoord.ToPosition(self_axial) - self_pos;
-            NativeArray<byte> occupancies = new NativeArray<byte>(6, Allocator.Temp);
-            for (int i = 0; i < occupancies.Length; ++i)
+            float3 self_pos = c0.Position;
+            if (mi.move_state == MovementStates.Moving)
             {
-                occupancies[i] = byte.MaxValue;
-                //occu_floats[i] = float.MaxValue;
-            }
-            for (int i = 0; i < adj_entities.Length; ++i)
-            {
-                Entity adj_entity = adj_entities[i].value;
-
-                //if (adjPositions.HasComponent(adj_entity) == false)
-                //{
-                //    //int sdf = 0;
-                //    continue;
-                //}
-                var adj_pos = adjPositions[adj_entity].Position;
-
-                //var to_adj_diff = adjpos - self_pos;
-                //to_adj_diff = math.normalizesafe(to_adj_diff, 0f);
-                //var adj_axial = HexCoord.FromPosition(to_adj_diff);
-
-                var adj_axial = HexCoord.FromPosition(adj_pos + to_rounded_hcenter);
-                //var adj_axial = HexCoord.FromPosition(adjpos);
-                adj_axial -= self_axial;
-
-                var adj_mi = adj_mi_lookup[adj_entity];
-                if (adj_mi.move_state >= MovementStates.HoldPosition)
+                if (mi.debug_index == 3)
                 {
-                    horizon_eval_single(self_pos, adj_pos, adj_mi, occupancies, default);
-                    
+                    int sdf = 0;
                 }
-                //else
+                float3 prev_velocity = 0f;// adjVelocities[entity].value;
+
+
+                //influence.value = desired.value - self_pos;
+                float3 dir2dp = desired.value - c0.Position;
+
+                float distance2goal = math.distance(desired.value, c0.Position);
+                if (distance2goal > float.Epsilon)
                 {
-                    //branches(mi.debug_index, CodePathTypes.Pushable, _codepaths, curret_cps);
-                    float surface2surface = adj_entities[i].distance - mi.self_radius;
-                    surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
+                    dir2dp /= distance2goal;
+                }
+                //influence.value /= distance2goal;
 
-                    if (surface2surface < mi.self_radius)
+                //float3 goal_dir_normalized = (distance2goal > float.Epsilon) ? mi.current_desired_dir / distance2goal : mi.current_desired_dir;
+                //float3 goal_dir_normalized = mi.current_desired_dir;
+                var goal_axial = HexCoord.FromPosition(dir2dp);
+
+                float3 adj_position_sum = 0f;
+                float3 separation = 0f;
+                float3 adj_velocity_sum = 0f; // alignment
+                
+                //NativeList<int2> blockade_list = new NativeList<int2>(Allocator.Temp);
+                var self_axial = HexCoord.FromPosition(self_pos);
+                var to_rounded_hcenter = HexCoord.ToPosition(self_axial) - self_pos;
+                NativeArray<byte> occupancies = new NativeArray<byte>(6, Allocator.Temp);
+                for (int i = 0; i < occupancies.Length; ++i)
+                {
+                    occupancies[i] = byte.MaxValue;
+                    //occu_floats[i] = float.MaxValue;
+                }
+                for (int i = 0; i < adj_entities.Length; ++i)
+                {
+                    Entity adj_entity = adj_entities[i].value;
+
+                    //if (adjPositions.HasComponent(adj_entity) == false)
+                    //{
+                    //    //int sdf = 0;
+                    //    continue;
+                    //}
+                    var adj_pos = adjPositions[adj_entity].Position;
+
+                    //var to_adj_diff = adjpos - self_pos;
+                    //to_adj_diff = math.normalizesafe(to_adj_diff, 0f);
+                    //var adj_axial = HexCoord.FromPosition(to_adj_diff);
+
+                    var adj_axial = HexCoord.FromPosition(adj_pos + to_rounded_hcenter);
+                    //var adj_axial = HexCoord.FromPosition(adjpos);
+                    adj_axial -= self_axial;
+
+                    var adj_mi = adj_mi_lookup[adj_entity];
+                    if (adj_mi.move_state >= MovementStates.HoldPosition)
                     {
-                        var d = math.distance(self_pos, adj_pos);
-                        if (d > float.Epsilon)
-                        {
-                            var repel_dir = (self_pos - adj_pos) / d;
-                            float repel_force = 1f / surface2surface;
-                            var sep_tmp = repel_dir * repel_force;
+                        horizon_eval_single(self_pos, adj_pos, adj_mi, occupancies, default);
 
-                            //Debug.DrawLine(self_pos, self_pos + sep_tmp, Color.red, 0.016f, false);
-                            separation += sep_tmp;
+                    }
+                    //else
+                    {
+                        //branches(mi.debug_index, CodePathTypes.Pushable, _codepaths, curret_cps);
+                        float surface2surface = adj_entities[i].distance - mi.self_radius;
+                        surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
+
+                        if (surface2surface < mi.self_radius)
+                        {
+                            var d = math.distance(self_pos, adj_pos);
+                            if (d > float.Epsilon)
+                            {
+                                var repel_dir = (self_pos - adj_pos) / d;
+                                float repel_force = 1f / surface2surface;
+                                var sep_tmp = repel_dir * repel_force;
+
+                                //Debug.DrawLine(self_pos, self_pos + sep_tmp, Color.red, 0.016f, false);
+                                separation += sep_tmp;
+                            }
+                        }
+                        if (adjVelocities.HasComponent(adj_entity))
+                        {
+                            adj_velocity_sum += adjVelocities[adj_entity].value;
+                            adj_position_sum += adj_pos;
+                            adj_count++;
                         }
                     }
-                    if (adjVelocities.HasComponent(adj_entity))
+                }
+                bool stuck = detour_eval(HexCoord.FromPosition(dir2dp), dir2dp, ref mi, occupancies, out bool recalc_dest);
+                if (recalc_dest)
+                {
+                    desired.init_finish_line_vec(self_pos);
+                }
+
+
+                //Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
+                if (adj_count > 0)
+                {
+                    adj_velocity_sum /= adj_count;
+                }
+                adj_position_sum = (adj_count > 1) ? adj_position_sum / adj_count : self_pos;
+
+                var sep_length = math.distance(separation, 0f);
+                if (sep_length > float.Epsilon)
+                {
+                    var clampped = math.clamp(sep_length, 0f, 2f);
+                    separation = separation / sep_length * clampped;
+                }
+
+                Debug.DrawLine(self_pos, self_pos + separation * boids_coeffs.avoid_factor, Color.red, 0.016f, false);
+                //Debug.DrawLine(self_pos, self_pos + (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor, Color.green, 0.016f, false);
+                //Debug.DrawLine(self_pos, self_pos + (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor, Color.red, 0.016f, false);
+                Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir * boids_coeffs.goal_factor, Color.blue, 0.016f, false);
+                float goal_inf = (mi.move_state == MovementStates.Moving) ? boids_coeffs.goal_factor : 0f;
+                prev_velocity = prev_velocity +
+                    separation * boids_coeffs.avoid_factor +
+                    (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor +
+                    (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor +
+                    mi.current_desired_dir * goal_inf;
+                if (stuck == false)
+                {
+                    if (mi.move_state == MovementStates.Stuck)
                     {
-                        adj_velocity_sum += adjVelocities[adj_entity].value;
-                        adj_position_sum += adj_pos;
+                        mi.move_state = MovementStates.Moving;
+                    }
+                    mi.external_influence = prev_velocity;
+                    mi.distance2goal = distance2goal;
+                }
+                else
+                {
+                    mi.external_influence = 0f;
+                    if (mi.move_state == MovementStates.Moving)
+                    {
+                        mi.move_state = MovementStates.Stuck;
+                    }
+                }
+            }
+            else if(mi.move_state == MovementStates.Idle)
+            {
+                float3 body_repel_aggr = 0f;
+                for (int i = 0; i < adj_entities.Length; ++i)
+                {
+                    Entity adj_entity = adj_entities[i].value;
+
+                    var adj_pos = adjPositions[adj_entity].Position;
+
+                    //var adj_mi = adj_mi_lookup[adj_entity];
+                   
+                    //branches(mi.debug_index, CodePathTypes.Pushable, _codepaths, curret_cps);
+                    var distance = math.distance(self_pos, adj_pos);
+                    //float surface2surface = adj_entities[i].distance - mi.s elf_radius;
+                    //surface2surface = math.clamp(surface2surface, 0.01f, surface2surface);
+                    if (distance < mi.self_radius * 2f && distance > float.Epsilon)
+                    {
+                        var repel_dir = self_pos - adj_pos;
+                        body_repel_aggr += repel_dir / distance;
                         adj_count++;
                     }
                 }
-            }
-            bool stuck = detour_eval(HexCoord.FromPosition(dir2dp), dir2dp, ref mi, occupancies, out bool recalc_dest);
-            if(recalc_dest)
-            {
-                desired.init_finish_line_vec(self_pos);
-            }
-
-          
-            //Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir, Color.yellow, 0.016f, false);
-            if (adj_count > 0)
-            {
-                adj_velocity_sum /= adj_count;
-            }
-            adj_position_sum = (adj_count > 1) ? adj_position_sum / adj_count : self_pos;
-
-            var sep_length = math.distance(separation, 0f);
-            if(sep_length > float.Epsilon)
-            {
-                var clampped = math.clamp(sep_length, 0f, 2f);
-                separation = separation / sep_length * clampped;
-            }
-
-            Debug.DrawLine(self_pos, self_pos + separation * boids_coeffs.avoid_factor, Color.red, 0.016f, false);
-            //Debug.DrawLine(self_pos, self_pos + (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor, Color.green, 0.016f, false);
-            //Debug.DrawLine(self_pos, self_pos + (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor, Color.red, 0.016f, false);
-            Debug.DrawLine(self_pos, self_pos + mi.current_desired_dir * boids_coeffs.goal_factor, Color.blue, 0.016f, false);
-            float goal_inf = (mi.move_state == MovementStates.Moving) ? boids_coeffs.goal_factor : 0f;
-            prev_velocity = prev_velocity +
-                separation * boids_coeffs.avoid_factor +
-                (adj_position_sum - self_pos) * boids_coeffs.cohesion_factor +
-                (adj_velocity_sum - prev_velocity) * boids_coeffs.speedavg_factor +
-                mi.current_desired_dir * goal_inf;
-            if (stuck == false)
-            {
-                if(mi.move_state == MovementStates.Stuck)
+                if (adj_count > 0)
                 {
-                    mi.move_state = MovementStates.Moving;
-                }
-                mi.external_influence = prev_velocity;
-                mi.distance2goal = distance2goal;
-            }
-            else
-            {
-                mi.external_influence = 0f;
-                if (mi.move_state == MovementStates.Moving)
-                {
-                    mi.move_state = MovementStates.Stuck;
+
+                    mi.external_influence = math.normalizesafe(body_repel_aggr, float3.zero);
                 }
             }
             //externalInfluence.value.y = 0f;
@@ -494,34 +525,42 @@ public partial class LocalAvoidanceSystem : SystemBase
             //, in Translation selfPosition
             ) =>
             {
-                float influence_magnitude = math.distance(moveinfo.external_influence, 0f);
-                float3 up = math.mul(c0.Rotation, new float3(0f, 1f, 0f)); // the actual up direction the unit is facing.
-                float3 forward = math.mul(c0.Rotation, new float3(0f, 0f, 1f)); // the actual direction the unit is facing.
-                float3 normalized_influence = 0f;
-                float speed_scale = 0f;
-                if (influence_magnitude > float.Epsilon && moveinfo.move_state < MovementStates.HoldPosition)
+                float3 frame_disp_value = 0f;
+                if (moveinfo.move_state == MovementStates.Moving)
                 {
-                    normalized_influence = moveinfo.external_influence / influence_magnitude;
-                    float3 adjusted_facing = Vector3.RotateTowards(forward, normalized_influence, moveinfo.angular_speed * dt, 0f);
-                    // speedScale is a scalar that measures how much the adjusted_facing aligns with the direction it wants to go. apply this as a factor in the final velocity.
-                    float scale_from2goal = 1f;
+                    float influence_magnitude = math.distance(moveinfo.external_influence, 0f);
+                    float3 up = math.mul(c0.Rotation, new float3(0f, 1f, 0f)); // the actual up direction the unit is facing.
+                    float3 forward = math.mul(c0.Rotation, new float3(0f, 0f, 1f)); // the actual direction the unit is facing.
+                    float3 normalized_influence = 0f;
+                    float speed_scale = 0f;
+                    if (influence_magnitude > float.Epsilon && moveinfo.move_state < MovementStates.HoldPosition)
+                    {
+                        normalized_influence = moveinfo.external_influence / influence_magnitude;
+                        float3 adjusted_facing = Vector3.RotateTowards(forward, normalized_influence, moveinfo.angular_speed * dt, 0f);
+                        // speedScale is a scalar that measures how much the adjusted_facing aligns with the direction it wants to go. apply this as a factor in the final velocity.
+                        float scale_from2goal = 1f;
 
-                    //if (dp.goal_scale == 1.0f)
-                    //{
-                    //    scale_from2goal = clamp(influence.distance2goal / 20f, 0f, 1f);
-                    //}
+                        //if (dp.goal_scale == 1.0f)
+                        //{
+                        //    scale_from2goal = clamp(influence.distance2goal / 20f, 0f, 1f);
+                        //}
 
-                    speed_scale = math.clamp(math.dot(adjusted_facing, normalized_influence) * scale_from2goal, 0f, 1f);
-                    c0.Rotation = Quaternion.LookRotation(adjusted_facing, up);
+                        speed_scale = math.clamp(math.dot(adjusted_facing, normalized_influence) * scale_from2goal, 0f, 1f);
+                        c0.Rotation = Quaternion.LookRotation(adjusted_facing, up);
+                    }
+                    //float3 frame_velocity = adjusted_facing * moveinfo.movement_speed * speedScale * slow_coeff;
+                    float3 frame_velocity = normalized_influence * moveinfo.speed * speed_scale;
+                    frame_disp_value = frame_velocity * dt;
+                    lfv.value = frame_velocity;
+                    //facing.value = adjusted_facing;
+
+                    
                 }
-                //float3 frame_velocity = adjusted_facing * moveinfo.movement_speed * speedScale * slow_coeff;
-                float3 frame_velocity = normalized_influence * moveinfo.speed * speed_scale;
-                var frame_disp_value = frame_velocity * dt;
-                lfv.value = frame_velocity;
-                //facing.value = adjusted_facing;
-
-                var newval = c0.Position + frame_disp_value;
-                c0.Position = newval;
+                else if (moveinfo.move_state == MovementStates.Idle)
+                {
+                    frame_disp_value = moveinfo.external_influence * dt;
+                }
+                c0.Position = c0.Position + frame_disp_value;
             }).Run();
         //}).ScheduleParallel();
         //CompleteDependency();
