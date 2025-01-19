@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Entities;
 using UnityEngine;
 
 public class BoidsParameters : MonoBehaviour
@@ -14,6 +15,8 @@ public class BoidsParameters : MonoBehaviour
     public const float const_cohesion_factor = 0.02f;
     public const float const_speedavg_factor = 0.02f;
     public const float const_goal_factor = 0.5f;
+    public int of_interest_index;
+    public int of_interest_version;
     void Awake(){
         self = this;
 

@@ -38,7 +38,7 @@ public struct DesiredPosition : IComponentData {
             return true;
         }
         from_goal /= distance;
-        return Vector3.Cross(finish_line_right, from_goal).z < 0f;
+        return Vector3.Cross(finish_line_right, from_goal).y < 0f;
 
         //Vector3.Cross()
     }

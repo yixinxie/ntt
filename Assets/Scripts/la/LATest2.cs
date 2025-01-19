@@ -645,7 +645,7 @@ public struct MovementInfo : IComponentData
     public float3 external_influence;
     public float distance2goal;
 #if UNITY_EDITOR
-    public byte debug_index;
+    //public byte debug_index;
 #endif
 }
 

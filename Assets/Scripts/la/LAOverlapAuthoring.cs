@@ -46,7 +46,7 @@ public class LAOverlapAuthoring : MonoBehaviour
                 move_state = (authoring.pushable) ? MovementStates.Moving : MovementStates.HoldPosition,
                 blocked_state = 0,
                 self_radius = authoring.la_radius,
-                debug_index = authoring.debug_index
+                //debug_index = authoring.debug_index
 
             };
             if (authoring.movetarget != null)

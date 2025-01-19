@@ -21,6 +21,7 @@ public partial class LocalAvoidanceSystem : SystemBase
     public int frame_counter;
     NativeList<Entity> finishers;
     public NativeList<codepath_states> codepaths;
+    public bool gameplay_paused;
     // for character's goal check.
 
     protected override void OnCreate()
@@ -263,6 +264,16 @@ public partial class LocalAvoidanceSystem : SystemBase
     protected override void OnUpdate()
     {
         frame_counter++;
+        Entity of_interest = new Entity()
+        {
+            Index = BoidsParameters.self.of_interest_index,
+            Version = BoidsParameters.self.of_interest_version
+        };
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            gameplay_paused = !gameplay_paused;
+        }
+        
         if (BoidsParameters.self != null)
         {
             float avoid_factor = BoidsParameters.self.avoid_factor;
@@ -278,7 +289,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             }).Run();
         }
         //float dt = World.Time.DeltaTime;
-        float dt = 0.016f;
+        float dt = (gameplay_paused) ?  0f : 0.016f;
         Profiler.BeginSample("LA2 - overlap query");
         var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         //var _physics = Statics.GetPhysics();
@@ -330,14 +341,14 @@ public partial class LocalAvoidanceSystem : SystemBase
         }
         NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
         Entities.WithoutBurst()
-        .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0, in DBGId dbgid) =>
+        .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
         {
             mi.external_influence = 0f;
             int adj_count = 0;
             float3 self_pos = c0.Position;
             if (mi.move_state == MovementStates.Moving)
             {
-                if (mi.debug_index == 3)
+                if (entity.Equals(of_interest))
                 {
                     int sdf = 0;
                 }
@@ -595,7 +606,11 @@ public partial class LocalAvoidanceSystem : SystemBase
             //float distance = math.distance(c0.Position, dp.value);
             //if (distance < 0.3f)
             //var distance = dp.distance_2_finish_line(c0.Position);
-            if(dp.distance_2_finish_line(c0.Position))
+            if(entity.Equals(of_interest))
+            {
+                int sdf = 0;
+            }
+            if (dp.distance_2_finish_line(c0.Position))
             {
                 //Debug.Log(entity.ToString() + " reached");
                 mi.move_state = MovementStates.Idle;
