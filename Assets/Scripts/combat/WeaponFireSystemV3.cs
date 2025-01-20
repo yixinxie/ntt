@@ -12,8 +12,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Physics;
 
-[UpdateAfter(typeof(UnitSearchHostileSystemV2)), UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
-public partial class WeaponFireSystemV3 : SystemBase
+public partial struct WeaponFireSystemV3
 {
     public NativeList<Entity> drones2destroy;
 
@@ -22,16 +21,13 @@ public partial class WeaponFireSystemV3 : SystemBase
     public const int legacy_count_per_batch = 8;
     public NativeArray<float3> spawn_offsets;
     public NativeArray<float> rn_sequence;
+    public ComponentLookup<LocalTransform> c0_array;
     int rng_iterator;
     public Unity.Mathematics.Random rng;
-    public static WeaponFireSystemV3 self;
-    public float[] platform_hit_elapsed;
-    public bool spawn_paused;
-    protected override void OnCreate()
+    public void init(ref SystemState sstate)
     {
-        
-        base.OnCreate();
-        self = this;
+        this = default;
+        c0_array = sstate.GetComponentLookup<LocalTransform>();
         rng = Unity.Mathematics.Random.CreateFromIndex(1);
         rng.InitState(3);
         drones2destroy = new NativeList<Entity>(Allocator.Persistent);
@@ -60,23 +56,22 @@ public partial class WeaponFireSystemV3 : SystemBase
 
     }
     
-    protected override void OnDestroy()
+    public void dispose(ref SystemState sstate)
     {
-        base.OnDestroy();
         rn_sequence.Dispose();
         spawn_instances.Dispose();
         weapon_fire_attempts.Dispose();
         spawn_offsets.Dispose();
         drones2destroy.Dispose();
     }
-    public ComponentLookup<T> GetComponentDataFromEntity_helper<T>() where T: unmanaged, IComponentData
-    {
-        return GetComponentLookup<T>();
-    }
-    public BufferLookup<T> GetBufferDataFromEntity_helper<T>() where T : unmanaged, IBufferElementData
-    {
-        return GetBufferLookup<T>();
-    }
+    //public ComponentLookup<T> GetComponentDataFromEntity_helper<T>() where T: unmanaged, IComponentData
+    //{
+    //    return GetComponentLookup<T>();
+    //}
+    //public BufferLookup<T> GetBufferDataFromEntity_helper<T>() where T : unmanaged, IBufferElementData
+    //{
+    //    return GetBufferLookup<T>();
+    //}
     public static bool should_heal(Entity target2heal, WeaponInfoV2 weapon, StorageCell ammo, UnitStats stats)
     {
         //bool should_heal = false;
@@ -88,90 +83,63 @@ public partial class WeaponFireSystemV3 : SystemBase
         }
         return false;
     }
-    void charged_weapons()
+    public partial struct weapon_fire_0:IJobEntity
     {
-
-    }
-    protected override void OnUpdate()
-    {
-        Entities.ForEach((Entity entity, ref PhysicsCollider pcol, in CombatTeam cteam) =>
+        public NativeList<WeaponFireAttemptInfo> _weapon_fire_attempts;
+        public ComponentLookup<LocalTransform> c0_array;
+        public float dt;
+        public void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<StorageCell> ammos, DynamicBuffer<CombatTarget> com_targets)
         {
-            unsafe
+#if UNITY_EDITOR
+            int diff = weapons.Length - com_targets.Length;
+            for (int i = 0; i < diff; ++i)
             {
-                var cfilter = pcol.ColliderPtr->GetCollisionFilter();
-                cfilter.BelongsTo = cfilter.BelongsTo | cteam.FriendlyTeamMask();
-                pcol.ColliderPtr->SetCollisionFilter(cfilter);
+                com_targets.Add(default);
+                //Debug.LogWarning("com add default");
             }
+#endif
 
-        }).Run();
-//        float dt = World.Time.fixedDeltaTime;
-//        //var hex_unit_length = HexagonMap.unit_length;
-//        weapon_fire_attempts.Clear();
-//        var _weapon_fire_attempts = weapon_fire_attempts;
-//        var c0_array = GetComponentLookup<LocalTransform>();
-//        Entities.WithAll<InCombat>()//.WithoutBurst()
-//            .ForEach((Entity entity, 
-//            DynamicBuffer<WeaponInfoV2> weapons, 
-//            DynamicBuffer<CombatTargets> com_targets, 
-//            DynamicBuffer<StorageCell> ammos) =>
-//        {
-//#if UNITY_EDITOR
-//            int diff = weapons.Length - com_targets.Length;
-//            for (int i = 0; i < diff; ++i)
-//            {
-//                com_targets.Add(default);
-//                Debug.LogWarning("com add default");
-//            }
-//#endif
+            for (int i = 0; i < weapons.Length; ++i)
+            {
+                WeaponInfoV2 current_weapon = weapons[i];
+                //if (current_weapon.weapon_type == WeaponTypes.Spawn_Swarm
+                //|| current_weapon.weapon_type == WeaponTypes.Spawn_Fighter_Defensive) continue;
+                if (current_weapon.weapon_cooldown_left <= dt)
+                {
+                    if (ammos[i].item_count > 0)
+                    {
+                        //for (int j = 0; j < targets.count; ++j)
+                        var target = com_targets[i];
 
-//            for (int i = 0; i < weapons.Length; ++i)
-//            {
-//                var current_weapon = weapons[i];
-//                if (current_weapon.weapon_type == WeaponTypes.Spawn_Swarm
-//                || current_weapon.weapon_type == WeaponTypes.Spawn_Fighter_Defensive) continue;
-//                if (current_weapon.cooldown_left <= dt)
-//                {
-//                    if (ammos[i].count > 0)
-//                    {
-//                        var targets = com_targets[i];
-//                        bool null_detected = false;
-//                        for (int j = 0; j < targets.count; ++j)
-//                        {
-//                            var target = targets.value_at(j);
-
-//                            if(target != Entity.Null && c0_array.HasComponent(target) == false)
-//                            {
-//                                targets.set_null(j);
-//                                null_detected = true;
-//                                break;
-//                                // we save some work here.
-//                            }
-//                        }
-
-//                        if (null_detected)
-//                        {
-//                            com_targets[i] = targets;
-//                        }
-//                        if (targets.count > 0)
-//                        {
-//                            _weapon_fire_attempts.Add(new WeaponFireAttemptInfo() { initiator = entity, comtargets = targets, weapon_index = i });
-//                        }
-//                    }
-//                }
-//                else
-//                {
-//                    current_weapon.cooldown_left -= dt;
-//                    weapons[i] = current_weapon;
-//                }
-//            }
-//        }).Run();
-
-//        for (int i = 0; i < weapon_fire_attempts.Length; ++i)
-//        {
-//            process_fire_attempts(weapon_fire_attempts[i].initiator, weapon_fire_attempts[i].comtargets, weapon_fire_attempts[i].weapon_index);
-//        }
-//        spawn_update();
-//        //channel_update();
+                        if (target.value.Equals(Entity.Null) == false && c0_array.HasComponent(target.value) == false)
+                        {
+                            com_targets[i] = default;
+                            _weapon_fire_attempts.Add(new WeaponFireAttemptInfo() { initiator = entity, combat_target = target, weapon_index = i });
+                        }
+                    }
+                }
+                else
+                {
+                    current_weapon.weapon_cooldown_left -= (half)dt;
+                    weapons[i] = current_weapon;
+                }
+            }
+        }
+    }
+    [BurstDiscard]
+    public void OnUpdate(ref SystemState sstate, NativeList<WeaponFireAttemptInfo> _weapon_fire_attempts)
+    {
+        //c0_array.Update(ref sstate);
+        
+        NativeHashSet<Entity> destroyed = new NativeHashSet<Entity>(8, Allocator.Temp);
+        for (int i = 0; i < _weapon_fire_attempts.Length; ++i)
+        {
+            var attempt = _weapon_fire_attempts[i];
+            process_fire_attempts(ref sstate, attempt.initiator, attempt.combat_target, attempt.weapon_index, destroyed);
+        }
+        //_weapon_fire_attempts.Dispose();
+        sstate.EntityManager.DestroyEntity(destroyed.ToNativeArray(Allocator.Temp));
+        //        spawn_update();
     }
     public static void adjacent_biolink_remove(EntityManager em, Entity entity, Entity subject)
     {
@@ -379,9 +347,13 @@ public partial class WeaponFireSystemV3 : SystemBase
         //}).Run();
     }
 
-    void process_fire_attempts(Entity entity, CombatTargets targets, int weapon_index)
+    void process_fire_attempts(ref SystemState sstate, Entity entity, CombatTarget targets, int weapon_index, NativeHashSet<Entity> unit_destroyed)
     {
-        //WeaponInfoV2 current_weapon = EntityManager.GetBuffer<WeaponInfoV2>(entity)[weapon_index];
+        if (sstate.EntityManager.HasComponent<LocalTransform>(entity) == false) return;
+        if (sstate.EntityManager.HasComponent<LocalTransform>(targets.value) == false) return;
+        var host_weapons = sstate.EntityManager.GetBuffer<WeaponInfoV2>(entity);
+        if (weapon_index >= host_weapons.Length) return;
+        WeaponInfoV2 current_weapon = host_weapons[weapon_index];
         //var hashed_entities = ResourceRefs.self.hashed_entities;
         //var clasers = LaserRenderSystem.self.continuous_laser_states;
         //var lasers = LaserRenderSystem.self.impulse_laser_states;
@@ -394,296 +366,270 @@ public partial class WeaponFireSystemV3 : SystemBase
 
         ////var bio_swarm = ResourceRefs.self.GetStructureEntity(PrefabType2Index.Swarm);
         //bool create_meshes = MainSingleton.Instance.current_scene == SceneType.Combat || MainSingleton.Instance.current_scene == SceneType.PlatformCombat;
-        //bool fired_once = false;
+        bool fired_once = false;
         //Entity tmp_entity;
 
-        //var c0c1 = new CachedTurretTransform();
-        //if (EntityManager.HasComponent<CachedTurretTransform>(entity) == false)
-        //{
-        //    //Debug.Log(entity.ToString() + " has no CachedTurretTransform");
-        //    c0c1.c0 = EntityManager.GetComponentData<LocalTransform>(entity).Value;
-        //    c0c1.c1 = EntityManager.GetComponentData<Rotation>(entity).Value;
-        //}
-        //else
-        //{
-        //    c0c1 = EntityManager.GetComponentData<CachedTurretTransform>(entity);
-        //}
-        //var team = EntityManager.GetComponentData<CombatTeam>(entity);
+        var c0c1 = new CachedTurretTransform();
+        if (sstate.EntityManager.HasComponent<CachedTurretTransform>(entity) == false)
+        {
+            //Debug.Log(entity.ToString() + " has no CachedTurretTransform");
+            var lt = sstate.EntityManager.GetComponentData<LocalTransform>(entity);
+            c0c1.c0 = lt.Position;
+            c0c1.c1 = lt.Rotation;
+        }
+        else
+        {
+            c0c1 = sstate.EntityManager.GetComponentData<CachedTurretTransform>(entity);
+        }
+        var team = sstate.EntityManager.GetComponentData<CombatTeam>(entity);
 
-        //switch (current_weapon.weapon_type)
-        //{
-        //    case WeaponTypes.Laser_Defensive: // platform laser
-        //    case WeaponTypes.Laser_Offensive_Charged:
-        //        if (targets.count > 0)
-        //        {
-        //            var target = targets.value_at(0);
-        //            var weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
-        //            var claser = new ContinuousLaserStates();
-        //            claser.from_entity = entity;
-        //            claser.to_entity = target;
-        //            claser.def_from_position = c0c1.c0;
-        //            claser.def_to_position = weapon_target_position;
-        //            claser.Init((byte)team.value);
-        //            //lis.Init(c0c1.c0, weapon_target_position, (byte)team.value);
-        //            clasers.Add(claser);
-        //            float3 hit_dir = math.normalize(weapon_target_position - c0c1.c0);
-        //            CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
-        //            {
-        //                initiator = entity,
-        //                receiver = target,
-        //                damage = current_weapon.base_damage,
-        //                damage_types = current_weapon.damamge_types,
-        //                hit_position = weapon_target_position, // todo?
-        //                hit_dir = hit_dir
-        //            });
-        //            fired_once = true;
-        //            //Debug.DrawLine(c0c1.c0, weapon_target_position, Color.yellow, 2f);
-        //        }
-        //        break;
+        switch (current_weapon.weapon_type)
+        {
+            //case WeaponTypes.Laser_Offensive_Charged:
+            //    if (targets.count > 0)
+            //    {
+            //        var target = targets.value_at(0);
+            //        var weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //        var claser = new ContinuousLaserStates();
+            //        claser.from_entity = entity;
+            //        claser.to_entity = target;
+            //        claser.def_from_position = c0c1.c0;
+            //        claser.def_to_position = weapon_target_position;
+            //        claser.Init((byte)team.value);
+            //        //lis.Init(c0c1.c0, weapon_target_position, (byte)team.value);
+            //        clasers.Add(claser);
+            //        float3 hit_dir = math.normalize(weapon_target_position - c0c1.c0);
+            //        CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
+            //        {
+            //            initiator = entity,
+            //            receiver = target,
+            //            damage = current_weapon.base_damage,
+            //            damage_types = current_weapon.damamge_types,
+            //            hit_position = weapon_target_position, // todo?
+            //            hit_dir = hit_dir
+            //        });
+            //        fired_once = true;
+            //        //Debug.DrawLine(c0c1.c0, weapon_target_position, Color.yellow, 2f);
+            //    }
+            //    break;
 
-        //    case WeaponTypes.Laser_Offensive:
-        //        //Debug.Log("laser!");
-        //        if (targets.count > 0)
-        //        {
-        //            var target = targets.value_at(0);
-        //            var weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
-        //            var lis = new ImpulseLaserStates();
-                    
-        //            lis.Init(c0c1.c0, weapon_target_position, (byte)team.value);
-        //            lasers.Add(lis);
-        //            float3 hit_dir = math.normalize(weapon_target_position - c0c1.c0);
+            //case WeaponTypes.Laser_Offensive:
+            //    //Debug.Log("laser!");
+            //    if (targets.count > 0)
+            //    {
+            //        var target = targets.value_at(0);
+            //        var weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //        var lis = new ImpulseLaserStates();
 
-        //            CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
-        //            {
-        //                initiator = entity,
-        //                receiver = target,
-        //                damage = current_weapon.base_damage,
-        //                damage_types = current_weapon.damamge_types,
-        //                hit_position = weapon_target_position, // todo?
-        //                hit_dir = hit_dir
-        //            });
-        //            fired_once = true;
-        //        }
-        //        break;
-        //    case WeaponTypes.Laser_Offensive_Cont:
-        //        if (targets.count > 0)
-        //        {
-        //            var target = targets.value_at(0);
-        //            var weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
-        //            var claser = new ContinuousLaserStates();
-        //            claser.from_entity = entity;
-        //            claser.to_entity = target;
-        //            claser.def_from_position = c0c1.c0;
-        //            claser.def_to_position = weapon_target_position;
-        //            claser.Init((byte)team.value);
-        //            //lis.Init(c0c1.c0, weapon_target_position, (byte)team.value);
-        //            clasers_enemy.Add(claser);
-        //            float3 hit_dir = math.normalize(weapon_target_position - c0c1.c0);
-        //            CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
-        //            {
-        //                initiator = entity,
-        //                receiver = target,
-        //                damage = current_weapon.base_damage,
-        //                damage_types = current_weapon.damamge_types,
-        //                hit_position = weapon_target_position, // todo?
-        //                hit_dir = hit_dir
-        //            });
-        //            fired_once = true;
-        //        }
-        //        break;
-        //    case WeaponTypes.Cannon_Multi:
-        //        //for (int j = 0; j < targets.count; ++j)
-        //        //{
-        //        //    var target = targets.value_at(j);
-        //        //    if (target == Entity.Null) continue;
+            //        lis.Init(c0c1.c0, weapon_target_position, (byte)team.value);
+            //        lasers.Add(lis);
+            //        float3 hit_dir = math.normalize(weapon_target_position - c0c1.c0);
 
-        //        //    fired_once = true;
-        //        //    float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //        CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
+            //        {
+            //            initiator = entity,
+            //            receiver = target,
+            //            damage = current_weapon.base_damage,
+            //            damage_types = current_weapon.damamge_types,
+            //            hit_position = weapon_target_position, // todo?
+            //            hit_dir = hit_dir
+            //        });
+            //        fired_once = true;
+            //    }
+            //    break;
+            //case WeaponTypes.Laser_Offensive_Cont:
+            //    if (targets.count > 0)
+            //    {
+            //        var target = targets.value_at(0);
+            //        var weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //        var claser = new ContinuousLaserStates();
+            //        claser.from_entity = entity;
+            //        claser.to_entity = target;
+            //        claser.def_from_position = c0c1.c0;
+            //        claser.def_to_position = weapon_target_position;
+            //        claser.Init((byte)team.value);
+            //        //lis.Init(c0c1.c0, weapon_target_position, (byte)team.value);
+            //        clasers_enemy.Add(claser);
+            //        float3 hit_dir = math.normalize(weapon_target_position - c0c1.c0);
+            //        CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
+            //        {
+            //            initiator = entity,
+            //            receiver = target,
+            //            damage = current_weapon.base_damage,
+            //            damage_types = current_weapon.damamge_types,
+            //            hit_position = weapon_target_position, // todo?
+            //            hit_dir = hit_dir
+            //        });
+            //        fired_once = true;
+            //    }
+            //    break;
 
-        //        //    tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-        //        //    init_cannon_timed_scattered(EntityManager, entity, tmp_entity, c0c1.c0, target, weapon_target_position, team, _rng);
+            case WeaponTypes.Cannon:
+                var single_target = targets.value;
+                if (single_target != Entity.Null)
+                {
+                    if(sstate.EntityManager.HasComponent<UnitStats>(single_target))
+                    {
+                        fired_once = true;
+                        var us = sstate.EntityManager.GetComponentData<UnitStats>(single_target);
+                        var instance_damage = current_weapon.base_damage - us.defense;
+                        us.health -= instance_damage;
+                        Debug.Log(entity.ToString() + " hits " + single_target.ToString() + " for " + instance_damage);
+                        if(us.health <= 0f)
+                        {
+                            us.health = 0f;
+                            unit_destroyed.Add(single_target);
+                        }
+                        sstate.EntityManager.SetComponentData(single_target, us);
+                        float3 weapon_target_position = sstate.EntityManager.GetComponentData<LocalTransform>(single_target).Position;
+                        Debug.DrawLine(c0c1.c0, weapon_target_position, Color.red, 0.5f);
 
+                    }
+                    //
+                    //var cannon_shot_spawn_offset = math.mul(c0c1.c1, new float3(0f, 0f, 4.3f));
+                    //
 
-        //        //    EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
-        //        //    { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
-        //        //    if (create_meshes)
-        //        //        EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
+                    //tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
+                    ////Debug.DrawLine(c0c1.c0, weapon_target_position, Color.red, 0.5f);
+                    //init_cannon_timed_scattered(EntityManager, entity, tmp_entity, c0c1.c0 + cannon_shot_spawn_offset, single_target, weapon_target_position, team, _rng);
+                    //EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
+                    //{ damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
 
-        //        //    CombatSoundRefs.self.Play(0, c0c1.c0);
-        //        //}
-        //        //break;
-        //    case WeaponTypes.Cannon:
-        //    case WeaponTypes.Cannon_Vehicle:
-        //    case WeaponTypes.Cannon_Platform:
-        //        var single_target = targets.value_at(0);
-        //        if (single_target != Entity.Null)
-        //        {
-        //            var cannon_shot_spawn_offset = math.mul(c0c1.c1, new float3(0f, 0f, 4.3f));
-        //            fired_once = true;
-        //            float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(single_target).Value;
+                    //Unity.Physics.CollisionFilter cfilter = default;
+                    //cfilter.CollidesWith = team.HostileTeamMask();
+                    //cfilter.BelongsTo = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_character;
+                    ////cfilter.BelongsTo = StructureInteractions.Layer_vehicle;
 
-        //            tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-        //            //Debug.DrawLine(c0c1.c0, weapon_target_position, Color.red, 0.5f);
-        //            init_cannon_timed_scattered(EntityManager, entity, tmp_entity, c0c1.c0 + cannon_shot_spawn_offset, single_target, weapon_target_position, team, _rng);
-        //            EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
-        //            { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
+                    //EntityManager.SetComponentData(tmp_entity, new ProjectileCollisionProperties() { cfilter = cfilter });
+                    //if (create_meshes)
+                    //    EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
 
-        //            Unity.Physics.CollisionFilter cfilter = default;
-        //            cfilter.CollidesWith = team.HostileTeamMask();
-        //            cfilter.BelongsTo = StructureInteractions.Layer_vehicle | StructureInteractions.Layer_character;
-        //            //cfilter.BelongsTo = StructureInteractions.Layer_vehicle;
+                    //CombatSoundRefs.self.Play(0, c0c1.c0);
 
-        //            EntityManager.SetComponentData(tmp_entity, new ProjectileCollisionProperties() { cfilter = cfilter });
-        //            if (create_meshes)
-        //                EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
+                    //// muzzle flash fx
+                    //var muzzle_flash = EntityManager.Instantiate(ResourceRefs.self.misc_entities[14]);
+                    //EntityManager.SetComponentData(muzzle_flash, new LocalTransform() { Value = c0c1.c0 + cannon_shot_spawn_offset });
+                    //EntityManager.SetComponentData(muzzle_flash, new Rotation() { Value = CamControl.self.transform.rotation });
+                    //EntityManager.SetComponentData(muzzle_flash, new MuzzleFlashNoise() { value = _rng.NextFloat(1000f) });
 
-        //            CombatSoundRefs.self.Play(0, c0c1.c0);
+                }
+                break;
+            
+            //case WeaponTypes.Projectile:
+            //    for (int j = 0; j < targets.count; ++j)
+            //    {
+            //        var target = targets.value_at(j);
+            //        if (target == Entity.Null) continue;
 
-        //            // muzzle flash fx
-        //            var muzzle_flash = EntityManager.Instantiate(ResourceRefs.self.misc_entities[14]);
-        //            EntityManager.SetComponentData(muzzle_flash, new LocalTransform() { Value = c0c1.c0 + cannon_shot_spawn_offset }) ;
-        //            EntityManager.SetComponentData(muzzle_flash, new Rotation() { Value = CamControl.self.transform.rotation });
-        //            EntityManager.SetComponentData(muzzle_flash, new MuzzleFlashNoise() { value = _rng.NextFloat(1000f) });
-                    
-        //        }
-        //        break;
-        //    case WeaponTypes.Projectile_Multi:
-        //        for (int j = 0; j < targets.count; ++j)
-        //        {
-        //            var target = targets.value_at(j);
-        //            if (target == Entity.Null) continue;
+            //        fired_once = true;
+            //        float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
 
-        //            fired_once = true;
-        //            float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //        tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
+            //        init_projectile(EntityManager, entity, tmp_entity, c0c1.c0, c0c1.c1, team, target, weapon_target_position);
+            //        EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
+            //        { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
+            //        if (create_meshes)
+            //        {
+            //            EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
+            //            GameObjectLink.self.PlayAnim(entity, 1); // required by bionode's animation playback.
+            //        }
 
-        //            tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-        //            init_projectile(EntityManager, entity, tmp_entity, c0c1.c0, c0c1.c1, team, target, weapon_target_position);
-        //            EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
-        //            { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
-        //            if (create_meshes)
-        //            {
-        //                EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
-        //                GameObjectLink.self.PlayAnim(entity, 1);
-        //            }
+            //        CombatSoundRefs.self.Play(1, c0c1.c0);
+            //        break;
+            //    }
+            //    break;
+            //case WeaponTypes.Projectile_Platform:
+            //    for (int j = 0; j < targets.count; ++j)
+            //    {
+            //        var target = targets.value_at(j);
+            //        if (target == Entity.Null) continue;
 
-        //            CombatSoundRefs.self.Play(1, c0c1.c0);
-        //        }
-        //        break;
-        //    case WeaponTypes.Projectile:
-        //        for (int j = 0; j < targets.count; ++j)
-        //        {
-        //            var target = targets.value_at(j);
-        //            if (target == Entity.Null) continue;
+            //        fired_once = true;
+            //        float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
 
-        //            fired_once = true;
-        //            float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //        tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
+            //        init_projectile_guided(EntityManager, entity, tmp_entity, c0c1.c0, c0c1.c1, team, target, weapon_target_position);
+            //        EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
+            //        { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
 
-        //            tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-        //            init_projectile(EntityManager, entity, tmp_entity, c0c1.c0, c0c1.c1, team, target, weapon_target_position);
-        //            EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
-        //            { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
-        //            if (create_meshes)
-        //            {
-        //                EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
-        //                GameObjectLink.self.PlayAnim(entity, 1); // required by bionode's animation playback.
-        //            }
+            //        EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
 
-        //            CombatSoundRefs.self.Play(1, c0c1.c0);
-        //            break;
-        //        }
-        //        break;
-        //    case WeaponTypes.Projectile_Platform:
-        //        for (int j = 0; j < targets.count; ++j)
-        //        {
-        //            var target = targets.value_at(j);
-        //            if (target == Entity.Null) continue;
+            //        CombatSoundRefs.self.Play(1, c0c1.c0);
+            //        break;
+            //    }
+            //    break;
 
-        //            fired_once = true;
-        //            float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            case WeaponTypes.Repair_Multi: // channeled
+            case WeaponTypes.Repair: // channeled
+                {
+                    //fired_once = process_beam(entity, current_weapon, targets, ResourceRefs.self.misc_entities[5], create_meshes);
+                }
+                break;
+            //case WeaponTypes.Spawn_Fighter:
+            //case WeaponTypes.Spawn_Hatchling:
+            //case WeaponTypes.Spawn_Swarm:
 
-        //            tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-        //            init_projectile_guided(EntityManager, entity, tmp_entity, c0c1.c0, c0c1.c1, team, target, weapon_target_position);
-        //            EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
-        //            { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
+            //    var _hatchery = EntityManager.GetComponentData<DroneCount>(entity);
+            //    for (int j = 0; j < targets.count; ++j)
+            //    {
+            //        var target = targets.value_at(j);
+            //        if (target == Entity.Null) continue;
+            //        int drone_count = EntityManager.GetBuffer<CombatDroneRef>(entity).Length;
+            //        if (drone_count < _hatchery.max_count)
+            //        {
+            //            //float rng = _rn_sequence[_rng_it];
+            //            //_rng_it++;
+            //            //_rng_it = _rng_it % _rn_sequence.Length;
+            //            //Debug.Log("WeaponModes.Spawn " + weapons[i].projectile_type.ToString());
+            //            if (hashed_entities.ContainsKey((int)current_weapon.projectile_type))
+            //            {
+            //                tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
+            //                float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            //                //var new_spawn = create_spawn(EntityManager, tmp_entity, entity, c0, weapon_target_position + (rng.NextFloat() - 0.5f) * new float3(0f, 2f, 0f), team);
+            //                init_spawn(EntityManager, tmp_entity, entity, c0, weapon_target_position, team);
+            //                //EntityManager.AddComponentData(new_spawn, new CB_Assignment() { owner_entity = entity });
+            //                //Debug.DrawLine(c0c1.c0, weapon_target_position, Color.green, 0.5f);
+            //                var combat_drones = EntityManager.GetBuffer<CombatDroneRef>(entity);
+            //                combat_drones.Add(new CombatDroneRef() { value = tmp_entity });
+            //                fired_once = true;
+            //            }
+            //        }
+            //    }
+            //    break;
+            default:
+                Debug.LogWarning("unexpected weapon type:" + current_weapon.weapon_type.ToString());
+                break;
+        }
+        if (fired_once)
+        {
+            //if (current_weapon.burst_max > 0)
+            //{
+            //    current_weapon.burst_index++;
+            //    if (current_weapon.burst_index < current_weapon.burst_max)
+            //    {
+            //        current_weapon.cooldown_left = current_weapon.burst_cooldown;
+            //    }
+            //    else
+            //    {
+            //        current_weapon.cooldown_left = current_weapon.cooldown_max;
+            //        current_weapon.burst_index = 0;
+            //    }
 
-        //            EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
+            //}
+            //else
+            {
+                current_weapon.weapon_cooldown_left = current_weapon.weapon_cooldown_total;
+            }
 
-        //            CombatSoundRefs.self.Play(1, c0c1.c0);
-        //            break;
-        //        }
-        //        break;
+            var weapon_db = sstate.EntityManager.GetBuffer<WeaponInfoV2>(entity);
+            weapon_db[weapon_index] = current_weapon;
 
-        //    case WeaponTypes.Repair_Multi: // channeled
-        //    case WeaponTypes.Repair: // channeled
-        //        {
-        //            fired_once = process_beam(entity, current_weapon, targets, ResourceRefs.self.misc_entities[5], create_meshes);
-        //        }
-        //        break;
-        //    //case WeaponTypes.Spawn_Fighter:
-        //    //case WeaponTypes.Spawn_Hatchling:
-        //    //case WeaponTypes.Spawn_Swarm:
-
-        //    //    var _hatchery = EntityManager.GetComponentData<DroneCount>(entity);
-        //    //    for (int j = 0; j < targets.count; ++j)
-        //    //    {
-        //    //        var target = targets.value_at(j);
-        //    //        if (target == Entity.Null) continue;
-        //    //        int drone_count = EntityManager.GetBuffer<CombatDroneRef>(entity).Length;
-        //    //        if (drone_count < _hatchery.max_count)
-        //    //        {
-        //    //            //float rng = _rn_sequence[_rng_it];
-        //    //            //_rng_it++;
-        //    //            //_rng_it = _rng_it % _rn_sequence.Length;
-        //    //            //Debug.Log("WeaponModes.Spawn " + weapons[i].projectile_type.ToString());
-        //    //            if (hashed_entities.ContainsKey((int)current_weapon.projectile_type))
-        //    //            {
-        //    //                tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-        //    //                float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
-        //    //                //var new_spawn = create_spawn(EntityManager, tmp_entity, entity, c0, weapon_target_position + (rng.NextFloat() - 0.5f) * new float3(0f, 2f, 0f), team);
-        //    //                init_spawn(EntityManager, tmp_entity, entity, c0, weapon_target_position, team);
-        //    //                //EntityManager.AddComponentData(new_spawn, new CB_Assignment() { owner_entity = entity });
-        //    //                //Debug.DrawLine(c0c1.c0, weapon_target_position, Color.green, 0.5f);
-        //    //                var combat_drones = EntityManager.GetBuffer<CombatDroneRef>(entity);
-        //    //                combat_drones.Add(new CombatDroneRef() { value = tmp_entity });
-        //    //                fired_once = true;
-        //    //            }
-        //    //        }
-        //    //    }
-        //    //    break;
-        //    default:
-        //        Debug.LogWarning("unexpected weapon type:" + current_weapon.weapon_type.ToString());
-        //        break;
-        //}
-        //if (fired_once)
-        //{
-        //    if (current_weapon.burst_max > 0)
-        //    {
-        //        current_weapon.burst_index++;
-        //        if (current_weapon.burst_index < current_weapon.burst_max)
-        //        {
-        //            current_weapon.cooldown_left = current_weapon.burst_cooldown;
-        //        }
-        //        else
-        //        {
-        //            current_weapon.cooldown_left = current_weapon.cooldown_max;
-        //            current_weapon.burst_index = 0;
-        //        }
-                
-        //    }
-        //    else
-        //    {
-        //        current_weapon.cooldown_left = current_weapon.cooldown_max;
-        //    }
-
-        //    var weapon_db = EntityManager.GetBuffer<WeaponInfoV2>(entity);
-        //    weapon_db[weapon_index] = current_weapon;
-
-        //    // update ammunitions
-        //    var ammos = EntityManager.GetBuffer<StorageCell>(entity);
-        //    var tmp = ammos[weapon_index];
-        //    tmp.item_count--;
-        //    ammos[weapon_index] = tmp;
-        //}
+            // update ammunitions
+            var ammos = sstate.EntityManager.GetBuffer<StorageCell>(entity);
+            var tmp = ammos[weapon_index];
+            tmp.item_count--;
+            ammos[weapon_index] = tmp;
+        }
     }
 
     void process_spawn_attempts(SpawnInstance sp_inst)
@@ -788,74 +734,74 @@ public partial class WeaponFireSystemV3 : SystemBase
         //em.SetComponent(new_entity, new PartialFacingTag() { facing = diff });
         em.SetComponent(new_entity, new PostTransformMatrix() { Value = float4x4.Scale(0.05f, 0.05f, distance) });
     }
-    bool process_beam(Entity initiator, WeaponInfoV2 weapon, CombatTargets comtargets, Entity laser_entity, bool create_meshes)
-    {
-        bool fired_once = false;
-        var c0 = EntityManager.GetComponentData<LocalTransform>(initiator).Position;
-        //var contacts = EntityManager.GetBuffer<BeamContacts>(initiator).ToNativeArray(Allocator.Temp);
-        var ammos = EntityManager.GetBuffer<StorageCell>(initiator).ToNativeArray(Allocator.Temp);
-        var visuals_db = EntityManager.GetBuffer<BeamVisualEntity>(initiator);
-        if (visuals_db.Length == 0)
-        {
-            for(int i = 0; i < comtargets.count; ++i)
-            {
-                visuals_db.Add(default);
-            }
-        }
-        var visuals = visuals_db.ToNativeArray(Allocator.Temp);
+    //bool process_beam(Entity initiator, WeaponInfoV2 weapon, CombatTargets comtargets, Entity laser_entity, bool create_meshes)
+    //{
+    //    bool fired_once = false;
+    //    var c0 = EntityManager.GetComponentData<LocalTransform>(initiator).Position;
+    //    //var contacts = EntityManager.GetBuffer<BeamContacts>(initiator).ToNativeArray(Allocator.Temp);
+    //    var ammos = EntityManager.GetBuffer<StorageCell>(initiator).ToNativeArray(Allocator.Temp);
+    //    var visuals_db = EntityManager.GetBuffer<BeamVisualEntity>(initiator);
+    //    if (visuals_db.Length == 0)
+    //    {
+    //        for(int i = 0; i < comtargets.count; ++i)
+    //        {
+    //            visuals_db.Add(default);
+    //        }
+    //    }
+    //    var visuals = visuals_db.ToNativeArray(Allocator.Temp);
         
-        for (int i = 0; i < comtargets.count; ++i)
-        {
-            var target2heal = comtargets.value_at(i);
-            //if (target2heal == Entity.Null) break;
-            var stats = EntityManager.GetComponentData<UnitStats>(target2heal);
-            bool should_heal = WeaponFireSystemV3.should_heal(target2heal, weapon, ammos[0], stats);
+    //    for (int i = 0; i < comtargets.count; ++i)
+    //    {
+    //        var target2heal = comtargets.value_at(i);
+    //        //if (target2heal == Entity.Null) break;
+    //        var stats = EntityManager.GetComponentData<UnitStats>(target2heal);
+    //        bool should_heal = WeaponFireSystemV3.should_heal(target2heal, weapon, ammos[0], stats);
 
-            if (should_heal)
-            {
-                fired_once = true;
-                //CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
-                //{
-                //    initiator = initiator,
-                //    receiver = target2heal,
-                //    damage = weapon.base_damage,
-                //    damage_types = weapon.damamge_types,
-                //    //hit_position = c0c1.c0,
-                //    //hit_dir = math.mul(c1.Value, new float3(0f, 0f, 1f))
+    //        if (should_heal)
+    //        {
+    //            fired_once = true;
+    //            //CombatDamageCalculateSystem.self.damage_instances.Add(new DamageInstance()
+    //            //{
+    //            //    initiator = initiator,
+    //            //    receiver = target2heal,
+    //            //    damage = weapon.base_damage,
+    //            //    damage_types = weapon.damamge_types,
+    //            //    //hit_position = c0c1.c0,
+    //            //    //hit_dir = math.mul(c1.Value, new float3(0f, 0f, 1f))
 
-                //});
-                if (visuals[i].value == Entity.Null && create_meshes)
-                {
-                    // create laser
-                    Entity new_entity = EntityManager.Instantiate(laser_entity);
+    //            //});
+    //            if (visuals[i].value == Entity.Null && create_meshes)
+    //            {
+    //                // create laser
+    //                Entity new_entity = EntityManager.Instantiate(laser_entity);
 
-                    var target_position = EntityManager.GetComponentData<LocalTransform>(target2heal).Position;
-                    //Debug.DrawLine(target_position, target_position + new float3(0f, 30f, 0f), Color.green);
-                    //Debug.DrawLine(c0c1.c0, c0c1.c0 + new float3(0f, 30f, 0f), Color.green);
-                    BeamScaling(EntityManager, new_entity, c0, target_position);
+    //                var target_position = EntityManager.GetComponentData<LocalTransform>(target2heal).Position;
+    //                //Debug.DrawLine(target_position, target_position + new float3(0f, 30f, 0f), Color.green);
+    //                //Debug.DrawLine(c0c1.c0, c0c1.c0 + new float3(0f, 30f, 0f), Color.green);
+    //                BeamScaling(EntityManager, new_entity, c0, target_position);
 
-                    var tmp_visuals = EntityManager.GetBuffer<BeamVisualEntity>(initiator);
-                    tmp_visuals[i] = new BeamVisualEntity() { value = new_entity };
-                }
-            }
-            else
-            {
-                if (visuals[i].value != Entity.Null)
-                {
-                    //Debug.Log(visuals[i].value.ToString() + " beam visual destroyed");
-                    // destroy laser
-                    EntityManager.DestroyEntity(visuals[i].value);
-                    //var tmp = visuals[i];
-                    //tmp.value = default;
-                    //visuals[i] = tmp;
+    //                var tmp_visuals = EntityManager.GetBuffer<BeamVisualEntity>(initiator);
+    //                tmp_visuals[i] = new BeamVisualEntity() { value = new_entity };
+    //            }
+    //        }
+    //        else
+    //        {
+    //            if (visuals[i].value != Entity.Null)
+    //            {
+    //                //Debug.Log(visuals[i].value.ToString() + " beam visual destroyed");
+    //                // destroy laser
+    //                EntityManager.DestroyEntity(visuals[i].value);
+    //                //var tmp = visuals[i];
+    //                //tmp.value = default;
+    //                //visuals[i] = tmp;
 
-                    var tmp_visuals = EntityManager.GetBuffer<BeamVisualEntity>(initiator);
-                    tmp_visuals[i] = default;
-                }
-            }
-        }
-        return fired_once;
-    }
+    //                var tmp_visuals = EntityManager.GetBuffer<BeamVisualEntity>(initiator);
+    //                tmp_visuals[i] = default;
+    //            }
+    //        }
+    //    }
+    //    return fired_once;
+    //}
     struct ParticleInitialVectorJob : IJob
     {
         
@@ -1289,7 +1235,7 @@ public struct BezierControls:IComponentData
 public struct WeaponFireAttemptInfo
 {
     public Entity initiator;
-    public CombatTargets comtargets;
+    public CombatTarget combat_target;
     public int weapon_index;
 }
 public struct InstantDamageAttempt // instance weapons

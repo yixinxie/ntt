@@ -339,7 +339,7 @@ public partial class LocalAvoidanceSystem : SystemBase
         {
             int sdf = 0;
         }
-        NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
+        //NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
         Entities.WithoutBurst()
         .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
         {
@@ -517,9 +517,9 @@ public partial class LocalAvoidanceSystem : SystemBase
             //CompleteDependency();
         }).Run();
         Profiler.EndSample();
-        codepaths.Clear();
-        codepaths.AddRange(curret_cps.AsArray());
-        curret_cps.Dispose();
+        //codepaths.Clear();
+        //codepaths.AddRange(curret_cps.AsArray());
+        //curret_cps.Dispose();
 
         Profiler.BeginSample("LA2 - apply influence");
         Entities

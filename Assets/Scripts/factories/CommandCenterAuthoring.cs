@@ -55,8 +55,8 @@ public struct CmdCntrUnitRef:IBufferElementData
 }
 public enum CmdCntrModeTypes : byte
 {
-    Passive,
-    Aggressive,
+    Passive, // search a perimeter for hostile, and dispatch if found.
+    Aggressive, // attack move on a preset path.
     Manual, // follow the player.
 }
 public struct CmdCntrModes:IComponentData

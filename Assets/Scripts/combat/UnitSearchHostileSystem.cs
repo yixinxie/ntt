@@ -19,17 +19,18 @@ using static UnityEngine.GraphicsBuffer;
 public partial struct UnitSearchHostileSystem : ISystem
 {
     ComponentLookup<LocalTransform> c0_array;
+    WeaponFireSystemV3 weapon_fires;
     void OnCreate(ref SystemState sstate)
     {
         c0_array = sstate.GetComponentLookup<LocalTransform>();
         var s_e = sstate.EntityManager.CreateEntity();
         sstate.EntityManager.AddComponentData(s_e, new ASMSysStates());
         //sstate.EntityManager.<ASMSysStates>(SystemAPI.GetSingletonEntity<ASMSysStates>());
-        
+        weapon_fires.init(ref sstate);
     }
     void OnDestroy(ref SystemState sstate)
     {
-
+        weapon_fires.dispose(ref sstate);
     }
     public static bool IsTargetInCone(float3 target_position, CachedTurretTransform c0c1, WeaponInfoV2 weaponinfo)
     {
@@ -221,6 +222,18 @@ public partial struct UnitSearchHostileSystem : ISystem
             }
         }
     }
+    partial struct set_combatteam_job : IJobEntity
+    {
+        public void Execute(Entity target, ref PhysicsCollider pcol, in CombatTeam cteam)
+        {
+            unsafe
+            {
+                var cfilter = pcol.ColliderPtr->GetCollisionFilter();
+                cfilter.BelongsTo = cfilter.BelongsTo | cteam.FriendlyTeamMask();
+                pcol.ColliderPtr->SetCollisionFilter(cfilter);
+            }
+        }
+    }
     void OnUpdate(ref SystemState sstate)
     {
         var ass = SystemAPI.GetSingletonRW<ASMSysStates>();
@@ -228,12 +241,22 @@ public partial struct UnitSearchHostileSystem : ISystem
         
         sstate.CompleteDependency();
         c0_array.Update(ref sstate);
-        // turrets
-        var job0 = new search_target_job();
-        job0.physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
-        job0.c0_array = c0_array;
-        job0.Run();
 
+        var job0 = new set_combatteam_job();
+        job0.Run();
+        // turrets
+        var job1 = new search_target_job();
+        job1.physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
+        job1.c0_array = c0_array;
+        job1.Run();
+
+        var fire0 = new WeaponFireSystemV3.weapon_fire_0();
+        fire0.c0_array = c0_array;
+        fire0.dt = Time.deltaTime;
+        fire0._weapon_fire_attempts = new NativeList<WeaponFireAttemptInfo>(8, Allocator.TempJob);
+        fire0.Run();
+        weapon_fires.OnUpdate(ref sstate, fire0._weapon_fire_attempts);
+        fire0._weapon_fire_attempts.Dispose();
         //NativeList<> 
         // passive cc detect pass
         //Entities//.WithAll<InCombat>()
@@ -290,9 +313,12 @@ public struct WeaponInfoV2 : IBufferElementData
     //public StructureType projectile_type;
     public float radius;
     public half attack_radians;
+
     //public byte burst_index; // changing
-    public half attack_time_left;
-    public half attack_duration;
+    public half attack_time_left; // changing
+    public half attack_duration; // constant
+    public byte attacks_left;
+    public byte attacks_total;
 
     public half weapon_cooldown_left; // 0 means ready to fire, 
     public half weapon_cooldown_total;
