@@ -304,6 +304,7 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
         return physics.CastRay(rci, ref rh_obstacles) == false;
     }
    
+    
     protected override void OnUpdate()
     {
         //var incombat_array = GetComponentLookup<InCombat>();
@@ -346,89 +347,59 @@ public partial class UnitSearchHostileSystemV2 : SystemBase
         //ecb.Dispose();
         var physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
         var c0_array = GetComponentLookup<LocalTransform>();
-        // turrets
-        Entities//.WithAll<InCombat>()
-        .ForEach((Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> targets,
-        in LocalTransform lt, in CombatTeam team) =>
-        {
-            var c0 = CachedTurretTransform.from_localtransform(lt);
-            if (weapons.Length != targets.Length) { return; }
-            for(int i = 0; i < weapons.Length; ++i)
-            {
-                bool should_get_targets = false;
-                var target = targets[i];
-                if (c0_array.HasComponent(target.value) == false)
-                {
-                    if(target.value.Equals(Entity.Null))
-                    {
-                        // this unit has no target to begin with.
-                    }
-                    else
-                    {
-                        // this unit's target has been destroyed.
-                    }
-                    should_get_targets = true;
-                }
-                else
-                {
-                    if (IsTargetInCone(c0_array[target.value].Position, c0, weapons[i]) == false)
-                    {
-                        // target out of range.
-                        //Debug.Log(entity.ToString() + " detargets.");
-                        targets[i] = default;
-                        should_get_targets = true;
-                    }
-                }
-                if (should_get_targets)
-                {
-                    if(GetTargets_ICD(physics, weapons[i], out CombatTarget _target, c0_array, c0, team, entity))
-                    {
-                        //Debug.Log(entity.ToString() + " gains target " + _target.value);
-                        //target.value = _target;
-                        targets[i] = _target;
-                    }
-                    else
-                    {
-                        targets[i] = default;
-                    }
-                }
-            }
+        //// turrets
+        //Entities//.WithAll<InCombat>()
+        //.ForEach((Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> targets,
+        //in LocalTransform lt, in CombatTeam team) =>
+        //{
+        //    var c0 = CachedTurretTransform.from_localtransform(lt);
+        //    if (weapons.Length != targets.Length) { return; }
+        //    for(int i = 0; i < weapons.Length; ++i)
+        //    {
+        //        bool should_get_targets = false;
+        //        var target = targets[i];
+        //        if (c0_array.HasComponent(target.value) == false)
+        //        {
+        //            if(target.value.Equals(Entity.Null))
+        //            {
+        //                // this unit has no target to begin with.
+        //            }
+        //            else
+        //            {
+        //                // this unit's target has been destroyed.
+        //            }
+        //            should_get_targets = true;
+        //        }
+        //        else
+        //        {
+        //            if (IsTargetInCone(c0_array[target.value].Position, c0, weapons[i]) == false)
+        //            {
+        //                // target out of range.
+        //                //Debug.Log(entity.ToString() + " detargets.");
+        //                targets[i] = default;
+        //                should_get_targets = true;
+        //            }
+        //        }
+        //        if (should_get_targets)
+        //        {
+        //            if(GetTargets_ICD(physics, weapons[i], out CombatTarget _target, c0_array, c0, team, entity))
+        //            {
+        //                Debug.Log(entity.ToString() + " gains target " + _target.value);
+        //                //target.value = _target;
+        //                targets[i] = _target;
+        //            }
+        //            else
+        //            {
+        //                targets[i] = default;
+        //            }
+        //        }
+        //    }
             
-        }).Run();
+        //}).Run();
 
 
         //NativeList<> 
-        // passive cc detect pass
-        Entities//.WithAll<InCombat>()
-        .ForEach((Entity entity, ref CmdCntrModes ccstates,
-        in LocalTransform c0, in CombatTeam team) =>
-        {
-
-            if (ccstates.mode == CmdCntrModeTypes.Passive && c0_array.HasComponent(ccstates.invader) == false)
-            {
-                var cc_wi = new WeaponInfoV2();
-                cc_wi.radius = 150f;
-                cc_wi.weapon_type = WeaponTypes.CC_Passive_Scan;
-                var clt = CachedTurretTransform.from_localtransform(c0);
-                if (GetTargets_ICD(physics, cc_wi, out CombatTarget _target, c0_array, clt, team, entity))
-                {
-                    //Debug.Log("cc gains target " + _target.value);
-                    //target.value = _target;
-                    ccstates.invader = _target.value;
-                    //var refs = sstate.EntityManager.GetBuffer<CmdCntrUnitRef>(entity).ToNativeArray(Allocator.Temp);
-                    //for(int i = 0; i < refs.Length; ++i)
-                    //{
-                    //    dispatch_cc_unit(ref sstate, refs[i].value, _target.value);
-                    //}
-                    
-                }
-                else
-                {
-                    ccstates.invader = default;
-                }
-            }
-
-        }).Run();
+        
 
         //Entities.WithAll<InCombat>()
         //    .WithNone<CachedTurretTransform>()

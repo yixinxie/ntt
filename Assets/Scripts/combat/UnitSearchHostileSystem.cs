@@ -88,7 +88,12 @@ public partial struct UnitSearchHostileSystem : ISystem
             for (int j = 0; j < hits.Length; ++j)
             {
                 if (hits[j].Entity == self_entity) continue;
-                var target_pos = c0_lookup[hits[j].Entity].Position;
+                var hit_entity = hits[j].Entity;
+                if (c0_lookup.HasComponent(hit_entity) == false)
+                {
+                    continue;
+                }
+                var target_pos = c0_lookup[hit_entity].Position;
                 var this_dist = math.distancesq(target_pos, c0c1.c0);
                 if ((search_furthest && this_dist > distance_cmp) ||
                     (search_furthest == false && this_dist < distance_cmp))
@@ -234,6 +239,41 @@ public partial struct UnitSearchHostileSystem : ISystem
             }
         }
     }
+
+    partial struct cc_search : IJobEntity
+    {
+        public PhysicsWorld physics;
+        [ReadOnly]
+        public ComponentLookup<LocalTransform> c0_array;
+
+        public void Execute(Entity entity, ref CmdCntrModes ccstates, in LocalTransform c0, in CombatTeam team)
+        {
+            if (ccstates.mode == CmdCntrModeTypes.Passive && c0_array.HasComponent(ccstates.invader) == false)
+            {
+                var cc_wi = new WeaponInfoV2();
+                cc_wi.radius = 150f;
+                cc_wi.weapon_type = WeaponTypes.CC_Passive_Scan;
+                var clt = CachedTurretTransform.from_localtransform(c0);
+                if (GetTargets_ICD(physics, cc_wi, out CombatTarget _target, c0_array, clt, team, entity))
+                {
+                    Debug.Log("cc gains target " + _target.value);
+                    //target.value = _target;
+                    ccstates.invader = _target.value;
+                    //var refs = sstate.EntityManager.GetBuffer<CmdCntrUnitRef>(entity).ToNativeArray(Allocator.Temp);
+                    //for(int i = 0; i < refs.Length; ++i)
+                    //{
+                    //    dispatch_cc_unit(ref sstate, refs[i].value, _target.value);
+                    //}
+
+                }
+                else
+                {
+                    ccstates.invader = default;
+                }
+            }
+        }
+    }
+
     void OnUpdate(ref SystemState sstate)
     {
         var ass = SystemAPI.GetSingletonRW<ASMSysStates>();
@@ -242,20 +282,42 @@ public partial struct UnitSearchHostileSystem : ISystem
         sstate.CompleteDependency();
         c0_array.Update(ref sstate);
 
+        var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
         var job0 = new set_combatteam_job();
         job0.Run();
         // turrets
         var job1 = new search_target_job();
-        job1.physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
+        job1.physics = _physics;
         job1.c0_array = c0_array;
         job1.Run();
 
+        c0_array.Update(ref sstate);
+        // passive cc detect pass
+        var job2 = new cc_search();
+        job2.c0_array = c0_array;
+        job2.physics = _physics;
+        job2.Run();
+
+        c0_array.Update(ref sstate);
         var fire0 = new WeaponFireSystemV3.weapon_fire_0();
         fire0.c0_array = c0_array;
         fire0.dt = Time.deltaTime;
         fire0._weapon_fire_attempts = new NativeList<WeaponFireAttemptInfo>(8, Allocator.TempJob);
         fire0.Run();
-        weapon_fires.OnUpdate(ref sstate, fire0._weapon_fire_attempts);
+        //weapon_fires.OnUpdate(ref sstate, fire0._weapon_fire_attempts);
+        c0_array.Update(ref sstate);
+        NativeHashSet<Entity> destroyed = new NativeHashSet<Entity>(8, Allocator.Temp);
+        for (int i = 0; i < fire0._weapon_fire_attempts.Length; ++i)
+        {
+            var attempt = fire0._weapon_fire_attempts[i];
+            WeaponFireSystemV3.process_fire_attempts(ref sstate, attempt.initiator, attempt.combat_target, attempt.weapon_index, destroyed);
+        }
+        //_weapon_fire_attempts.Dispose();
+        var destroy_tmp = destroyed.ToNativeArray(Allocator.Temp);
+        //for (int i = 0; i < destroy_tmp.Length; ++i)
+        //    sstate.EntityManager.DestroyEntity(destroy_tmp[i]);
+        sstate.EntityManager.DestroyEntity(destroy_tmp);
+
         fire0._weapon_fire_attempts.Dispose();
         //NativeList<> 
         // passive cc detect pass
@@ -312,18 +374,18 @@ public struct WeaponInfoV2 : IBufferElementData
 
     //public StructureType projectile_type;
     public float radius;
-    public half attack_radians;
+    public float attack_radians;
 
     //public byte burst_index; // changing
-    public half attack_time_left; // changing
-    public half attack_duration; // constant
+    public float attack_time_left; // changing
+    public float attack_duration; // constant
     public byte attacks_left;
     public byte attacks_total;
 
-    public half weapon_cooldown_left; // 0 means ready to fire, 
-    public half weapon_cooldown_total;
+    public float weapon_cooldown_left; // 0 means ready to fire, 
+    public float weapon_cooldown_total;
 
-    public half base_damage;
+    public float base_damage;
 
     public byte damamge_type;
     //public uint param0;

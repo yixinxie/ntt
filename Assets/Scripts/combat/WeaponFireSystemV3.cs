@@ -111,7 +111,7 @@ public partial struct WeaponFireSystemV3
                         //for (int j = 0; j < targets.count; ++j)
                         var target = com_targets[i];
 
-                        if (target.value.Equals(Entity.Null) == false && c0_array.HasComponent(target.value) == false)
+                        if (target.value.Equals(Entity.Null) == false && c0_array.HasComponent(target.value))
                         {
                             com_targets[i] = default;
                             _weapon_fire_attempts.Add(new WeaponFireAttemptInfo() { initiator = entity, combat_target = target, weapon_index = i });
@@ -126,21 +126,23 @@ public partial struct WeaponFireSystemV3
             }
         }
     }
-    [BurstDiscard]
-    public void OnUpdate(ref SystemState sstate, NativeList<WeaponFireAttemptInfo> _weapon_fire_attempts)
-    {
-        //c0_array.Update(ref sstate);
+    //public void OnUpdate(ref SystemState sstate, NativeList<WeaponFireAttemptInfo> _weapon_fire_attempts)
+    //{
+    //    //c0_array.Update(ref sstate);
         
-        NativeHashSet<Entity> destroyed = new NativeHashSet<Entity>(8, Allocator.Temp);
-        for (int i = 0; i < _weapon_fire_attempts.Length; ++i)
-        {
-            var attempt = _weapon_fire_attempts[i];
-            process_fire_attempts(ref sstate, attempt.initiator, attempt.combat_target, attempt.weapon_index, destroyed);
-        }
-        //_weapon_fire_attempts.Dispose();
-        sstate.EntityManager.DestroyEntity(destroyed.ToNativeArray(Allocator.Temp));
-        //        spawn_update();
-    }
+    //    NativeHashSet<Entity> destroyed = new NativeHashSet<Entity>(8, Allocator.Temp);
+    //    for (int i = 0; i < _weapon_fire_attempts.Length; ++i)
+    //    {
+    //        var attempt = _weapon_fire_attempts[i];
+    //        process_fire_attempts(ref sstate, attempt.initiator, attempt.combat_target, attempt.weapon_index, destroyed);
+    //    }
+    //    //_weapon_fire_attempts.Dispose();
+    //    var destroy_tmp = destroyed.ToNativeArray(Allocator.Temp);
+    //    //for (int i = 0; i < destroy_tmp.Length; ++i)
+    //    //    sstate.EntityManager.DestroyEntity(destroy_tmp[i]);
+    //    sstate.EntityManager.DestroyEntity(destroy_tmp);
+    //    //        spawn_update();
+    //}
     public static void adjacent_biolink_remove(EntityManager em, Entity entity, Entity subject)
     {
         //var tmp_links = em.GetBuffer<BioNodeLinkRef>(entity);
@@ -347,7 +349,7 @@ public partial struct WeaponFireSystemV3
         //}).Run();
     }
 
-    void process_fire_attempts(ref SystemState sstate, Entity entity, CombatTarget targets, int weapon_index, NativeHashSet<Entity> unit_destroyed)
+    public static void process_fire_attempts(ref SystemState sstate, Entity entity, CombatTarget targets, int weapon_index, NativeHashSet<Entity> unit_destroyed)
     {
         if (sstate.EntityManager.HasComponent<LocalTransform>(entity) == false) return;
         if (sstate.EntityManager.HasComponent<LocalTransform>(targets.value) == false) return;
@@ -472,13 +474,14 @@ public partial struct WeaponFireSystemV3
                     {
                         fired_once = true;
                         var us = sstate.EntityManager.GetComponentData<UnitStats>(single_target);
-                        var instance_damage = current_weapon.base_damage - us.defense;
+                        var instance_damage = (float)current_weapon.base_damage - us.defense;
                         us.health -= instance_damage;
                         Debug.Log(entity.ToString() + " hits " + single_target.ToString() + " for " + instance_damage);
                         if(us.health <= 0f)
                         {
                             us.health = 0f;
                             unit_destroyed.Add(single_target);
+                            Debug.Log(single_target.ToString() + " dies.");
                         }
                         sstate.EntityManager.SetComponentData(single_target, us);
                         float3 weapon_target_position = sstate.EntityManager.GetComponentData<LocalTransform>(single_target).Position;

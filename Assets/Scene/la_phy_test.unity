@@ -300,6 +300,8 @@ GameObject:
   - component: {fileID: 172735541}
   - component: {fileID: 172735542}
   - component: {fileID: 172735543}
+  - component: {fileID: 172735544}
+  - component: {fileID: 172735545}
   m_Layer: 0
   m_Name: mover
   m_TagString: Untagged
@@ -538,6 +540,53 @@ MonoBehaviour:
     Tag05: 0
     Tag06: 0
     Tag07: 0
+--- !u!114 &172735544
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 172735536}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b391f120588a84e499e293791d753092, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  test_team: 0
+  weapon:
+    weapon_type: 1
+    ammo_type: 0
+    radius: 3
+    attack_radians: 0
+    attack_time_left: 0
+    attack_duration: 0
+    attacks_left: 0
+    attacks_total: 0
+    weapon_cooldown_left: 0
+    weapon_cooldown_total: 3
+    base_damage: 30
+    damamge_type: 0
+  stats:
+    health: 100
+    max_health: 100
+    attack: 0
+    defense: 0
+    armor_types: 0
+  storage:
+    itemtype: 1
+    item_count: 10
+--- !u!114 &172735545
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 172735536}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &214375431
 GameObject:
   m_ObjectHideFlags: 0
@@ -1407,7 +1456,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &460277067
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1664,7 +1713,7 @@ Transform:
   m_GameObject: {fileID: 529792824}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.32, y: 0, z: 1.89}
+  m_LocalPosition: {x: 0.43, y: 0, z: 2.64}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1689,7 +1738,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &650305330
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1939,7 +1988,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &666941568
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2791,7 +2840,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &904835581
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3420,6 +3469,7 @@ GameObject:
   - component: {fileID: 934228860}
   - component: {fileID: 934228859}
   - component: {fileID: 934228858}
+  - component: {fileID: 934228863}
   m_Layer: 0
   m_Name: enemy
   m_TagString: Untagged
@@ -3444,20 +3494,14 @@ MonoBehaviour:
     weapon_type: 1
     ammo_type: 0
     radius: 3
-    attack_radians:
-      value: 0
-    attack_time_left:
-      value: 0
-    attack_duration:
-      value: 0
+    attack_radians: 0
+    attack_time_left: 0
+    attack_duration: 0
     attacks_left: 0
     attacks_total: 0
-    weapon_cooldown_left:
-      value: 0
-    weapon_cooldown_total:
-      value: 0
-    base_damage:
-      value: 10
+    weapon_cooldown_left: 0
+    weapon_cooldown_total: 3
+    base_damage: 10
     damamge_type: 0
   stats:
     health: 100
@@ -3674,7 +3718,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 243f42147921b644080d8ccaaeaa5482, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  movetarget: {fileID: 529792825}
+  movetarget: {fileID: 0}
   movement_speed: 1
   turn_speed_degrees: 90
   la_radius: 0.5
@@ -3699,6 +3743,18 @@ Transform:
   - {fileID: 214375432}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &934228863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934228857}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &939276962
 GameObject:
   m_ObjectHideFlags: 0
@@ -4340,20 +4396,14 @@ MonoBehaviour:
     weapon_type: 1
     ammo_type: 0
     radius: 15
-    attack_radians:
-      value: 0
-    attack_time_left:
-      value: 0
-    attack_duration:
-      value: 0
+    attack_radians: 0
+    attack_time_left: 0
+    attack_duration: 0
     attacks_left: 0
     attacks_total: 0
-    weapon_cooldown_left:
-      value: 0
-    weapon_cooldown_total:
-      value: 0
-    base_damage:
-      value: 0
+    weapon_cooldown_left: 0
+    weapon_cooldown_total: 0
+    base_damage: 0
     damamge_type: 0
   stats:
     health: 0
@@ -5403,7 +5453,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1611746353
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5674,20 +5724,14 @@ MonoBehaviour:
     weapon_type: 1
     ammo_type: 0
     radius: 10
-    attack_radians:
-      value: 0
-    attack_time_left:
-      value: 0
-    attack_duration:
-      value: 0
+    attack_radians: 0
+    attack_time_left: 0
+    attack_duration: 0
     attacks_left: 0
     attacks_total: 0
-    weapon_cooldown_left:
-      value: 0
-    weapon_cooldown_total:
-      value: 0
-    base_damage:
-      value: 0
+    weapon_cooldown_left: 0
+    weapon_cooldown_total: 0
+    base_damage: 0
     damamge_type: 0
   stats:
     health: 0

@@ -295,7 +295,8 @@ public partial class LocalAvoidanceSystem : SystemBase
         //var _physics = Statics.GetPhysics();
         Entities
             .WithReadOnly(_physics)
-            .WithAll<DesiredPosition>().ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, in LocalTransform c1, in MovementInfo mi) =>
+            //.WithAll<DesiredPosition>()
+            .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, in LocalTransform c1, in MovementInfo mi) =>
             {
                 adj_entities.Clear();
                 if (mi.move_state == MovementStates.HoldPosition) return;
@@ -386,6 +387,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                 {
                     Entity adj_entity = adj_entities[i].value;
 
+                    if (adjPositions.HasComponent(adj_entity) == false) continue;
                     //if (adjPositions.HasComponent(adj_entity) == false)
                     //{
                     //    //int sdf = 0;
@@ -490,6 +492,7 @@ public partial class LocalAvoidanceSystem : SystemBase
                 {
                     Entity adj_entity = adj_entities[i].value;
 
+                    if (adjPositions.HasComponent(adj_entity) == false) continue;
                     var adj_pos = adjPositions[adj_entity].Position;
 
                     //var adj_mi = adj_mi_lookup[adj_entity];
