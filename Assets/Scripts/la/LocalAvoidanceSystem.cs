@@ -617,6 +617,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             {
                 //Debug.Log(entity.ToString() + " reached");
                 mi.move_state = MovementStates.Idle;
+                mi.uctype = UnitCommandTypes.Standby;
                 mi.blocked_state = 0;
                 mi.current_desired_dir = 0f;
                 prev_vel = default;

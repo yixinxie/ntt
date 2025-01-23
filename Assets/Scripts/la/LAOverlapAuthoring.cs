@@ -57,6 +57,7 @@ public class LAOverlapAuthoring : MonoBehaviour
                 SetComponent(entity, dp);
                 var goal_dir = math.normalize(authoring.movetarget.position - authoring.transform.position);
                 mi.current_desired_dir = goal_dir;
+                mi.uctype = UnitCommandTypes.AttackMove;
             }
             SetComponent(entity, mi);
 

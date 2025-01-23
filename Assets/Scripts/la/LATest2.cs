@@ -609,6 +609,11 @@ public enum MovementStates:byte
     HoldPosition, // not pushable, 10
     Stuck, // 11
 }
+public enum UnitCommandTypes:byte
+{
+    Standby,
+    AttackMove,
+}
 [System.Serializable]
 public struct MovementInfo : IComponentData
 {
@@ -619,6 +624,7 @@ public struct MovementInfo : IComponentData
     public float angular_speed;
     public float3 current_desired_dir;
     public MovementStates move_state;
+    public UnitCommandTypes uctype;
     public bool is_stuckorhp()
     {
         return (byte)move_state > 1;

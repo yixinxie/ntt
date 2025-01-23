@@ -180,8 +180,9 @@ public partial struct UnitSearchHostileSystem : ISystem
     partial struct search_target_job:IJobEntity
     {
         public PhysicsWorld physics;
+        
         public ComponentLookup<LocalTransform> c0_array;
-        void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> targets, in CombatTeam team)
+        void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> targets, ref MovementInfo mi, in CombatTeam team)
         {
             var c0 = CachedTurretTransform.from_localtransform(c0_array[entity]);
             if (weapons.Length != targets.Length) { return; }
@@ -206,7 +207,15 @@ public partial struct UnitSearchHostileSystem : ISystem
                     if (IsTargetInCone(c0_array[target.value].Position, c0, weapons[i]) == false)
                     {
                         // target out of range.
-                        //Debug.Log(entity.ToString() + " detargets.");
+                        Debug.Log(entity.ToString() + " detargets.");
+                        if(mi.uctype == UnitCommandTypes.AttackMove)
+                        {
+                            mi.move_state = MovementStates.Moving;
+                        }
+                        else if (mi.uctype == UnitCommandTypes.Standby)
+                        {
+                            mi.move_state = MovementStates.Idle;
+                        }
                         targets[i] = default;
                         should_get_targets = true;
                     }
@@ -215,9 +224,13 @@ public partial struct UnitSearchHostileSystem : ISystem
                 {
                     if (GetTargets_ICD(physics, weapons[i], out CombatTarget _target, c0_array, c0, team, entity))
                     {
-                        //Debug.Log(entity.ToString() + " gains target " + _target.value);
+                        Debug.Log(entity.ToString() + " gains target " + _target.value);
                         //target.value = _target;
                         targets[i] = _target;
+                        if (_target.Equals(Entity.Null) == false)
+                        {
+                            mi.move_state = MovementStates.HoldPosition;
+                        }
                     }
                     else
                     {
