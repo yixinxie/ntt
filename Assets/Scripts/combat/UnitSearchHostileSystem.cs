@@ -20,6 +20,7 @@ public partial struct UnitSearchHostileSystem : ISystem
 {
     ComponentLookup<LocalTransform> c0_array;
     WeaponFireSystemV3 weapon_fires;
+    EntityQuery query_without_manual_fire;
     void OnCreate(ref SystemState sstate)
     {
         c0_array = sstate.GetComponentLookup<LocalTransform>();
@@ -27,6 +28,11 @@ public partial struct UnitSearchHostileSystem : ISystem
         sstate.EntityManager.AddComponentData(s_e, new ASMSysStates());
         //sstate.EntityManager.<ASMSysStates>(SystemAPI.GetSingletonEntity<ASMSysStates>());
         weapon_fires.init(ref sstate);
+        var eq_desc = new EntityQueryDesc()
+        {
+            None = new ComponentType[] { typeof(ManualFireCtrl) },
+        };
+        query_without_manual_fire = sstate.EntityManager.CreateEntityQuery(eq_desc);
     }
     void OnDestroy(ref SystemState sstate)
     {
@@ -45,6 +51,21 @@ public partial struct UnitSearchHostileSystem : ISystem
         bool in_range = math.distance(target_position, c0c1.c0) < weaponinfo.radius;
         return in_cone && in_range;
     }
+    public static void initialize_cfilter(WeaponTypes weapon_type, CombatTeam team, ref CollisionFilter filter)
+    {
+        switch (weapon_type)
+        {
+            case WeaponTypes.Cannon:
+                filter.CollidesWith = team.HostileTeamMask();
+                filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan;
+                break;
+            case WeaponTypes.CC_Passive_Scan:
+                filter.CollidesWith = team.HostileTeamMask();
+                filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan;
+                break;
+
+        }
+    }
     public static bool GetTargets_ICD(PhysicsWorld physics, 
         WeaponInfoV2 current_weapon, out CombatTarget combat_target, ComponentLookup<LocalTransform> c0_lookup,
         in CachedTurretTransform c0c1, in CombatTeam team, Entity self_entity)//, in ColliderRef self_collider)
@@ -62,19 +83,7 @@ public partial struct UnitSearchHostileSystem : ISystem
         pdi.Filter = default;
         //pdi.Filter.CollidesWith |= StructureInteractions.Layer_obstacle;
         //pdi.Filter.BelongsTo |= StructureInteractions.Layer_obstacle;
-        switch (current_weapon.weapon_type)
-        {
-            case WeaponTypes.Cannon:
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan;
-                break;
-            case WeaponTypes.CC_Passive_Scan:
-                pdi.Filter.CollidesWith = team.HostileTeamMask();
-                pdi.Filter.BelongsTo = StructureInteractions.Layer_ground_vehicle_scan;
-                break;
-
-        }
-
+        initialize_cfilter(current_weapon.weapon_type, team, ref pdi.Filter);
 
         //NativeList<DistanceHit> hits = default;// = new NativeList<DistanceHit>(Allocator.Temp);
         NativeList<DistanceHit> hits = new NativeList<DistanceHit>(Allocator.Temp);
@@ -180,7 +189,7 @@ public partial struct UnitSearchHostileSystem : ISystem
     partial struct search_target_job:IJobEntity
     {
         public PhysicsWorld physics;
-        
+        public ComponentLookup<ManualFireCtrl> manualFireCtrlLookup;
         public ComponentLookup<LocalTransform> c0_array;
         void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> targets, ref MovementInfo mi, in CombatTeam team)
         {
@@ -224,7 +233,7 @@ public partial struct UnitSearchHostileSystem : ISystem
                 {
                     if (GetTargets_ICD(physics, weapons[i], out CombatTarget _target, c0_array, c0, team, entity))
                     {
-                        Debug.Log(entity.ToString() + " gains target " + _target.value);
+                        //Debug.Log(entity.ToString() + " gains target " + _target.value);
                         //target.value = _target;
                         targets[i] = _target;
                         if (_target.Equals(Entity.Null) == false)
@@ -267,7 +276,7 @@ public partial struct UnitSearchHostileSystem : ISystem
                 cc_wi.radius = 150f;
                 cc_wi.weapon_type = WeaponTypes.CC_Passive_Scan;
                 var clt = CachedTurretTransform.from_localtransform(c0);
-                if (GetTargets_ICD(physics, cc_wi, out CombatTarget _target, c0_array, clt, team, entity))
+                if (GetTargets_ICD(physics, cc_wi, out CombatTarget _target, c0_array, clt, team, entity)) // ccsearch
                 {
                     Debug.Log("cc gains target " + _target.value);
                     //target.value = _target;
@@ -302,7 +311,7 @@ public partial struct UnitSearchHostileSystem : ISystem
         var job1 = new search_target_job();
         job1.physics = _physics;
         job1.c0_array = c0_array;
-        job1.Run();
+        job1.Run(query_without_manual_fire);
 
         c0_array.Update(ref sstate);
         // passive cc detect pass

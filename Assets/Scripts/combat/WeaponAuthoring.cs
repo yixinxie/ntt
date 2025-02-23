@@ -9,6 +9,7 @@ using UnityEngine.EventSystems;
 public class WeaponAuthoring : MonoBehaviour
 {
     public int test_team;
+    public bool manual_override;
     [SerializeField]
     public WeaponInfoV2 weapon;
 
@@ -46,6 +47,14 @@ public class WeaponAuthoring : MonoBehaviour
                        
             var scell = SetBuffer<StorageCell>(entity);
             scell.Add(authoring.storage);
+            if (authoring.manual_override)
+            {
+                AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
+                    typeof(ManualMovementCtrl),
+                }));
+            }
         }
     }
 }
+public struct ManualMovementCtrl : IComponentData { }
+public struct ManualFireCtrl : IComponentData { }

@@ -264,11 +264,11 @@ public partial class LocalAvoidanceSystem : SystemBase
     protected override void OnUpdate()
     {
         frame_counter++;
-        Entity of_interest = new Entity()
-        {
-            Index = BoidsParameters.self.of_interest_index,
-            Version = BoidsParameters.self.of_interest_version
-        };
+        Entity of_interest = new Entity();
+        //{
+        //    Index = BoidsParameters.self.of_interest_index,
+        //    Version = BoidsParameters.self.of_interest_version
+        //};
         if (Input.GetKeyDown(KeyCode.Space))
         {
             gameplay_paused = !gameplay_paused;
@@ -294,7 +294,7 @@ public partial class LocalAvoidanceSystem : SystemBase
         var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         //var _physics = Statics.GetPhysics();
         Entities
-            .WithReadOnly(_physics)
+            .WithReadOnly(_physics).WithNone<ManualMovementCtrl>()
             //.WithAll<DesiredPosition>()
             .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, in LocalTransform c1, in MovementInfo mi) =>
             {
@@ -341,7 +341,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             int sdf = 0;
         }
         //NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
-        Entities.WithoutBurst()
+        Entities.WithoutBurst().WithNone<ManualMovementCtrl>()
         .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
         {
             mi.external_influence = 0f;
@@ -529,6 +529,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             //.WithNone<DisabledDuration>()
             //.WithoutBurst().WithStructuralChanges() // debug only
             //.WithAll<LocalAvoidance>()
+            .WithNone<ManualMovementCtrl>()
             .ForEach((Entity entity,
 
             ref LastFrameVelocity lfv,
@@ -603,7 +604,9 @@ public partial class LocalAvoidanceSystem : SystemBase
 
         //finishers.Clear();
         //var _finishers = finishers;
-        Entities.ForEach((Entity entity, ref LocalTransform c0, ref MovementInfo mi, ref LastFrameVelocity prev_vel, in DesiredPosition dp) =>
+        Entities
+            .WithNone<ManualMovementCtrl>()
+            .ForEach((Entity entity, ref LocalTransform c0, ref MovementInfo mi, ref LastFrameVelocity prev_vel, in DesiredPosition dp) =>
         {
             if (mi.move_state != MovementStates.Moving) return;
             //float distance = math.distance(c0.Position, dp.value);
