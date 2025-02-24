@@ -23,8 +23,8 @@ public class TestInventory : MonoBehaviour
             adjust = 0;
         }
         cached_ri_count = ri.item_count;
-        cached_ri_block_count = ri.item_blocks;
-        cached_ri_last_count = ri.last_count;
+        //cached_ri_block_count = ri.item_blocks;
+        //cached_ri_last_count = ri.last_count;
     }
 
     // Update is called once per frame

@@ -8,16 +8,13 @@ using UnityEngine.EventSystems;
  
 public class WeaponAuthoring : MonoBehaviour
 {
-    public int test_team;
-    public bool manual_override;
     [SerializeField]
     public WeaponInfoV2 weapon;
 
-    [SerializeField]
-    public UnitStats stats;
+    //[SerializeField]
+    //public UnitStats stats;
 
-    [SerializeField]
-    public StorageCell storage;
+    
     private void OnDrawGizmos()
     {
         //Gizmos.DrawWireSphere(transform.localPosition, weapon.radius);
@@ -30,10 +27,7 @@ public class WeaponAuthoring : MonoBehaviour
 
             AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
                     typeof(CombatTarget),
-                    typeof(CombatTeam),
                     typeof(WeaponInfoV2),
-                    typeof(UnitStats),
-                    typeof(StorageCell),
                    
                 }));
             var weapons = SetBuffer<WeaponInfoV2>(entity);
@@ -41,20 +35,6 @@ public class WeaponAuthoring : MonoBehaviour
             var ctargets = SetBuffer<CombatTarget>(entity);
             ctargets.Add(default);
             
-            SetComponent(entity, authoring.stats);
-
-            SetComponent(entity, new CombatTeam() { value = authoring.test_team});
-                       
-            var scell = SetBuffer<StorageCell>(entity);
-            scell.Add(authoring.storage);
-            if (authoring.manual_override)
-            {
-                AddComponent(entity, new ComponentTypeSet(new ComponentType[] {
-                    typeof(ManualMovementCtrl),
-                }));
-            }
         }
     }
 }
-public struct ManualMovementCtrl : IComponentData { }
-public struct ManualFireCtrl : IComponentData { }

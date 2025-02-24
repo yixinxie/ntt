@@ -164,22 +164,52 @@ public partial struct c_cmpt0
         //var ptr = Marshal.unsafe(val, 0);
     }
 }
-
 public partial struct RouterInventory : IBufferElementData
 {
     public ushort item_type;
-    public const int Stacking = 50;
-    
-    public ushort item_count {
-        get {
-            var tmp = ((item_blocks) * Stacking) + last_count;
-            return (ushort)tmp;
+    public ushort item_count;
+    public const int Stacking = 50; // cannot exceed 255
+    public static int item_index_of(DynamicBuffer<RouterInventory> ri_db, ushort _item_type)
+    {
+        for(int i = 0; i < ri_db.Length; ++i)
+        {
+            if (ri_db[i].item_type == _item_type)
+            {
+                return i;
+            }
         }
-        set {
-            item_blocks = (byte)(value / Stacking);
-            last_count = (byte)(value % Stacking);
-        }
+        return -1;
     }
-    public byte item_blocks;
-    public byte last_count;
+
+    // {
+    //    get {
+    //        var tmp = ((item_blocks) * Stacking) + last_count;
+    //        return (ushort)tmp;
+    //    }
+    //    set {
+    //        item_blocks = (byte)(value / Stacking);
+    //        last_count = (byte)(value % Stacking);
+    //    }
+    //}
+    //public byte item_blocks;
+    //public byte last_count;
+    //// assume count <= Stacking
+    //public void decrease_by(int count)
+    //{
+    //    int last = last_count;
+    //    if(last - count < 0)
+    //    {
+    //        if (item_blocks > 0)
+    //        {
+    //            item_blocks--;
+    //            last = last + Stacking - count;
+    //        }
+    //    }
+    //    else
+    //    {
+    //        last -= count;
+    //    }
+    //    last_count = (byte)last;
+
+    //}
 }

@@ -15,7 +15,7 @@ public class ControlBase : MonoBehaviour
     public WeaponControl3rdView weapon_ctrl;
     [SerializeField]
     public BuildControl build_ctrl;
-    public Entity target_entity;
+    public Entity target_entity; // entity being controlled
     // Start is called before the first frame update
     void Start()
     {
@@ -23,19 +23,23 @@ public class ControlBase : MonoBehaviour
         build_ctrl = new BuildControl();
         current_ctrl = weapon_ctrl;
     }
-    
+    public void sync2unit()
+    {
+
+    }
     // Update is called once per frame
     void Update()
     {
-        if (target_entity == null)
+        var em = World.DefaultGameObjectInjectionWorld.EntityManager;
+        if (target_entity.Equals(Entity.Null))
         {
-            var em = World.DefaultGameObjectInjectionWorld.EntityManager;
             var mo_q = em.CreateEntityQuery(typeof(ManualMovementCtrl));
             var mo_entities = mo_q.ToEntityArray(Allocator.Temp);
             if (mo_entities.Length > 0)
             {
                 target_entity = mo_entities[0];
-                em.RemoveComponent<ManualMovementCtrl>(target_entity);
+                Debug.Log("manual control acquires " + target_entity.ToString());
+                //em.RemoveComponent<ManualMovementCtrl>(target_entity);
             }
             mo_q.Dispose();
         }
@@ -44,7 +48,9 @@ public class ControlBase : MonoBehaviour
         var cam_t = Camera.main.transform;
         var cam_fwd = cam_t.forward;
 
-        if(cam_fwd.y < 0f && (math.abs(horizontal) > float.Epsilon || math.abs(vertical) > float.Epsilon))
+        
+        float3 disp = float3.zero;
+        if (cam_fwd.y < 0f && (math.abs(horizontal) > float.Epsilon || math.abs(vertical) > float.Epsilon))
         {
             Vector3 cam_v = cam_fwd;
             cam_v.y = 0f;
@@ -52,13 +58,18 @@ public class ControlBase : MonoBehaviour
             Vector3 cam_h = cam_t.right;
             cam_h.y = 0f;
             cam_h.Normalize();
-            var disp = move_speed * Time.deltaTime * (Vector3)math.normalize(vertical * cam_v + horizontal * cam_h);
-            transform.localPosition += disp;
+            disp = move_speed * Time.deltaTime * math.normalize(vertical * cam_v + horizontal * cam_h);
+            
         }
-        if(target_entity.Equals(Entity.Null))
+        if (em.HasComponent<LocalTransform>(target_entity))
         {
-            return;
+            var target_c0 = em.GetComponentData<LocalTransform>(target_entity);
+            target_c0.Position += disp;
+            em.SetComponentData(target_entity, target_c0);
+            transform.localPosition = target_c0.Position;
         }
+        
+
         current_ctrl.update(target_entity, Time.deltaTime);
 
         for (int i = 0; i < 9; ++i)

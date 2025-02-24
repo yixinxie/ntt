@@ -52,7 +52,7 @@ public struct CombatTeam : IComponentData
     public const uint PlayerTeam = 0;
     public uint HostileTeamMask()
     {
-        return (~(1U << (value)) & 0b1111);
+        return (~(1U << value) & 0b1111);
     }
     public uint FriendlyTeamMask()
     {

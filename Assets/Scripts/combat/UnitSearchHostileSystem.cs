@@ -19,23 +19,27 @@ using static UnityEngine.GraphicsBuffer;
 public partial struct UnitSearchHostileSystem : ISystem
 {
     ComponentLookup<LocalTransform> c0_array;
+    ComponentLookup<ManualFireCtrl> manualfire_lookup;
     WeaponFireSystemV3 weapon_fires;
     EntityQuery query_without_manual_fire;
     void OnCreate(ref SystemState sstate)
     {
         c0_array = sstate.GetComponentLookup<LocalTransform>();
+        manualfire_lookup = sstate.GetComponentLookup<ManualFireCtrl>();
         var s_e = sstate.EntityManager.CreateEntity();
         sstate.EntityManager.AddComponentData(s_e, new ASMSysStates());
         //sstate.EntityManager.<ASMSysStates>(SystemAPI.GetSingletonEntity<ASMSysStates>());
         weapon_fires.init(ref sstate);
         var eq_desc = new EntityQueryDesc()
         {
+            All = new ComponentType[] { typeof(WeaponInfoV2), typeof(CombatTarget), typeof(MovementInfo), typeof(CombatTeam)},
             None = new ComponentType[] { typeof(ManualFireCtrl) },
         };
         query_without_manual_fire = sstate.EntityManager.CreateEntityQuery(eq_desc);
     }
     void OnDestroy(ref SystemState sstate)
     {
+        query_without_manual_fire.Dispose();
         weapon_fires.dispose(ref sstate);
     }
     public static bool IsTargetInCone(float3 target_position, CachedTurretTransform c0c1, WeaponInfoV2 weaponinfo)
@@ -51,7 +55,7 @@ public partial struct UnitSearchHostileSystem : ISystem
         bool in_range = math.distance(target_position, c0c1.c0) < weaponinfo.radius;
         return in_cone && in_range;
     }
-    public static void initialize_cfilter(WeaponTypes weapon_type, CombatTeam team, ref CollisionFilter filter)
+    public static void initialize_query_cfilter(WeaponTypes weapon_type, CombatTeam team, ref CollisionFilter filter)
     {
         switch (weapon_type)
         {
@@ -83,7 +87,7 @@ public partial struct UnitSearchHostileSystem : ISystem
         pdi.Filter = default;
         //pdi.Filter.CollidesWith |= StructureInteractions.Layer_obstacle;
         //pdi.Filter.BelongsTo |= StructureInteractions.Layer_obstacle;
-        initialize_cfilter(current_weapon.weapon_type, team, ref pdi.Filter);
+        initialize_query_cfilter(current_weapon.weapon_type, team, ref pdi.Filter);
 
         //NativeList<DistanceHit> hits = default;// = new NativeList<DistanceHit>(Allocator.Temp);
         NativeList<DistanceHit> hits = new NativeList<DistanceHit>(Allocator.Temp);
@@ -303,14 +307,16 @@ public partial struct UnitSearchHostileSystem : ISystem
         
         sstate.CompleteDependency();
         c0_array.Update(ref sstate);
-
         var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
         var job0 = new set_combatteam_job();
         job0.Run();
         // turrets
+
+        manualfire_lookup.Update(ref sstate);
         var job1 = new search_target_job();
         job1.physics = _physics;
         job1.c0_array = c0_array;
+        job1.manualFireCtrlLookup = manualfire_lookup;
         job1.Run(query_without_manual_fire);
 
         c0_array.Update(ref sstate);
@@ -341,6 +347,9 @@ public partial struct UnitSearchHostileSystem : ISystem
         sstate.EntityManager.DestroyEntity(destroy_tmp);
 
         fire0._weapon_fire_attempts.Dispose();
+
+        var load_ammo_job = new WeaponFireSystemV3.weapon_load_ammo();
+        load_ammo_job.Run();
         //NativeList<> 
         // passive cc detect pass
         //Entities//.WithAll<InCombat>()
@@ -410,6 +419,20 @@ public struct WeaponInfoV2 : IBufferElementData
     public float base_damage;
 
     public byte damamge_type;
+    public byte ammo_left;
+    public bool can_autofire(float dt)
+    {
+        return weapon_ready(dt) && has_ammo();
+    }
+
+    public bool has_ammo()
+    {
+        return ammo_left > 0;
+    }
+    public bool weapon_ready(float dt)
+    {
+        return weapon_cooldown_left <= dt;
+    }
     //public uint param0;
 }
 

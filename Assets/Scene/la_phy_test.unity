@@ -302,6 +302,7 @@ GameObject:
   - component: {fileID: 172735543}
   - component: {fileID: 172735544}
   - component: {fileID: 172735545}
+  - component: {fileID: 172735546}
   m_Layer: 0
   m_Name: mover
   m_TagString: Untagged
@@ -395,7 +396,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -552,8 +553,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b391f120588a84e499e293791d753092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  test_team: 0
-  manual_override: 0
   weapon:
     weapon_type: 1
     ammo_type: 0
@@ -567,15 +566,7 @@ MonoBehaviour:
     weapon_cooldown_total: 3
     base_damage: 30
     damamge_type: 0
-  stats:
-    health: 100
-    max_health: 100
-    attack: 0
-    defense: 0
-    armor_types: 0
-  storage:
-    itemtype: 1
-    item_count: 10
+    ammo_left: 5
 --- !u!114 &172735545
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -588,6 +579,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &172735546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 172735536}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 180c682e974b09f4288bda24f05a52ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  test_team: 0
+  manual_override: 0
+  stats:
+    health: 100
+    max_health: 100
+    attack: 0
+    defense: 0
+    armor_types: 0
 --- !u!1 &214375431
 GameObject:
   m_ObjectHideFlags: 0
@@ -875,7 +886,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -1176,7 +1187,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -1714,7 +1725,7 @@ Transform:
   m_GameObject: {fileID: 529792824}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.43, y: 0, z: 2.64}
+  m_LocalPosition: {x: 0.9, y: 0, z: 2.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2342,7 +2353,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -2643,7 +2654,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -3277,7 +3288,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -3471,6 +3482,7 @@ GameObject:
   - component: {fileID: 934228859}
   - component: {fileID: 934228858}
   - component: {fileID: 934228863}
+  - component: {fileID: 934228864}
   m_Layer: 0
   m_Name: enemy
   m_TagString: Untagged
@@ -3490,8 +3502,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b391f120588a84e499e293791d753092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  test_team: 1
-  manual_override: 0
   weapon:
     weapon_type: 1
     ammo_type: 0
@@ -3505,15 +3515,7 @@ MonoBehaviour:
     weapon_cooldown_total: 3
     base_damage: 10
     damamge_type: 0
-  stats:
-    health: 100
-    max_health: 100
-    attack: 0
-    defense: 0
-    armor_types: 0
-  storage:
-    itemtype: 1
-    item_count: 10
+    ammo_left: 0
 --- !u!114 &934228859
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3757,6 +3759,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &934228864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934228857}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 180c682e974b09f4288bda24f05a52ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  test_team: 1
+  manual_override: 0
+  stats:
+    health: 100
+    max_health: 100
+    attack: 0
+    defense: 0
+    armor_types: 0
 --- !u!1 &939276962
 GameObject:
   m_ObjectHideFlags: 0
@@ -3878,7 +3900,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -4179,7 +4201,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -4374,6 +4396,8 @@ GameObject:
   - component: {fileID: 1264550316}
   - component: {fileID: 1264550315}
   - component: {fileID: 1264550314}
+  - component: {fileID: 1264550321}
+  - component: {fileID: 1264550322}
   m_Layer: 0
   m_Name: friendly turret
   m_TagString: Untagged
@@ -4393,8 +4417,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b391f120588a84e499e293791d753092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  test_team: 0
-  manual_override: 1
   weapon:
     weapon_type: 1
     ammo_type: 0
@@ -4405,18 +4427,10 @@ MonoBehaviour:
     attacks_left: 0
     attacks_total: 0
     weapon_cooldown_left: 0
-    weapon_cooldown_total: 0
-    base_damage: 0
+    weapon_cooldown_total: 2
+    base_damage: 10
     damamge_type: 0
-  stats:
-    health: 0
-    max_health: 0
-    attack: 0
-    defense: 0
-    armor_types: 0
-  storage:
-    itemtype: 0
-    item_count: 0
+    ammo_left: 3
 --- !u!114 &1264550315
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4517,7 +4531,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -4691,12 +4705,44 @@ Transform:
   m_GameObject: {fileID: 1264550313}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -18.3, y: 0, z: 8.6}
+  m_LocalPosition: {x: -7, y: 0, z: -3.1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1264550321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1264550313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 180c682e974b09f4288bda24f05a52ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  test_team: 0
+  manual_override: 1
+  stats:
+    health: 1000
+    max_health: 1000
+    attack: 0
+    defense: 0
+    armor_types: 0
+--- !u!114 &1264550322
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1264550313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d40d22a680096fb43bcaa994658f7e2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1354017679
 GameObject:
   m_ObjectHideFlags: 0
@@ -4874,7 +4920,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -5258,7 +5304,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:
@@ -5703,6 +5749,7 @@ GameObject:
   - component: {fileID: 1663736746}
   - component: {fileID: 1663736745}
   - component: {fileID: 1663736744}
+  - component: {fileID: 1663736751}
   m_Layer: 0
   m_Name: hostile turret
   m_TagString: Untagged
@@ -5722,8 +5769,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b391f120588a84e499e293791d753092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  test_team: 1
-  manual_override: 0
   weapon:
     weapon_type: 1
     ammo_type: 0
@@ -5737,15 +5782,7 @@ MonoBehaviour:
     weapon_cooldown_total: 0
     base_damage: 0
     damamge_type: 0
-  stats:
-    health: 0
-    max_health: 0
-    attack: 0
-    defense: 0
-    armor_types: 0
-  storage:
-    itemtype: 0
-    item_count: 0
+    ammo_left: 0
 --- !u!114 &1663736745
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6020,12 +6057,32 @@ Transform:
   m_GameObject: {fileID: 1663736743}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -15.93, y: 0, z: 8.39}
+  m_LocalPosition: {x: 5.61, y: 0, z: 2.4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1663736751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663736743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 180c682e974b09f4288bda24f05a52ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  test_team: 1
+  manual_override: 0
+  stats:
+    health: 80
+    max_health: 80
+    attack: 0
+    defense: 0
+    armor_types: 0
 --- !u!1 &1973363084
 GameObject:
   m_ObjectHideFlags: 0
@@ -6161,7 +6218,7 @@ MonoBehaviour:
     m_Template: {fileID: 0}
     m_CollisionResponse:
       m_Override: 0
-      m_Value: 0
+      m_Value: 254
     m_Friction:
       m_Override: 0
       m_Value:

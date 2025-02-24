@@ -88,7 +88,7 @@ public partial struct WeaponFireSystemV3
         public NativeList<WeaponFireAttemptInfo> _weapon_fire_attempts;
         public ComponentLookup<LocalTransform> c0_array;
         public float dt;
-        public void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<StorageCell> ammos, DynamicBuffer<CombatTarget> com_targets)
+        public void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> com_targets)
         {
 #if UNITY_EDITOR
             int diff = weapons.Length - com_targets.Length;
@@ -104,18 +104,15 @@ public partial struct WeaponFireSystemV3
                 WeaponInfoV2 current_weapon = weapons[i];
                 //if (current_weapon.weapon_type == WeaponTypes.Spawn_Swarm
                 //|| current_weapon.weapon_type == WeaponTypes.Spawn_Fighter_Defensive) continue;
-                if (current_weapon.weapon_cooldown_left <= dt)
+                if (current_weapon.can_autofire(dt))
                 {
-                    if (ammos[i].item_count > 0)
-                    {
-                        //for (int j = 0; j < targets.count; ++j)
-                        var target = com_targets[i];
+                    //for (int j = 0; j < targets.count; ++j)
+                    var target = com_targets[i];
 
-                        if (target.value.Equals(Entity.Null) == false && c0_array.HasComponent(target.value))
-                        {
-                            com_targets[i] = default;
-                            _weapon_fire_attempts.Add(new WeaponFireAttemptInfo() { initiator = entity, combat_target = target, weapon_index = i });
-                        }
+                    if (target.value.Equals(Entity.Null) == false && c0_array.HasComponent(target.value))
+                    {
+                        com_targets[i] = default;
+                        _weapon_fire_attempts.Add(new WeaponFireAttemptInfo() { initiator = entity, combat_target = target, weapon_index = i });
                     }
                 }
                 else
@@ -126,10 +123,36 @@ public partial struct WeaponFireSystemV3
             }
         }
     }
+
+    public partial struct weapon_load_ammo : IJobEntity
+    {
+        public void Execute(DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<RouterInventory> ammos)
+        {
+            for (int i = 0; i < weapons.Length; ++i)
+            {
+                WeaponInfoV2 current_weapon = weapons[i];
+                if (current_weapon.ammo_left == 0)
+                {
+                    int idx = RouterInventory.item_index_of(ammos, current_weapon.ammo_type);
+                    if(idx >= 0)
+                    {
+                        if (ammos[idx].item_count > 0)
+                        {
+                            var tmp = ammos[idx];
+                            tmp.item_count--;
+                            //tmp.decrease_by(1);
+                            ammos[idx] = tmp;
+                        }
+
+                    }
+                }
+            }
+        }
+    }
     //public void OnUpdate(ref SystemState sstate, NativeList<WeaponFireAttemptInfo> _weapon_fire_attempts)
     //{
     //    //c0_array.Update(ref sstate);
-        
+
     //    NativeHashSet<Entity> destroyed = new NativeHashSet<Entity>(8, Allocator.Temp);
     //    for (int i = 0; i < _weapon_fire_attempts.Length; ++i)
     //    {
@@ -473,6 +496,7 @@ public partial struct WeaponFireSystemV3
                     if(sstate.EntityManager.HasComponent<UnitStats>(single_target))
                     {
                         fired_once = true;
+
                         var us = sstate.EntityManager.GetComponentData<UnitStats>(single_target);
                         var instance_damage = (float)current_weapon.base_damage - us.defense;
                         us.health -= instance_damage;
@@ -620,18 +644,15 @@ public partial struct WeaponFireSystemV3
 
             //}
             //else
-            {
-                current_weapon.weapon_cooldown_left = current_weapon.weapon_cooldown_total;
-            }
 
+            current_weapon.weapon_cooldown_left = current_weapon.weapon_cooldown_total;
+            if (current_weapon.ammo_left > 0)
+            {
+                current_weapon.ammo_left--;
+                
+            }
             var weapon_db = sstate.EntityManager.GetBuffer<WeaponInfoV2>(entity);
             weapon_db[weapon_index] = current_weapon;
-
-            // update ammunitions
-            var ammos = sstate.EntityManager.GetBuffer<StorageCell>(entity);
-            var tmp = ammos[weapon_index];
-            tmp.item_count--;
-            ammos[weapon_index] = tmp;
         }
     }
 
