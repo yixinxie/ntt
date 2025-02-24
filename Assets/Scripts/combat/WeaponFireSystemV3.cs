@@ -408,6 +408,7 @@ public partial struct WeaponFireSystemV3
         }
         var team = sstate.EntityManager.GetComponentData<CombatTeam>(entity);
 
+        var single_target = targets.value;
         switch (current_weapon.weapon_type)
         {
             //case WeaponTypes.Laser_Offensive_Charged:
@@ -490,7 +491,6 @@ public partial struct WeaponFireSystemV3
             //    break;
 
             case WeaponTypes.Cannon:
-                var single_target = targets.value;
                 if (single_target != Entity.Null)
                 {
                     if(sstate.EntityManager.HasComponent<UnitStats>(single_target))
@@ -541,30 +541,29 @@ public partial struct WeaponFireSystemV3
 
                 }
                 break;
-            
-            //case WeaponTypes.Projectile:
-            //    for (int j = 0; j < targets.count; ++j)
-            //    {
-            //        var target = targets.value_at(j);
-            //        if (target == Entity.Null) continue;
 
-            //        fired_once = true;
-            //        float3 weapon_target_position = EntityManager.GetComponentData<LocalTransform>(target).Value;
+            case WeaponTypes.Projectile:
+                if (sstate.EntityManager.HasComponent<LocalTransform>(single_target))
+                {
+                    fired_once = true;
+                    float3 weapon_target_position = sstate.EntityManager.GetComponentData<LocalTransform>(single_target).Position;
 
-            //        tmp_entity = EntityManager.Instantiate(hashed_entities[(int)current_weapon.projectile_type]);
-            //        init_projectile(EntityManager, entity, tmp_entity, c0c1.c0, c0c1.c1, team, target, weapon_target_position);
-            //        EntityManager.SetComponentData(tmp_entity, new ProjectilePropertiesFromLauncher()
-            //        { damage = current_weapon.base_damage, damage_types = current_weapon.damamge_types });
-            //        if (create_meshes)
-            //        {
-            //            EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
-            //            GameObjectLink.self.PlayAnim(entity, 1); // required by bionode's animation playback.
-            //        }
+                    Entity new_projectile_entity = default;
+                    init_projectile(sstate.EntityManager, entity, new_projectile_entity, c0c1.c0, c0c1.c1, team, single_target, weapon_target_position);
+                    sstate.EntityManager.SetComponentData(new_projectile_entity, team);
+                    ProjectileStates proj_states = default;
+                    proj_states.init(current_weapon);
+                    sstate.EntityManager.SetComponentData(new_projectile_entity, proj_states);
+                    //if (create_meshes)
+                    {
+                        //EntityManager.AddComponent<MeshCreateCmd>(tmp_entity);
+                        //GameObjectLink.self.PlayAnim(entity, 1); // required by bionode's animation playback.
+                    }
 
-            //        CombatSoundRefs.self.Play(1, c0c1.c0);
-            //        break;
-            //    }
-            //    break;
+                    //CombatSoundRefs.self.Play(1, c0c1.c0);
+                    break;
+                }
+                break;
             //case WeaponTypes.Projectile_Platform:
             //    for (int j = 0; j < targets.count; ++j)
             //    {
@@ -586,7 +585,6 @@ public partial struct WeaponFireSystemV3
             //    }
             //    break;
 
-            case WeaponTypes.Repair_Multi: // channeled
             case WeaponTypes.Repair: // channeled
                 {
                     //fired_once = process_beam(entity, current_weapon, targets, ResourceRefs.self.misc_entities[5], create_meshes);

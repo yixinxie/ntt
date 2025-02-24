@@ -193,7 +193,7 @@ public partial struct UnitSearchHostileSystem : ISystem
     partial struct search_target_job:IJobEntity
     {
         public PhysicsWorld physics;
-        public ComponentLookup<ManualFireCtrl> manualFireCtrlLookup;
+        //public ComponentLookup<ManualFireCtrl> manualFireCtrlLookup;
         public ComponentLookup<LocalTransform> c0_array;
         void Execute(Entity entity, DynamicBuffer<WeaponInfoV2> weapons, DynamicBuffer<CombatTarget> targets, ref MovementInfo mi, in CombatTeam team)
         {
@@ -316,7 +316,7 @@ public partial struct UnitSearchHostileSystem : ISystem
         var job1 = new search_target_job();
         job1.physics = _physics;
         job1.c0_array = c0_array;
-        job1.manualFireCtrlLookup = manualfire_lookup;
+        //job1.manualFireCtrlLookup = manualfire_lookup;
         job1.Run(query_without_manual_fire);
 
         c0_array.Update(ref sstate);
@@ -418,7 +418,7 @@ public struct WeaponInfoV2 : IBufferElementData
 
     public float base_damage;
 
-    public byte damamge_type;
+    public byte damage_type;
     public byte ammo_left;
     public bool can_autofire(float dt)
     {
@@ -436,6 +436,36 @@ public struct WeaponInfoV2 : IBufferElementData
     //public uint param0;
 }
 
+public struct ProjectileStates : IComponentData
+{
+    public ProjectileAttackTypes damage_type;
+    public float timed;
+    public float radius; // aoe radius
+    public Entity target;
+    public float3 target_position;
+
+    public float base_damage;
+
+    public byte weapon_damage_type;
+  
+    public void init(WeaponInfoV2 weapon_info)
+    {
+        base_damage = weapon_info.base_damage;
+        weapon_damage_type = weapon_info.damage_type;
+
+        switch (weapon_info.weapon_type)
+        {
+            case WeaponTypes.Projectile:
+                damage_type = ProjectileAttackTypes.Timed_Single;
+                break;
+        }
+    }
+}
+public enum ProjectileAttackTypes:byte
+{
+    Timed_Single,
+    Timed_AOE,
+}
 [InternalBufferCapacity(4)]
 unsafe public struct CombatTargets:IBufferElementData
 {

@@ -96,23 +96,18 @@ public enum WeaponTypes:byte
     CC_Passive_Scan, // command center passive scan
     Cannon,
 
-
+    Channeled_Start = 16,
     Laser_Offensive,
-    Laser_Offensive_Cont,// ³æÈºÐ¡·É»ú¹¥»÷ÀØÉä
-    Cannon_Multi, // cannon targets vehicles, channeled
-    Projectile_Multi, // projectile targets vehicles
-    Repair_Multi,
+    
+    Projectile_Start = 32,
+    Projectile,
     Spawn_Fighter, // not used.
     Spawn_Hatchling, // not used.
     Spawn_Swarm,
-    Cannon_Vehicle,
-    Projectile,
     Projectile_Platform, // platform missile, platform weapon to flying drone enemies
     Repair, // channeled
     Laser_Offensive_Charged,//Íæ¼Ò½¢´¬¹¥»÷ÀØÉä
-    Spawn_Fighter_Defensive,
     
-    Cannon_Platform,
 }
 
 
