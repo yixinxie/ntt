@@ -16,8 +16,6 @@ using UnityEngine;
 //[UpdateAfter(typeof(VariableRateSimulationSystemGroup))]
 public partial struct ResourceIndexingSystem : ISystem
 {
-    public NativeParallelMultiHashMap<int, ResourcePrefabInsertInfo> resource_dict; // key: restype, index, value: entity reference
-    public NativeArray<int> index_incrementals;
     Entity load_c_scene;
     Entity load_s_scene;
     bool is_scene_loaded;
@@ -60,8 +58,6 @@ public partial struct ResourceIndexingSystem : ISystem
     }
     public void OnDestroy(ref SystemState state)
     {
-        resource_dict.Dispose();
-        index_incrementals.Dispose();
     }
 
     public struct ResourcePrefabInsertInfo
@@ -307,48 +303,7 @@ public partial struct ResourceIndexingSystem : ISystem
     //    //throw new System.NotImplementedException();
     //}
 }
-public struct ResourcePrefab : IComponentData 
-{
-    public ResourceArrayType array_type;
-    public int array_index;
-    public Entity baked_prefab;
 
-}
-
-
-
-[InternalBufferCapacity(256)]
-public struct EntityPrefabRef_Generic: IBufferElementData
-{
-    public ResourceArrayType type;
-    public Entity value;
-}
-
-[InternalBufferCapacity(256)]
-public struct EntityPrefabRef_ClientOnly : IBufferElementData
-{
-    public Entity value;
-}
-[InternalBufferCapacity(256)]
-public struct EntityPrefabRef_ClientCommon : IBufferElementData
-{
-    public Entity value;
-}
-[InternalBufferCapacity(256)]
-public struct EntityPrefabRef_ClientMisc : IBufferElementData
-{
-    public Entity value;
-}
-[InternalBufferCapacity(256)]
-public struct EntityPrefabRef_ServerCommon : IBufferElementData
-{
-    public Entity value;
-}
-[InternalBufferCapacity(256)]
-public struct EntityPrefabRef_ServerOnly : IBufferElementData
-{
-    public Entity value;
-}
 public enum ResourceArrayType:short
 {
     Common,

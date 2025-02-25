@@ -16,10 +16,18 @@ public class ResourceRefs : MonoBehaviour
     {
         return entity_prefabs.entity_prefabs_0[(int)idx];
     }
+    private void OnDestroy()
+    {
+        entity_prefabs.dispose();
+    }
 }
 public struct EntityPrefabs
 {
     public NativeArray<Entity> entity_prefabs_0;
+    public void dispose()
+    {
+        entity_prefabs_0.Dispose();
+    }
 }
 public enum EntityPrefabIndices: ushort
 {
