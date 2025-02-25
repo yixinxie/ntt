@@ -180,6 +180,12 @@ public partial struct RouterInventory : IBufferElementData
         }
         return -1;
     }
+    public int blocks_occupied()
+    {
+        int ic = item_count;
+        var rm = ((ic % Stacking) > 0) ? 1 : 0;
+        return ic / Stacking + rm;
+    }
 
     // {
     //    get {

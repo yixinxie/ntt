@@ -43,6 +43,8 @@ public class WeaponControl3rdView : IControl
         rcinput.Start += hit_ray_y_offset;
         rcinput.End += hit_ray_y_offset;
         var phy = SBaseHelpers.self.get_physics();
+        //var handle = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<LocalAvoidanceSystem>();
+        //var phy = handle.GetSingleton<PhysicsWorldSingleton>();
         UnitSearchHostileSystem.initialize_query_cfilter(this_weapon.weapon_type, cteam, ref rcinput.Filter);
 
         NativeList<Unity.Physics.RaycastHit> allHits = new NativeList<Unity.Physics.RaycastHit>(4, Allocator.Temp);

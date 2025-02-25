@@ -24,7 +24,7 @@ public class DebugStats : MonoBehaviour
 
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         rcinput.Start = ray.origin;
-        rcinput.End = ray.direction * 100f;
+        rcinput.End = ray.origin + ray.direction * 100f;
         var rcfilter = new CollisionFilter();
         rcfilter.CollidesWith = uint.MaxValue;
         rcfilter.BelongsTo = uint.MaxValue;
