@@ -1,6 +1,8 @@
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Physics;
+using Unity.Physics.Systems;
+using UnityEngine;
 
 partial class SBaseHelpers : SystemBase
 {
@@ -10,6 +12,11 @@ partial class SBaseHelpers : SystemBase
         base.OnCreate();
         self = this;
         Enabled = false;
+        var group = World.DefaultGameObjectInjectionWorld.GetExistingSystemManaged<FixedStepSimulationSystemGroup>();
+        Application.targetFrameRate = 60;
+        
+        group.RateManager = new RateUtils.VariableRateManager(60);
+
     }
     public PhysicsWorldSingleton get_physics()
     {
