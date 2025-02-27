@@ -30,8 +30,8 @@ public class RoboFactoryAuthoring: MonoBehaviour
         {
             var entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            TileAssemblerAuthoring.AddCommonMachineComponents(this, entity, authoring.is_client);
-            TileExtractorAuthoring.AddPowerConsumerCD(this, entity);
+            AssemblerAuthoring.AddCommonMachineComponents(this, entity);
+            ExtractorAuthoring.AddPowerConsumerCD(this, entity);
             //TileRouterAuthoring.AddDirectTransportComponents(this, entity, authoring.is_client);
             AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
                 typeof(MachineOutputInventory),

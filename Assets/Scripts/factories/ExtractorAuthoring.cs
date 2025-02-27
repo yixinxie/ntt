@@ -5,9 +5,8 @@ using UnityEngine;
 
 // for the latest mobile. only support simple item type. no purity. from multiple types, one output type at a time. selectable in UI.
 [DisallowMultipleComponent]
-public class TileExtractorAuthoring : MonoBehaviour
+public class ExtractorAuthoring : MonoBehaviour
 {
-    public bool is_client;
     public bool npc_owned;
     public int def_player_id;
     public static void AddPowerConsumerCD<T>(Baker<T> baker, Entity target) where T : UnityEngine.Component
@@ -57,9 +56,9 @@ public class TileExtractorAuthoring : MonoBehaviour
     //            typeof(PowerGridRef),
     //        }));
     //}
-    public class Bakery : Baker<TileExtractorAuthoring>
+    public class Bakery : Baker<ExtractorAuthoring>
     {
-        public override void Bake(TileExtractorAuthoring authoring)
+        public override void Bake(ExtractorAuthoring authoring)
         {
             var entity = GetEntity(TransformUsageFlags.Dynamic);
 
@@ -81,24 +80,20 @@ public class TileExtractorAuthoring : MonoBehaviour
                 typeof(ExtraProductionStates),
 
                 //typeof(MachineAdjacentOutputEntity),
-                typeof(MachineAdjacentTransferDirs),
                 //typeof(OutputAlternate),
                 typeof(CachedWorkingStates),
                 //typeof(StorageCellLimit),
             }));
             //SetComponent(entity, new ExtractorProductionStates() { total = ASMConstants.ExtractorCycleDuration[0], batch_count = ASMConstants.ExtractorBatchCount[0] }); // not necessary.
-
-            TileAssemblerAuthoring.AddCommonMachineComponents(this, entity, authoring.is_client);
+            SetComponent(entity, new ExtractorProductionStates() { batch_count = 1, total = 3 });
+            SetComponent(entity, new MachineOutputInventory() { item_type = 1 });
+            AssemblerAuthoring.AddCommonMachineComponents(this, entity);
             //TileRouterAuthoring.AddDirectTransportComponents(this, entity, authoring.is_client);
-            if (authoring.is_client)
             {
                 //AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
                 //    typeof(MachineAnimationEntityRef),
                 //}));
                 //SetComponent(entity, new AnimationInterpolation() { cycle_length = 24f });
-            }
-            else
-            {
                 //AddComponent(entity, new ComponentTypes(new ComponentType[]
                 //{
                 //    //typeof(InputAlternate),
@@ -111,14 +106,14 @@ public class TileExtractorAuthoring : MonoBehaviour
             //SetComponent(entity, new TypeCached() { structure_type = StructureType.Extractor});
             SetComponent(entity, new GalacticType() { value = GTypes.Extractor });
 
-            AddPowerConsumerCD(this, entity);
-            SetComponent(entity, new ProductionModifier() { idle_consumption = 5, full_consumption = 10 });
+            //AddPowerConsumerCD(this, entity);
+            //SetComponent(entity, new ProductionModifier() { idle_consumption = 5, full_consumption = 10 });
         }
     }
 }
 public partial struct ExtractorProductionStates:IComponentData
 {
-    public short left;
+    public float left;
     public short total;
     public byte batch_count;
     //public byte bonus_progress;

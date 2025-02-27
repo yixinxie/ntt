@@ -5,7 +5,7 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
  
-public class TileAssemblerAuthoring : MonoBehaviour
+public class AssemblerAuthoring : MonoBehaviour
 {
     // Add fields to your component here. Remember that:
     //
@@ -25,13 +25,13 @@ public class TileAssemblerAuthoring : MonoBehaviour
 
     
     //
-    public static void AddCommonMachineComponents<T>(Baker<T> em, Entity entity, bool is_client) where T: Component
+    public static void AddCommonMachineComponents<T>(Baker<T> em, Entity entity) where T: Component
     {
         em.AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
             
             typeof(GalacticType),
             //typeof(ASMEntityGUID),
-            //typeof(PlayerID_CD),
+            typeof(PlayerID_CD),
             typeof(SimulationGroup),
         }
         ));
@@ -51,14 +51,14 @@ public class TileAssemblerAuthoring : MonoBehaviour
         }
         ));
     }
-    public class Bakery : Baker<TileAssemblerAuthoring>
+    public class Bakery : Baker<AssemblerAuthoring>
     {
-        public override void Bake(TileAssemblerAuthoring authoring)
+        public override void Bake(AssemblerAuthoring authoring)
         {
             var entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            AddCommonMachineComponents(this, entity, authoring.is_client);
-            TileExtractorAuthoring.AddPowerConsumerCD(this, entity);
+            AddCommonMachineComponents(this, entity);
+            //AssemblerAuthoring.AddPowerConsumerCD(this, entity);
             //TileRouterAuthoring.AddDirectTransportComponents(this, entity, authoring.is_client);
             AddComponent(entity, new ComponentTypeSet(new ComponentType[]{
                 typeof(MachineOutputInventory),

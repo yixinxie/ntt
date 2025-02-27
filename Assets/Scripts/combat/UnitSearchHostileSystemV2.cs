@@ -36,8 +36,8 @@ public class UnitSearchHostileSystemV2
         //int2 self_coord_axial = HexCoord.FromPosition(c0c1.c0, HexagonMap.unit_length);
         //for (int i = 0; i < weapons.Length; ++i)
         //var current_weapon = weapons[i];
-        bool is_multi_targeting = false;
-        bool require_los_check = false;
+        //bool is_multi_targeting = false;
+        //bool require_los_check = false;
         bool search_furthest = false;
         PointDistanceInput pdi = new PointDistanceInput();
         pdi.Position = c0c1.c0;

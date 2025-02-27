@@ -218,25 +218,7 @@ public partial class LocalAvoidanceSystem : SystemBase
             return type == other.type;
         }
     }
-    void branches(byte debug_index, CodePathTypes _type, NativeList<codepath_states> prev_codepaths, NativeList<codepath_states> curret_cps)
-    {
-        if (debug_index == 1)
-        {
-            var cps = new codepath_states() { type = _type };
-            var ptr = curret_cps.Length;
-            if (ptr < prev_codepaths.Length && prev_codepaths[ptr].Equals(cps) == false)
-            {
-                // debug state changes
-                int sdf = 0;
-            }
-            //_codepaths.Add(new codepath_states() { type = CodePathTypes.HoldPosition0 });
-            curret_cps.Add(cps);
-            if (curret_cps.Length > prev_codepaths.Length)
-            {
-                int sdf = 0;
-            }
-        }
-    }
+  
     public void debug_laadj(Entity entity, NativeList<LAAdjacentEntity> adj_entities, LocalTransform c1, MovementInfo mi)
     {
         var _physics = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
@@ -336,10 +318,7 @@ public partial class LocalAvoidanceSystem : SystemBase
         //}
         var fc = frame_counter;
         var _codepaths = codepaths;
-        if (frame_counter == 53)
-        {
-            int sdf = 0;
-        }
+
         //NativeList<codepath_states> curret_cps = new NativeList<codepath_states>(1024, Allocator.TempJob);
         Entities.WithoutBurst().WithNone<ManualMovementCtrl>()
         .ForEach((Entity entity, DynamicBuffer<LAAdjacentEntity> adj_entities, ref MovementInfo mi, ref DesiredPosition desired, in BoidsCoeffs boids_coeffs, in LocalTransform c0) =>
@@ -349,10 +328,10 @@ public partial class LocalAvoidanceSystem : SystemBase
             float3 self_pos = c0.Position;
             if (mi.move_state == MovementStates.Moving)
             {
-                if (entity.Equals(of_interest))
-                {
-                    int sdf = 0;
-                }
+                //if (entity.Equals(of_interest))
+                //{
+                //    int sdf = 0;
+                //}
                 float3 prev_velocity = 0f;// adjVelocities[entity].value;
 
 
@@ -612,10 +591,10 @@ public partial class LocalAvoidanceSystem : SystemBase
             //float distance = math.distance(c0.Position, dp.value);
             //if (distance < 0.3f)
             //var distance = dp.distance_2_finish_line(c0.Position);
-            if(entity.Equals(of_interest))
-            {
-                int sdf = 0;
-            }
+            //if(entity.Equals(of_interest))
+            //{
+            //    int sdf = 0;
+            //}
             if (dp.distance_2_finish_line(c0.Position))
             {
                 //Debug.Log(entity.ToString() + " reached");
