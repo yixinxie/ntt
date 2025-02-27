@@ -12,6 +12,8 @@ public class BuildControl : IControl
     public bool helddown;
     public float3 helddown_pos;
     public float3 dbgpos;
+    public int pointer_hit_count_debug;
+    public bool dragging2build;
     public void cleanup()
     {
         helddown = false;
@@ -30,7 +32,16 @@ public class BuildControl : IControl
         }
         return 0f;
     }
-    public int pointer_hit_count_debug;
+    public static float3 position_round(float3 inp)
+    {
+        return new float3(math.round(inp.x), inp.y, math.round(inp.z));
+    }
+    public static int3 round2int3(float3 inp)
+    {
+        return new int3((int)math.round(inp.x), (int)math.round(inp.y), (int)math.round(inp.z));
+    }
+    public int3 dbgint0;
+    public int3 dbgint1;
     public void update(Entity entity, float dt)
     {
         //if (Input.GetMouseButtonDown(0))
@@ -87,11 +98,30 @@ public class BuildControl : IControl
 
             }
         }
-
-
-        if (Input.GetMouseButton(0))
+        if (Input.GetMouseButtonDown(0))
         {
-            Debug.DrawLine(build_hit, build_hit + new float3(0f, 1.5f, 0f), Color.red);
+            helddown = true;
+            helddown_pos = build_hit;
+        }
+        if(helddown && Input.GetMouseButtonUp(0))
+        {
+            helddown = false;
+        }
+        dragging2build = false;
+        if (helddown)
+        {
+            if(round2int3(helddown_pos).Equals(round2int3(build_hit)) == false)
+            {
+                dragging2build = true;
+            }
+        }
+        dbgint0 = round2int3(helddown_pos);
+        dbgint1 = round2int3(build_hit);
+        build_hit = position_round(build_hit);
+
+        if (Input.GetMouseButtonDown(0) || dragging2build)
+        {
+            Debug.DrawLine(build_hit, build_hit + new float3(0f, 1.5f, 0f), Color.red, 2f);
             float3 half_extents = new float3(1f, 0.1f, 1f);
             NativeList<DistanceHit> distance_hits = new NativeList<DistanceHit>(4, Allocator.Temp);
             CollisionFilter cfilter = new CollisionFilter()
@@ -103,39 +133,13 @@ public class BuildControl : IControl
             {
                 Debug.Log("struct hit count " + distance_hits.Length);
             }
-            //if (this_weapon.can_autofire(dt))
-            //{
-            //    //current_ctrl.lmb_down();
-            //    //Debug.Log("lmb_clicked()");
-            //    Entity hit_entity = default;
-            //    allHits.Clear();
-            //    if (phy.CastRay(rcinput, ref allHits))
-            //    {
-            //        for (int i = 0; i < allHits.Length; ++i)
-            //        {
-            //            var this_hit = allHits[i];
-            //            if (this_hit.Entity.Equals(entity) == false)
-            //            {
-            //                hit_entity = this_hit.Entity;
-            //                break;
-            //            }
-            //        }
-            //    }
-            //    NativeHashSet<Entity> destroyed = new NativeHashSet<Entity>(8, Allocator.Temp);
-            //    WeaponFireSystemV3.process_fire_attempts(ref SBaseHelpers.self.CheckedStateRef, entity, new CombatTarget() { value = hit_entity }, 0, destroyed);
-            //    if (destroyed.Count > 0)
-            //    {
-            //        var destroy_tmp = destroyed.ToNativeArray(Allocator.Temp);
-            //        em.DestroyEntity(destroy_tmp);
-            //    }
-            //}
-            //else
-            //{
-            //    if (this_weapon.has_ammo() == false)
-            //    {
-            //        Debug.Log("out of ammo!");
-            //    }
-            //}
+            else
+            {
+                Entity structure_prefab = ResourceRefs.self.get_prefab(EntityPrefabIndices.extractor);
+                var new_entity = em.Instantiate(structure_prefab);
+                em.SetComponentData(new_entity, LocalTransform.FromPositionRotation(build_hit, quaternion.identity));
+            }
+            
         }
     }
 }

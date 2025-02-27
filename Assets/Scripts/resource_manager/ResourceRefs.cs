@@ -34,5 +34,6 @@ public enum EntityPrefabIndices: ushort
     friendly,
     hostile,
     obstacle,
+    extractor,
     total
 }
