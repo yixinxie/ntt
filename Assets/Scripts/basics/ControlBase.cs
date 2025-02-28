@@ -5,9 +5,11 @@ using UnityEngine;
 using Unity.Entities;
 using Unity.Transforms;
 using Unity.Collections;
+using Unity.Entities.UniversalDelegates;
 
 public class ControlBase : MonoBehaviour
 {
+    public static ControlBase self;
     public float move_speed = 3f;
     public MouseModes mouse_mode;
     public IControl current_ctrl;
@@ -17,6 +19,10 @@ public class ControlBase : MonoBehaviour
     public BuildControl build_ctrl;
     public Entity target_entity; // entity being controlled
     // Start is called before the first frame update
+    private void Awake()
+    {
+        self = this;
+    }
     void Start()
     {
         weapon_ctrl = new WeaponControl3rdView();
@@ -71,29 +77,56 @@ public class ControlBase : MonoBehaviour
         
 
         current_ctrl.update(target_entity, Time.deltaTime);
-
-        for (int i = 0; i < 9; ++i)
+        if (em.HasComponent<BuilderShortcuts>(target_entity))
         {
-            var testkey = KeyCode.Alpha1 + i;
-            
-            if (Input.GetKeyDown(testkey)) 
+            var bs = em.GetComponentData<BuilderShortcuts>(target_entity);
+            for (int i = 0; i < 10; ++i)
             {
-                if (mouse_mode == MouseModes.Weapon)
+                var key_index = i;
+
+                if(i == 9)
                 {
-                    current_ctrl.cleanup();
-                    mouse_mode = MouseModes.Build;
-                    current_ctrl = build_ctrl;
+                    key_index = -1;
                 }
-                else if (mouse_mode == MouseModes.Build)
+                var testkey = KeyCode.Alpha1 + key_index;
+
+                if (Input.GetKeyDown(testkey))
                 {
-                    current_ctrl.cleanup();
-                    mouse_mode = MouseModes.Weapon;
-                    current_ctrl = weapon_ctrl;
+                    Debug.Log(testkey.ToString());
+                    
+
+                    item2control(i, ref bs);
+                    em.SetComponentData(target_entity, bs);
                 }
             }
         }
 
     }
+    public void item2control(int key, ref BuilderShortcuts states)
+    {
+        var idx = states.get_item_index(key);
+        var selected_item = states.get_item(idx);
+        if (selected_item == states.currently_selected) return;
+        current_ctrl.cleanup();
+        switch (selected_item)
+        {
+            case ItemType.Command_Center:
+            case ItemType.Extractor:
+            
+                //current_ctrl.cleanup();
+                mouse_mode = MouseModes.Build;
+                current_ctrl = build_ctrl;
+                break;
+            case ItemType.Belt:
+                break;
+            case ItemType.Pistol:
+                //current_ctrl.cleanup();
+                mouse_mode = MouseModes.Weapon;
+                current_ctrl = weapon_ctrl;
+                break;
+        }
+        states.currently_selected = selected_item;
+    }    
 }
 public enum MouseModes : byte
 {
@@ -105,3 +138,4 @@ public interface IControl
     public void update(Entity entity, float dt);
     public void cleanup();
 }
+

@@ -29,11 +29,3 @@ public struct EntityPrefabs
         entity_prefabs_0.Dispose();
     }
 }
-public enum EntityPrefabIndices: ushort
-{
-    friendly,
-    hostile,
-    obstacle,
-    extractor,
-    total
-}

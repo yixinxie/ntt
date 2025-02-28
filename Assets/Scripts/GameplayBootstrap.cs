@@ -22,8 +22,8 @@ public class GameplayBootstrap : MonoBehaviour
             if(prefabs.IsCreated)
             {
                 var em = World.DefaultGameObjectInjectionWorld.EntityManager;
-                var friendly = em.Instantiate(ResourceRefs.self.get_prefab(EntityPrefabIndices.friendly));
-                var hostile = em.Instantiate(ResourceRefs.self.get_prefab(EntityPrefabIndices.hostile));
+                var friendly = em.Instantiate(ResourceRefs.self.get_prefab(EntityPrefabIndices.friendly_turret_test));
+                var hostile = em.Instantiate(ResourceRefs.self.get_prefab(EntityPrefabIndices.enemy));
 
 #if UNITY_EDITOR
                 em.SetName(friendly, "friendly");

@@ -153,10 +153,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   restype: 0
   prefab:
-  - {fileID: 5189033978088593088, guid: 7a0345abfd6659d4999e976e1bf28430, type: 3}
   - {fileID: 3163583602908048246, guid: 27c17bbf71a1b3e48806d6c533d2f5c1, type: 3}
-  - {fileID: 5718774596496044184, guid: 2451a9bb0707a0045976d5e5618b174c, type: 3}
   - {fileID: 8117206800307400875, guid: c15dfd18c14473c4f819486c3a89c8a3, type: 3}
+  - {fileID: 5189033978088593088, guid: 7a0345abfd6659d4999e976e1bf28430, type: 3}
+  - {fileID: 5718774596496044184, guid: 2451a9bb0707a0045976d5e5618b174c, type: 3}
 --- !u!4 &1243525812
 Transform:
   m_ObjectHideFlags: 0

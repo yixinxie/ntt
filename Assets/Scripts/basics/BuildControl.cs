@@ -11,6 +11,7 @@ public class BuildControl : IControl
 
     public bool helddown;
     public float3 helddown_pos;
+    public int3 previous_built_pos;
     public float3 dbgpos;
     public int pointer_hit_count_debug;
     public bool dragging2build;
@@ -110,7 +111,7 @@ public class BuildControl : IControl
         dragging2build = false;
         if (helddown)
         {
-            if(round2int3(helddown_pos).Equals(round2int3(build_hit)) == false)
+            if(round2int3(previous_built_pos).Equals(round2int3(build_hit)) == false)
             {
                 dragging2build = true;
             }
@@ -131,11 +132,12 @@ public class BuildControl : IControl
             };
             if(phy.OverlapBox(build_hit, quaternion.identity, half_extents, ref distance_hits, cfilter))
             {
-                Debug.Log("struct hit count " + distance_hits.Length);
+                //Debug.Log("struct hit count " + distance_hits.Length);
             }
             else
             {
-                Entity structure_prefab = ResourceRefs.self.get_prefab(EntityPrefabIndices.extractor);
+                previous_built_pos = round2int3(build_hit);
+                Entity structure_prefab = ResourceRefs.self.get_prefab(EntityPrefabIndices.extractor_test);
                 var new_entity = em.Instantiate(structure_prefab);
                 em.SetComponentData(new_entity, LocalTransform.FromPositionRotation(build_hit, quaternion.identity));
             }

@@ -447,6 +447,11 @@ public enum ItemType : ushort
     None = 0,
     CommonMetalOre = 1,
     IronPlate = 2,
+    Extractor,
+    Belt,
+    Command_Center,
+    Pistol,
+    friendly_test,
     Total,
 }
 
