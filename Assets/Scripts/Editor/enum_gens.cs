@@ -5,7 +5,7 @@ using UnityEngine;
 public class enum_gens
 {
     static string prefabtypes_header = @"
-public enum EntityPrefabIndices:ushort
+public enum EntityPrefabIndices:short
 {";
     static string prefabtypes_footer = @"
 total};";

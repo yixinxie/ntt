@@ -123,7 +123,23 @@ public class BuildControl : IControl
         if (Input.GetMouseButtonDown(0) || dragging2build)
         {
             Debug.DrawLine(build_hit, build_hit + new float3(0f, 1.5f, 0f), Color.red, 2f);
+            var bs = em.GetComponentData<BuilderShortcuts>(entity);
+            previous_built_pos = round2int3(build_hit);
             float3 half_extents = new float3(1f, 0.1f, 1f);
+            short epi = -1;
+            switch (bs.currently_selected)
+            {
+                case ItemType.Extractor:
+                    epi = (short)EntityPrefabIndices.extractor_test;
+                    half_extents = new float3(1f, 0.5f, 1f);
+                    break;
+                case ItemType.Command_Center:
+                    epi = (short)EntityPrefabIndices.command_center;
+                    half_extents = new float3(1.5f, 0.5f, 1.5f);
+                    break;
+
+            }
+
             NativeList<DistanceHit> distance_hits = new NativeList<DistanceHit>(4, Allocator.Temp);
             CollisionFilter cfilter = new CollisionFilter()
             {
@@ -137,9 +153,19 @@ public class BuildControl : IControl
             else
             {
                 previous_built_pos = round2int3(build_hit);
-                Entity structure_prefab = ResourceRefs.self.get_prefab(EntityPrefabIndices.extractor_test);
-                var new_entity = em.Instantiate(structure_prefab);
-                em.SetComponentData(new_entity, LocalTransform.FromPositionRotation(build_hit, quaternion.identity));
+                if (epi >= 0)
+                {
+                    Entity structure_prefab = ResourceRefs.self.get_prefab((EntityPrefabIndices)epi);
+
+                    var new_entity = em.Instantiate(structure_prefab);
+                    em.SetComponentData(new_entity, LocalTransform.FromPositionRotation(build_hit, quaternion.identity));
+                    var cteam = em.GetComponentData<CombatTeam>(entity);
+                    em.SetComponentData(new_entity, cteam);
+                }
+                else
+                {
+                    Debug.Log("undefined structure " + bs.currently_selected.ToString());
+                }
             }
             
         }

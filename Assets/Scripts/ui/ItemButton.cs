@@ -17,6 +17,15 @@ public class ItemButton : MonoBehaviour
     }
     public void set_as_itemtype(ItemType idx)
     {
+        if(idx == 0)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+        if(gameObject.activeSelf == false)
+        {
+            gameObject.SetActive(true);
+        }
         var sprite = ImageRefs.self.GetItemIcon((int)idx);
         main.sprite = sprite;
     }

@@ -31,6 +31,11 @@ public class GameplayBootstrap : MonoBehaviour
 #endif
                 em.SetComponentData(friendly, LocalTransform.FromPosition(new float3(1f, 0f, 1f)));
                 em.SetComponentData(hostile, LocalTransform.FromPosition(new float3(8f, 0f, 1f)));
+
+                var ri_db = em.GetBuffer<RouterInventory>(friendly);
+                ri_db.Add(new RouterInventory() { item_type = (ushort)ItemType.Pistol, item_count = 1 });
+                ri_db.Add(new RouterInventory() { item_type = (ushort)ItemType.Command_Center, item_count = 2 });
+                ri_db.Add(new RouterInventory() { item_type = (ushort)ItemType.Extractor, item_count = 3 });
                 enabled = false;
             }
         }

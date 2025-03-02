@@ -171,7 +171,18 @@ public partial struct RouterInventory : IBufferElementData
     public const int Stacking = 50; // cannot exceed 255
     public static int item_index_of(DynamicBuffer<RouterInventory> ri_db, ushort _item_type)
     {
-        for(int i = 0; i < ri_db.Length; ++i)
+        for (int i = 0; i < ri_db.Length; ++i)
+        {
+            if (ri_db[i].item_type == _item_type)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+    public static int item_index_of(NativeArray<RouterInventory> ri_db, ushort _item_type)
+    {
+        for (int i = 0; i < ri_db.Length; ++i)
         {
             if (ri_db[i].item_type == _item_type)
             {

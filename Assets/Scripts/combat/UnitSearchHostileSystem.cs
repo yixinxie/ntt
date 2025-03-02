@@ -253,8 +253,19 @@ public partial struct UnitSearchHostileSystem : ISystem
             }
         }
     }
-    partial struct set_combatteam_job : IJobEntity
+    public partial struct set_combatteam_job : IJobEntity
     {
+        public static void sync_managed(Entity target, EntityManager em )
+        {
+            var cteam = em.GetComponentData<CombatTeam>(target);
+            var pcol = em.GetComponentData<PhysicsCollider>(target);
+            unsafe
+            {
+                var cfilter = pcol.ColliderPtr->GetCollisionFilter();
+                cfilter.BelongsTo = cfilter.BelongsTo | cteam.FriendlyTeamMask();
+                pcol.ColliderPtr->SetCollisionFilter(cfilter);
+            }
+        }
         public void Execute(Entity target, ref PhysicsCollider pcol, in CombatTeam cteam)
         {
             unsafe

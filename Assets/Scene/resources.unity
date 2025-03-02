@@ -153,6 +153,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   restype: 0
   prefab:
+  - {fileID: 8117206800307400875, guid: a5587107eedfb66478f557a40257f07b, type: 3}
   - {fileID: 3163583602908048246, guid: 27c17bbf71a1b3e48806d6c533d2f5c1, type: 3}
   - {fileID: 8117206800307400875, guid: c15dfd18c14473c4f819486c3a89c8a3, type: 3}
   - {fileID: 5189033978088593088, guid: 7a0345abfd6659d4999e976e1bf28430, type: 3}

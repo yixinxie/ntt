@@ -34,6 +34,10 @@ public class InventoryPanel : MonoBehaviour
                     buttons[i].set_as_itemtype((ItemType)ri.item_type);
                 }
             }
+            for(int i = ri_na.Length; i < buttons.Length; ++i)
+            {
+                buttons[i].set_as_itemtype(0);
+            }
 
         }
     }

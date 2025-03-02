@@ -25,11 +25,18 @@ public class ShortcutsPanel : MonoBehaviour
         var em = World.DefaultGameObjectInjectionWorld.EntityManager;
         if(ControlBase.self != null && em.HasComponent<BuilderShortcuts>(ControlBase.self.target_entity))
         {
+            var ri_db = em.GetBuffer<RouterInventory>(ControlBase.self.target_entity).ToNativeArray(Allocator.Temp);
             var bshortcuts = em.GetComponentData<BuilderShortcuts>(ControlBase.self.target_entity);
             for(int i = 0; i < BuilderShortcuts.column_count; ++i)
             {
                 var itype = bshortcuts.get_item(i);
                 buttons[i].set_as_itemtype(itype);
+                int idx = RouterInventory.item_index_of(ri_db, (ushort)itype);
+                if (idx > 0)
+                {
+                    var ri = ri_db[idx];
+                    buttons[i].set_text(ri.item_count.ToString());
+                }
             }
 
         }
