@@ -6,14 +6,14 @@ using UnityEngine;
 public class ResourceGroupAuthoring : MonoBehaviour
 {
     public ResourceArrayType restype;
-    public GameObject[] prefab;
+    public GameObject[] prefabs;
     public class Bakery : Baker<ResourceGroupAuthoring>
     {
         public override void Bake(ResourceGroupAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.None);
             AddBuffer<ResourcePrefabEntry>(entity);
-            var go_prefabs = authoring.prefab;
+            var go_prefabs = authoring.prefabs;
             for (int i = 0; i < go_prefabs.Length; ++i)
             {
                 Entity baked = Entity.Null;

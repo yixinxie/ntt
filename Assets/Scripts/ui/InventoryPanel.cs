@@ -19,6 +19,18 @@ public class InventoryPanel : MonoBehaviour
             buttons[i] = GameObject.Instantiate(first_one.gameObject, first_one.transform.parent).GetComponent<ItemButton>();
         }
     }
+    public void toggle()
+    {
+        if (gameObject.activeInHierarchy)
+        {
+            gameObject.SetActive(false);
+        }
+        else
+        {
+            gameObject.SetActive(true);
+        }
+    }
+
     // Update is called once per frame
     void Update()
     {
@@ -38,6 +50,7 @@ public class InventoryPanel : MonoBehaviour
             {
                 buttons[i].set_as_itemtype(0);
             }
+
 
         }
     }

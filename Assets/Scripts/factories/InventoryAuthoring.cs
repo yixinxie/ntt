@@ -24,7 +24,7 @@ public class InventoryAuthoring: MonoBehaviour
                     typeof(RouterInventory),
                 }));
             var bs = new BuilderShortcuts();
-            bs.init(ItemType.Extractor, ItemType.Command_Center, ItemType.Pistol, 0);
+            //bs.init(ItemType.Extractor, ItemType.Command_Center, ItemType.Pistol, 0);
             bs.enabled_rows = 1;
             SetComponent(entity, bs);
             var scell = SetBuffer<RouterInventory>(entity);

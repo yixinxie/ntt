@@ -452,6 +452,7 @@ public enum ItemType : ushort
     Command_Center,
     Pistol,
     friendly_test,
+    Pipe,
     Total,
 }
 

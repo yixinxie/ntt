@@ -670,7 +670,7 @@ public class StructureInteractions
 
     public const uint Layer_ground_vehicle_scan = (uint)1 << 29;
     public const uint Layer_aerial_scan = (uint)1 << 28;
-
+    public const uint Layer_belt_pipe = (uint)1 << 27;
     public const uint Layer_resource_deposit = (uint)1 << 26;
     public const uint Layer_ground = (uint)1 << 25;
 

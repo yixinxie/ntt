@@ -58,7 +58,7 @@ public class WeaponControl3rdView : IControl
                 
             }
         }
-
+        BuildControl.fullscreenkeys();
             
         if (Input.GetMouseButton(0))
         {

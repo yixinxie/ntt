@@ -17,11 +17,17 @@ public class ControlBase : MonoBehaviour
     public WeaponControl3rdView weapon_ctrl;
     [SerializeField]
     public BuildControl build_ctrl;
+    [SerializeField]
+    public BuildPipeControl build_pipe_ctrl;
     public Entity target_entity; // entity being controlled
+
     // Start is called before the first frame update
     private void Awake()
     {
         self = this;
+        var fpi = new FluidMachineInputInventory();
+        fpi.fs.pressure = 1;
+        Debug.Log("test " + fpi.fs.pressure);
     }
     void Start()
     {

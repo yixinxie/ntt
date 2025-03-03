@@ -40,7 +40,7 @@ MonoBehaviour:
   - obstacle
   - ground
   - resource
-  - 
+  - belt_pipe
   - aerial_scan
   - ground_vehicle_scan
   - structure_scan

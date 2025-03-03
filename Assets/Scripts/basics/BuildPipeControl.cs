@@ -6,7 +6,7 @@ using Unity.Physics;
 using Unity.Transforms;
 
 [System.Serializable]
-public class BuildControl : IControl
+public class BuildPipeControl: IControl
 {
 
     public bool helddown;
@@ -19,56 +19,12 @@ public class BuildControl : IControl
     {
         helddown = false;
     }
-    public static float3 HitOnXZPlane(Camera cam)
-    {
-        if (Input.mousePosition.x < 0 || Input.mousePosition.x > Screen.width || Input.mousePosition.y < 0 || Input.mousePosition.y > Screen.height)
-            return 0f;
-
-        var ray = cam.ScreenPointToRay(Input.mousePosition);
-        float y_diff = (-ray.origin.y);
-        if (Mathf.Abs(ray.direction.y) > 0.01f)
-        {
-            float factor = y_diff / ray.direction.y;
-            return ray.origin + ray.direction * factor;
-        }
-        return 0f;
-    }
-    public static float3 position_round(float3 inp)
-    {
-        return new float3(math.round(inp.x), inp.y, math.round(inp.z));
-    }
-    public static int3 round2int3(float3 inp)
-    {
-        return new int3((int)math.round(inp.x), (int)math.round(inp.y), (int)math.round(inp.z));
-    }
     public int3 dbgint0;
     public int3 dbgint1;
-    public static void fullscreenkeys()
-    {
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            UIRefs.self.inventory.toggle();
-        }
-    }
+
     public void update(Entity entity, float dt)
     {
-        //if (Input.GetMouseButtonDown(0))
-        //{
-        //    //Debug.Log("lmb_down()");
-        //    helddown = true;
-        //    helddown_pos = HitOnXZPlane(Camera.main);
-        //}
-        //if (Input.GetMouseButtonUp(0))
-        //{
-        //    //Debug.Log("lmb_up()");
-        //    helddown = false;
-        //}
-        //if(helddown)
-        //{
-        //    var this_hit_pos = HitOnXZPlane(Camera.main);
-        //    Debug.DrawLine(helddown_pos, this_hit_pos, Color.yellow);
-        //    dbgpos = this_hit_pos;
-        //}
+     
 
         var em = World.DefaultGameObjectInjectionWorld.EntityManager;
         if (em.HasComponent<LocalTransform>(entity) == false) return;
@@ -85,7 +41,7 @@ public class BuildControl : IControl
         rcinput.Filter = new CollisionFilter() 
         { 
             CollidesWith = uint.MaxValue,
-            BelongsTo = StructureInteractions.Layer_ground_vehicle_scan | StructureInteractions.Layer_structure_scan
+            BelongsTo = StructureInteractions.Layer_belt_pipe | StructureInteractions.Layer_structure_scan
             | StructureInteractions.Layer_ground
         };
 
@@ -106,7 +62,7 @@ public class BuildControl : IControl
 
             }
         }
-        fullscreenkeys();
+        BuildControl.fullscreenkeys();
         if (Input.GetMouseButtonDown(0))
         {
             helddown = true;
@@ -119,31 +75,27 @@ public class BuildControl : IControl
         dragging2build = false;
         if (helddown)
         {
-            if(round2int3(previous_built_pos).Equals(round2int3(build_hit)) == false)
+            if(BuildControl.round2int3(previous_built_pos).Equals(BuildControl.round2int3(build_hit)) == false)
             {
                 dragging2build = true;
             }
         }
-        dbgint0 = round2int3(helddown_pos);
-        dbgint1 = round2int3(build_hit);
-        build_hit = position_round(build_hit);
+        dbgint0 = BuildControl.round2int3(helddown_pos);
+        dbgint1 = BuildControl.round2int3(build_hit);
+        build_hit = BuildControl.position_round(build_hit);
 
         if (Input.GetMouseButtonDown(0) || dragging2build)
         {
             Debug.DrawLine(build_hit, build_hit + new float3(0f, 1.5f, 0f), Color.red, 2f);
             var bs = em.GetComponentData<BuilderShortcuts>(entity);
-            previous_built_pos = round2int3(build_hit);
+            previous_built_pos = BuildControl.round2int3(build_hit);
             float3 half_extents = new float3(1f, 0.1f, 1f);
             short epi = -1;
             switch (bs.currently_selected)
             {
-                case ItemType.Extractor:
-                    epi = (short)EntityPrefabIndices.extractor_test;
+                case ItemType.Belt:
+                    epi = (short)EntityPrefabIndices.obstacle_test;
                     half_extents = new float3(1f, 0.5f, 1f);
-                    break;
-                case ItemType.Command_Center:
-                    epi = (short)EntityPrefabIndices.command_center;
-                    half_extents = new float3(1.5f, 0.5f, 1.5f);
                     break;
 
             }
@@ -160,7 +112,7 @@ public class BuildControl : IControl
             }
             else
             {
-                previous_built_pos = round2int3(build_hit);
+                previous_built_pos = BuildControl.round2int3(build_hit);
                 if (epi >= 0)
                 {
                     Entity structure_prefab = ResourceRefs.self.get_prefab((EntityPrefabIndices)epi);

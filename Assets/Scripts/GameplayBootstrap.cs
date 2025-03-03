@@ -4,6 +4,7 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 using Unity.Mathematics;
+using static UnityEngine.EventSystems.EventTrigger;
 
 public class GameplayBootstrap : MonoBehaviour
 {
@@ -37,6 +38,11 @@ public class GameplayBootstrap : MonoBehaviour
                 ri_db.Add(new RouterInventory() { item_type = (ushort)ItemType.Command_Center, item_count = 2 });
                 ri_db.Add(new RouterInventory() { item_type = (ushort)ItemType.Extractor, item_count = 3 });
                 enabled = false;
+
+                var bs = em.GetComponentData<BuilderShortcuts>(friendly);
+                bs.init(ItemType.Extractor, ItemType.Command_Center, ItemType.Pistol, 0);
+                bs.enabled_rows = 1;
+                em.SetComponentData(friendly, bs);
             }
         }
     }

@@ -34,6 +34,7 @@ public partial struct MachineSimulationSystem : ISystem
         var extractor_pass1 = new extractor_pass1();
         extractor_pass1.dt = SystemAPI.Time.DeltaTime;
         extractor_pass1.Run();
+
     }
 
     partial struct extractor_pass0 : IJobEntity
@@ -156,11 +157,16 @@ public partial struct MachineSimulationSystem : ISystem
         }
 
     }
+    
     public static int min_three(int v0, int v1, int v2)
     {
         return math.min(v0, math.min(v1, v2));
     }
-    
+    public static float min_three(float v0, float v1, float v2)
+    {
+        return math.min(v0, math.min(v1, v2));
+    }
+
 
 }
 
