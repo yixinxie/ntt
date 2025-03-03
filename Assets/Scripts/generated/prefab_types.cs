@@ -6,5 +6,6 @@ enemy,
 extractor_test, 
 friendly_turret_test, 
 obstacle_test, 
+pipe, 
 
 total};

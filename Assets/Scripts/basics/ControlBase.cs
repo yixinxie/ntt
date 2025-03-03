@@ -25,14 +25,12 @@ public class ControlBase : MonoBehaviour
     private void Awake()
     {
         self = this;
-        var fpi = new FluidMachineInputInventory();
-        fpi.fs.pressure = 1;
-        Debug.Log("test " + fpi.fs.pressure);
     }
     void Start()
     {
         weapon_ctrl = new WeaponControl3rdView();
         build_ctrl = new BuildControl();
+        build_pipe_ctrl = new BuildPipeControl();
         current_ctrl = weapon_ctrl;
     }
     public void sync2unit()
@@ -125,6 +123,10 @@ public class ControlBase : MonoBehaviour
                 break;
             case ItemType.Belt:
                 break;
+            case ItemType.Pipe:
+                mouse_mode = MouseModes.BuildPipe;
+                current_ctrl = build_pipe_ctrl;
+                break;
             case ItemType.Pistol:
                 //current_ctrl.cleanup();
                 mouse_mode = MouseModes.Weapon;
@@ -138,6 +140,7 @@ public enum MouseModes : byte
 {
     Weapon,
     Build,
+    BuildPipe,
 }
 public interface IControl
 {

@@ -15,6 +15,7 @@ public class BuildPipeControl: IControl
     public float3 dbgpos;
     public int pointer_hit_count_debug;
     public bool dragging2build;
+    public byte drag_rotation;
     public void cleanup()
     {
         helddown = false;
@@ -71,30 +72,13 @@ public class BuildPipeControl: IControl
         if(helddown && Input.GetMouseButtonUp(0))
         {
             helddown = false;
-        }
-        dragging2build = false;
-        if (helddown)
-        {
-            if(BuildControl.round2int3(previous_built_pos).Equals(BuildControl.round2int3(build_hit)) == false)
-            {
-                dragging2build = true;
-            }
-        }
-        dbgint0 = BuildControl.round2int3(helddown_pos);
-        dbgint1 = BuildControl.round2int3(build_hit);
-        build_hit = BuildControl.position_round(build_hit);
-
-        if (Input.GetMouseButtonDown(0) || dragging2build)
-        {
-            Debug.DrawLine(build_hit, build_hit + new float3(0f, 1.5f, 0f), Color.red, 2f);
             var bs = em.GetComponentData<BuilderShortcuts>(entity);
-            previous_built_pos = BuildControl.round2int3(build_hit);
             float3 half_extents = new float3(1f, 0.1f, 1f);
             short epi = -1;
             switch (bs.currently_selected)
             {
-                case ItemType.Belt:
-                    epi = (short)EntityPrefabIndices.obstacle_test;
+                case ItemType.Pipe:
+                    epi = (short)EntityPrefabIndices.pipe;
                     half_extents = new float3(1f, 0.5f, 1f);
                     break;
 
@@ -104,9 +88,9 @@ public class BuildPipeControl: IControl
             CollisionFilter cfilter = new CollisionFilter()
             {
                 CollidesWith = uint.MaxValue,
-                BelongsTo = StructureInteractions.Layer_structure_scan
+                BelongsTo = StructureInteractions.Layer_structure_scan | StructureInteractions.Layer_belt_pipe
             };
-            if(phy.OverlapBox(build_hit, quaternion.identity, half_extents, ref distance_hits, cfilter))
+            if (phy.OverlapBox(build_hit, quaternion.identity, half_extents, ref distance_hits, cfilter))
             {
                 //Debug.Log("struct hit count " + distance_hits.Length);
             }
@@ -127,6 +111,25 @@ public class BuildPipeControl: IControl
                     Debug.Log("undefined structure " + bs.currently_selected.ToString());
                 }
             }
+        }
+        dragging2build = false;
+        if (helddown)
+        {
+            if(BuildControl.round2int3(previous_built_pos).Equals(BuildControl.round2int3(build_hit)) == false)
+            {
+                dragging2build = true;
+            }
+        }
+        dbgint0 = BuildControl.round2int3(helddown_pos);
+        dbgint1 = BuildControl.round2int3(build_hit);
+        build_hit = BuildControl.position_round(build_hit);
+
+        if (Input.GetMouseButtonDown(0) || dragging2build)
+        {
+            Debug.DrawLine(helddown_pos + new float3(0f, 1.5f, 0f), build_hit + new float3(0f, 1.5f, 0f), Color.red, 2f);
+            
+            previous_built_pos = BuildControl.round2int3(build_hit);
+            
             
         }
     }

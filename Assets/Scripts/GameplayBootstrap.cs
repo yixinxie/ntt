@@ -40,7 +40,7 @@ public class GameplayBootstrap : MonoBehaviour
                 enabled = false;
 
                 var bs = em.GetComponentData<BuilderShortcuts>(friendly);
-                bs.init(ItemType.Extractor, ItemType.Command_Center, ItemType.Pistol, 0);
+                bs.init(ItemType.Extractor, ItemType.Command_Center, ItemType.Pistol, ItemType.Pipe);
                 bs.enabled_rows = 1;
                 em.SetComponentData(friendly, bs);
             }
